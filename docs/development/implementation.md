@@ -1,10 +1,10 @@
 # Implementation choices
 
-Status: implementation direction selected 2026-11-19. The 0.1.3
-[dual-screen proof](dual-screen-poc.md) now uses winit/softbuffer in one event loop
-to validate native window behavior. PDF rendering and the production architecture
-below remain pending. The [task list](tasks.md) owns execution order and evidence. Choices below
-are engineering decisions to validate, not measured claims about an existing app.
+Status: the original direction below is retained as design history. The 0.1.12
+[native implementation record](native-implementation.md) supersedes its starting-stack
+choices: bundled Hayro instead of PDFium, software composition instead of wgpu, and
+checksummed raw RGBA instead of PNG. Acceptance budgets below remain targets, not
+measured guarantees. See the record for implemented behavior and remaining work.
 
 ## Image folders and presenter notes
 

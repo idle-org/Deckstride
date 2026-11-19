@@ -1,0 +1,16 @@
+version = 1
+presenter_fullscreen = true
+presentation_fullscreen = true
+thumbnail_size = 220.0
+
+[routes]
+presenter = ["Primary#1"]
+presentation = ["Projector#1"]
+
+[layout]
+header = true
+footer = false
+
+[layout.current]
+show = false
+size = 60.0

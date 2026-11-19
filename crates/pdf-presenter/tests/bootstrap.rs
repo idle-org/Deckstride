@@ -7,5 +7,5 @@ fn executable_identifies_its_actual_status() {
     assert!(output.status.success());
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(text.contains(env!("CARGO_PKG_VERSION")));
-    assert!(text.contains("dual-screen proof"));
+    assert!(text.contains("native PDF and picture-folder presenter"));
 }

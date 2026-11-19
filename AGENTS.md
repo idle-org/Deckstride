@@ -2,16 +2,16 @@
 
 Standalone Rust application foundation for multiscreen PDF presentation. Read
 `AGENT_DOCUMENTATION.md` and `docs/development/plan.md` before implementing behavior.
-The current executable is the dual-screen mock proof described in
-`docs/development/dual-screen-poc.md`; it is not a PDF viewer. The proof uses one
-event loop for two windows; production process isolation and sleep guards remain
-pending. Mock-output startup is explicitly active for this display test.
+The native implementation is described in `docs/development/native-implementation.md`.
+The original display proof remains available through `--display-proof` for comparison.
+Physical display, performance, sleep and clean-machine acceptance remain open.
 
 ## Structure and intended architecture
 
 - `crates/pdf-presenter/src/lib.rs`: tested, UI-independent presentation state.
-- `src/main.rs` in that crate: CLI/native entry point. `desktop.rs` owns native
-  windows; `poc.rs` owns display selection and controls; `paint.rs` draws mock frames.
+- `src/main.rs` in that crate: CLI/native entry point. `native.rs` owns windows, `presenter_ui.rs` controls, `studio.rs` shared state,
+  `document.rs` rendering, `worker.rs` supervised jobs, `output.rs` independent host/leases,
+  `settings.rs` persistence. `desktop.rs`/`poc.rs`/`paint.rs` retain the display diagnostic.
 - `crates/pdf-presenter/tests/`: meaningful behavior tests, including boundary cases.
 - `crates/pdf-presenter/assets/`: generated app artwork and provenance.
 - `scripts/`, `tests/`, `Jenkinsfile`: standalone validation and badge publication.
@@ -31,7 +31,7 @@ notes when extractable, with a current/next-only fallback. Both windows default 
 fullscreen. Also support picture folders in natural filename order, matching `.txt`
 notes or global `notes.json`/`notes.toml`. Always fit the full presenter notes to the
 available pane using wrapping and font sizing; recompute on resize/DPI/content changes.
-These folder/notes requirements remain planned, not implemented in the mock proof. Read the plan for acceptance
+Folder/notes loading is implemented in the native application. Read the plan for acceptance
 gates. Rust/egui is a candidate, not a constraint: native APIs, renderer processes or
 another window host are acceptable when they satisfy reliability and speed. Keep PDF
 rendering, document state and display/window management separate without speculative
@@ -78,7 +78,7 @@ Never modify another tool's badges or the shared manuals root.
 
 Document each persistent representation under `docs/interfaces/` with versions,
 fields, units, validation and round trips. Schema changes need matching examples,
-tests and migrations or clear unsupported-version errors. There is no saved format yet.
+tests and migrations or clear unsupported-version errors. Native versioned settings/cache contracts are under `docs/interfaces/`.
 
 ## Working conventions
 

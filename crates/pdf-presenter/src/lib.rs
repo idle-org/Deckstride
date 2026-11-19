@@ -1,7 +1,5 @@
-//! Presentation state shared by future operator and audience windows.
-//!
-//! This bootstrap does not load or render PDFs. Page indices are zero-based;
-//! blanking hides audience content without losing the selected page.
+//! Native PDF and picture-folder presentation, isolated rendering and shared state.
+//! Page indices are zero-based; blanking preserves the selected page.
 use std::num::NonZeroUsize;
 
 /// Navigation and audience-output state for one nonempty document.
@@ -63,3 +61,19 @@ pub mod desktop;
 pub mod paint;
 /// Mock presentation and monitor selection.
 pub mod poc;
+
+/// Documents and prepared frames.
+pub mod document;
+/// Native persistent configuration.
+pub mod settings;
+/// Isolated background processes.
+pub mod worker;
+
+/// Native application entry points.
+pub mod native;
+/// Isolated output and power leases.
+pub mod output;
+/// Native presenter UI.
+pub mod presenter_ui;
+/// Shared native application state.
+pub mod studio;

@@ -14,8 +14,13 @@
 
 - [Dual-screen proof: run, controls and acceptance](docs/development/dual-screen-poc.md)
 
-- [Picture folders and notes requirements](docs/interfaces/picture-folders.md) (planned).
+- [Picture folders and notes requirements](docs/interfaces/picture-folders.md) (implemented).
 
 - [Interactive presenter menu concept](docs/design/presenter-menu.html) (browser mockup, not native UI).
 
 - [Slide browser and mirrored display concept](docs/design/slide-browser.md).
+
+- [Native implementation and acceptance](docs/development/native-implementation.md).
+- [Native user guide](docs/user-guide.md).
+- [Native settings v1](docs/interfaces/settings.md).
+- [Private process protocol](docs/interfaces/process-protocol.md).

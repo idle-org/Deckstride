@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 0.1.12
+
+- Implement the approved native presenter workflow: independently sized/hidden widgets,
+  fitted notes, project/global layout saves, recoverable header/footer, digit+Enter
+  jumps, windowed virtualized slide browser and saved mirrored display groups.
+- Load real PDFs and naturally ordered image folders with annotation/sidecar/global
+  notes, progressive rendering and SHA-256 verified atomic raw-frame caches.
+- Bundle Hayro, image codecs and UI fonts; supervise same-executable worker processes,
+  preserve independent presentation output, recover host failures blanked and request
+  process-scoped sleep protection including an X11 screensaver/DPMS fallback.
+- Add native user and format documentation plus real rendering, UI, persistence,
+  malformed-input and stuck-worker recovery tests. Physical multi-OS acceptance and
+  further performance/resource hardening are tracked in the native implementation record.
+
+
 ### 0.1.11
 
 - Add independently hideable presenter header/footer to the HTML concept, with

@@ -1,0 +1,86 @@
+# Using PDF Presenter
+
+Run the portable executable and choose Menu → Open PDF or Open picture folder.
+You can also drop a file/folder on the presenter, pass its path on the command line,
+or use `--open PATH`. The source is read-only. A failed load keeps the previous show.
+A single connected monitor starts presenter-only rehearsal; `--windowed` disables
+fullscreen for the session. `--list-monitors` lists CLI display numbers.
+
+## Screens and presentation safety
+
+Both roles default to fullscreen. Displays lists connected screens: assign each
+Unused, Presenter or Presentation, including several screens per role. Swap groups
+exchanges the roles. Apply and remember saves the preferred assignments globally.
+Unavailable screens fall back to surviving assignments and available distinct screens;
+the preferred saved setup remains available for reconnection. Review the setup after
+connecting/disconnecting displays: output is blanked until you explicitly show it.
+If the operator screen disappears and only previous presentation screens remain, the
+presenter is withheld to protect notes. Reconnect an operator screen, or restart in
+windowed rehearsal after verifying privacy. Duplicate monitor names are distinguished
+by enumeration order; verify identical models.
+
+**Show presentation** activates output; **Blank presentation** or B hides it. Navigation
+preserves blanking. Until an uncached requested slide is ready, output holds the last
+usable frame. The footer distinguishes requested and acknowledged displayed slides.
+Escape cancels a pending slide number/menu, closes the browser, or safely leaves
+fullscreen and blanks output. Closing a presentation window blanks it; close a
+presenter or choose Menu → Quit to end the application.
+
+Arrow keys, Page Up/Down and Space navigate from the presenter. Type a 1-based slide
+number then Enter to jump; Backspace edits and Escape cancels. Out-of-range numbers
+do not navigate. Output windows accept B/Escape for emergency blanking.
+
+## Layout and notes
+
+Layout independently enables and sizes previous/current/next slides, notes, elapsed
+time and the local HH:MM clock. Hidden widgets release their space. Notes wrap and
+automatically shrink to fit; extremely long notes can become too small to read.
+Menu → Reset timer starts elapsed time again. Bundled UI fonts cover their supplied
+character sets; broad CJK text coverage remains a packaging acceptance item.
+
+Save layout (this project) stores an override for the canonical document/folder path.
+Save layout (all projects) changes the default; existing project overrides win.
+Use all-project layout removes this project's override. Project settings live in the
+user configuration, not in or beside the source document. Moving the source changes
+its project identity. The menu shows the configuration location.
+
+Hide either header/footer with Hide, or from Layout. Moving the mouse near that edge
+temporarily reveals it; Pin makes it persistent again. Right-click restores either
+or both bars. Temporary reveals are not saved.
+
+For pictures, `slide_2.png` sorts before `slide_10.png`. A matching `slide_2.txt` supplies
+notes, including an empty file clearing a global note. Alternatively provide one
+`notes.json` or `notes.toml` mapping exact image filenames to text. See the
+[folder contract](interfaces/picture-folders.md). PDF annotation Contents are extracted
+in the background; separate notes pages/cropped slide-and-notes PDFs are not interpreted.
+Notes never go to the presentation host.
+
+## All slides
+
+The browser opens as a separate window, initially windowed on the presenter screen.
+Choose another monitor in its toolbar. Preview size changes the grid. Clicking selects
+without navigating unless Change on click is checked; it resets to OFF each time the
+browser opens. Show selected navigates explicitly and respects output blanking.
+The selected tile and current slide have distinct outlines. Closing the browser saves
+its monitor and preview-size preferences. Only visible thumbnails are prepared.
+
+## Recovery and portability
+
+Rendering, notes, file dialogs and settings I/O run in supervised child processes of
+the same executable. A stuck renderer is terminated after its deadline; the UI and
+last output remain available. Reopen the source to retry failed pages. A presentation
+host failure restarts blanked with a status message, up to three starts. If the
+presenter crashes, the output process holds its last frame; B/Escape can blank it.
+Automatic reconnection to that orphaned show is not implemented yet.
+
+Sleep protection is requested for both native processes, including while blanked.
+Read the footer: OS services can grant partial protection or refuse it. On X11 an
+additional process-scoped screensaver/DPMS suspension is used where available. No
+permanent power settings are modified. Forced/manual sleep remains outside this lease.
+
+Caches are in the user's application cache directory; source folders and executable
+locations need no write access. The current cache has no automatic disk quota cleanup;
+you may remove its `slides-v1` directory while the app is closed. A full/unwritable cache
+reports an error and retains the last working output. OS window services/system
+libraries are prerequisites; PDF/image/font libraries are bundled in the executable. `--licenses` prints bundled
+dependency/font notices without launching a window.

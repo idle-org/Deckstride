@@ -8,24 +8,24 @@
   <img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/coverage.svg" alt="Line coverage">
 </p>
 
-**Dual-screen proof of concept:** both windows start fullscreen, with presenter
-controls on the primary display and mock slides on the secondary. Use `--windowed`
-for single-display rehearsal (otherwise the views overlap). PDF/image-folder loading,
-notes, sleep inhibition and production fault isolation are not implemented yet.
+**Native presenter:** open PDFs or naturally ordered picture folders, with configurable
+presenter previews/notes, a safe slide browser and mirrored display roles. Outputs
+start blanked; use **Show presentation** when destinations are ready. Both roles
+default to fullscreen; a single monitor uses presenter-only rehearsal.
 
 ```sh
-cargo run --locked -p pdf-presenter
-# Or choose display numbers explicitly:
-cargo run --locked -p pdf-presenter -- --presenter 1 --audience 2
+cargo run --locked --release -p pdf-presenter -- --open /path/to/slides.pdf
+# Rehearse in a window:
+cargo run --locked --release -p pdf-presenter -- --windowed /path/to/pictures
 ```
 
-**S** swaps displays, **B** blanks, **F** toggles audience fullscreen, **Escape**
-returns to safe windowed mode, and **Q** quits.
-[Run the dual-screen test](docs/development/dual-screen-poc.md).
+Use **Displays** to assign screens, **Layout** to resize/hide widgets and save layouts,
+and **All slides** to browse. Type a slide number then Enter to jump; B blanks.
+Right-click or approach an edge to recover hidden menus.
+[User guide](docs/user-guide.md) · [Native implementation and acceptance](docs/development/native-implementation.md).
 
-The goal remains a fast, resilient Pympress-style presenter on Windows, macOS and
-Linux, with selectable displays and portable executables bundling all non-system
-dependencies. This first proof needs physical testing on each OS.
+Windows/macOS/Linux physical display, sleep and performance acceptance remains open.
+PDF rendering and codecs are bundled; no external PDF backend or runtime download.
 
 Builds independently; no sibling beffroi-tools or Canvas Pilot checkout is required.
 

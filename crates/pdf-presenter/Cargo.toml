@@ -4,9 +4,31 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Foundation for a standalone multiscreen PDF presenter"
+description = "Portable multiscreen PDF and image presenter"
 
 [dependencies]
 winit = "=0.30.13"
 softbuffer = { version = "=0.4.8", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
 font8x8 = "=0.3.1"
+
+egui = { version = "=0.34.1", features = ["default_fonts"] }
+egui-winit = { version = "=0.34.1", default-features = false, features = ["x11", "wayland"] }
+egui_software_backend = { version = "=0.0.3", default-features = false, features = ["std"] }
+bytemuck = "1.25"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+directories = "6"
+tempfile = "3"
+sha2 = "0.10"
+image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
+hayro = "=0.9.0"
+chrono = "0.4"
+keepawake = "=0.6.1"
+rfd = "=0.15.4"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11-dl = "=2.21.0"

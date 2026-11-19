@@ -31,7 +31,7 @@ these capabilities already exist.
    ordering (for example, slide_2 before slide_10). Support matching `.txt` notes
    (such as `slide_01.txt`) and global `notes.json` or `notes.toml`. The planned
    [folder and notes contract](../interfaces/picture-folders.md) defines the direction;
-   folder loading and notes layout are not implemented in the mock proof.
+   folder loading and notes layout are implemented in the 0.1.12 native app.
 
 The hard reliability requirement is an acceptance gate, not an assertion that an
 OS, compositor, GPU or disconnected monitor cannot fail. Handle failures explicitly,
@@ -58,6 +58,11 @@ defaults, explicit display selection, swap, fullscreen and blanking controls. Te
 locally on one Linux/X11 display; physical dual-screen acceptance on all three OSes
 remains pending. One-process prototype only; production isolation and sleep guards
 are not implemented.
+
+## Native application — 0.1.12
+
+See [native implementation and acceptance](native-implementation.md) and the
+[user guide](../user-guide.md). The display proof above remains historical.
 
 ## Implementation work
 

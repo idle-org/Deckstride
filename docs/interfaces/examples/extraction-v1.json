@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "source": "/shows/example.pdf",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "renderer": "hayro-0.9/image-0.25",
+  "page": 0,
+  "edge": 1280,
+  "width": 1280,
+  "height": 720,
+  "artifact": "0-1280-hayro09.rgba"
+}

@@ -1,11 +1,19 @@
 # Implementation task list
 
-Production task completion remains pending. The 0.1.3 [mock display proof](dual-screen-poc.md)
-implements the two native windows and selection/control portion of T02, in one process;
-T02 isolation and T03/T04 physical acceptance remain open. Completed work is in the [plan](plan.md).
-The [implementation choices](implementation.md) define the selected direction and
-initial budgets. A checkbox means code, relevant tests and evidence exist, not just
-that an API was identified. Do not mark physical acceptance from unit tests.
+0.1.12 implements the approved native workflow; see [implementation evidence and
+remaining acceptance](native-implementation.md). The historical tasks below include
+broader production hardening and release gates. Unchecked items may be partially
+implemented; they are not claims that the native app is absent. Physical acceptance
+is deliberately separate from code completion.
+
+Implemented portions: T02 native/mirrored roles and independent output; T05 leases;
+T06 bundled renderer/codecs (Hayro replaces PDFium); T07 bounded pipes; T08 real PDFs;
+T08a folders; T09 priorities; T10 worker deadlines; T11/T12 verified atomic caches;
+T13 bounded decoded cache; T14 software composition; T16 approved presenter/browser
+workflow; T17 asynchronous annotation/sidecar notes; T18 last-frame crash hold and
+blanked output-host restart. T01 full latency instrumentation, T15 disk quota,
+T17 explicit notes-region crop, T18 reconnect, platform acceptance and clean-machine
+release checks remain open. Do not mark their broader acceptance from this code alone.
 
 ## P0 — Instrumentation and two-display proof
 
