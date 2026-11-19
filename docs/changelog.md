@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.6
+
+- Add a standalone interactive HTML presenter-menu concept for review: current/next
+  slides, auto-fitting notes, display assignment/swap, simulated missing screens and
+  settings preview. Use “Presentation” for the viewer-facing output in the concept.
+  No native UI or global configuration changes; choices last only for the page session.
+  Validation: JavaScript syntax check, Firefox visual inspection and 10 browser
+  interaction checks covering navigation, assignments, fallback, menus and note fitting.
+
 ### 0.1.5
 
 - Default both presenter and audience windows to fullscreen on every platform;
