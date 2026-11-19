@@ -278,6 +278,38 @@ struct Host {
     failed_reads: HashSet<std::path::PathBuf>,
     preload_cursor: usize,
 }
+// The last visible frame may outlive its cache entry during a working-set change.
+// Count that allocation and pin it until the requested replacement is available.
+fn make_output_room(
+    cache: &mut HashMap<std::path::PathBuf, Arc<Frame>>,
+    displayed: Option<&Arc<Frame>>,
+    state: &HostState,
+    incoming: usize,
+    limit: usize,
+) -> bool {
+    loop {
+        let bytes = cache.values().map(|f| f.rgba.len()).sum::<usize>()
+            + displayed
+                .filter(|f| !cache.contains_key(&f.info.path))
+                .map_or(0, |f| f.rgba.len());
+        if bytes.saturating_add(incoming) <= limit {
+            return true;
+        }
+        let victim = cache
+            .iter()
+            .filter(|(path, _)| {
+                state.frame.as_ref().is_none_or(|f| &f.path != *path)
+                    && displayed.is_none_or(|f| &f.info.path != *path)
+            })
+            .max_by_key(|(_, f)| f.info.page.abs_diff(state.page))
+            .map(|(p, _)| p.clone());
+        let Some(victim) = victim else {
+            return false;
+        };
+        cache.remove(&victim);
+    }
+}
+
 struct App {
     studio: Option<Studio>,
     host: Option<Host>,
@@ -664,7 +696,7 @@ impl App {
                     host.failed_reads.clear();
                     host.frame = None;
                 }
-                // Keep the prepared deck resident; retire previews/superseded resolutions only.
+                // Mirror the presenter working set, retiring evicted and obsolete frames.
                 let retained: HashSet<_> = state
                     .preload
                     .iter()
@@ -694,9 +726,27 @@ impl App {
                 match c.result {
                     Ok(packet) if packet.reply.frame.is_some() => {
                         let info = packet.reply.frame.unwrap();
-                        let bytes: usize = host.cache.values().map(|f| f.rgba.len()).sum();
+                        // Ignore completed reads that the presenter has already evicted.
+                        if !host
+                            .state
+                            .preload
+                            .iter()
+                            .chain(host.state.frame.iter())
+                            .any(|f| f.path == info.path)
+                        {
+                            continue;
+                        }
+                        if host.cache.contains_key(&info.path) {
+                            continue;
+                        }
                         let limit = host.state.buffer_mib.max(256) as usize * 1024 * 1024;
-                        if bytes.saturating_add(packet.data.len()) <= limit {
+                        if make_output_room(
+                            &mut host.cache,
+                            host.frame.as_ref(),
+                            &host.state,
+                            packet.data.len(),
+                            limit,
+                        ) {
                             host.cache.insert(
                                 info.path.clone(),
                                 Arc::new(Frame {
@@ -704,10 +754,9 @@ impl App {
                                     rgba: packet.data,
                                 }),
                             );
-                        } else if let Some(path) = reading {
-                            host.failed_reads.insert(path);
+                        } else {
                             let _ = host.acks.try_send(Ack {
-                                status: "Presentation RAM budget reached; increase the budget in Menu to finish buffering.".into(),
+                                status: "Presentation RAM cannot fit active frames; increase the budget.".into(),
                                 ..Default::default()
                             });
                         }
@@ -1038,4 +1087,61 @@ pub fn run_output() -> Result<(), Failure> {
     };
     el.run_app(&mut app)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod buffer_tests {
+    use super::*;
+    fn frame(page: usize) -> Arc<Frame> {
+        Arc::new(Frame {
+            info: crate::document::FrameInfo {
+                page,
+                width: 4,
+                height: 4,
+                path: format!("{page}.rgba").into(),
+                sha256: String::new(),
+            },
+            rgba: vec![0; 64],
+        })
+    }
+    #[test]
+    fn output_evicts_distant_frames_and_counts_pinned_frame_outside_cache() {
+        let current = frame(1);
+        let near = frame(2);
+        let far = frame(20);
+        let mut cache = [current.clone(), near.clone(), far.clone()]
+            .into_iter()
+            .map(|f| (f.info.path.clone(), f))
+            .collect();
+        let state = HostState {
+            page: 2,
+            frame: Some(near.info.clone()),
+            ..Default::default()
+        };
+        assert!(make_output_room(
+            &mut cache,
+            Some(&current),
+            &state,
+            64,
+            192
+        ));
+        assert!(!cache.contains_key(&far.info.path));
+        assert!(cache.contains_key(&current.info.path));
+        assert!(cache.contains_key(&near.info.path));
+        cache.remove(&current.info.path);
+        assert!(!make_output_room(
+            &mut cache,
+            Some(&current),
+            &state,
+            64,
+            128
+        ));
+        assert!(make_output_room(
+            &mut cache,
+            Some(&current),
+            &state,
+            64,
+            192
+        ));
+    }
 }

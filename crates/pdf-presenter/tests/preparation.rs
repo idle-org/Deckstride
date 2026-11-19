@@ -128,7 +128,7 @@ fn changing_screen_resolution_reprepares_and_readiness_waits_for_output() {
 }
 
 #[test]
-fn preparation_pauses_at_ram_budget_and_resumes_without_evicting_ready_slides() {
+fn impossibly_small_budget_reports_pressure_and_recovers() {
     let temp = tempfile::tempdir().unwrap();
     let pdf = temp.path().join("show.pdf");
     common::pdf(&pdf);
@@ -189,4 +189,157 @@ fn opening_document_honors_auto_show_and_navigation_preserves_manual_blank() {
         s.execute(Action::Go(1));
         assert!(s.blanked);
     }
+}
+
+#[test]
+fn rolling_buffer_finishes_processing_and_reloads_evicted_slides_without_churn() {
+    let temp = tempfile::tempdir().unwrap();
+    let dir = temp.path().join("slides");
+    std::fs::create_dir(&dir).unwrap();
+    for i in 0..16 {
+        common::image(&dir.join(format!("slide{i}.png")), [i * 10, 128, 200, 255]);
+    }
+    let cache = temp.path().join("processed");
+    let mut s = studio(&dir, &cache);
+    s.settings.buffer_mib = 6;
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while s.count() == 0 || s.prepared.len() < s.count() {
+        s.poll();
+        assert!(s.buffer_bytes() <= 6 * 1024 * 1024);
+        assert!(
+            Instant::now() < deadline,
+            "{} / {}",
+            s.preparation_status(),
+            s.status
+        );
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert!(s.evicted_frames > 0);
+    assert!(s.resident_slides() < s.count());
+    assert!(!s.fully_buffered());
+    assert!(s.preparation_status().contains("Rolling buffer"));
+    let timestamps: Vec<_> = artifacts(&cache)
+        .iter()
+        .filter(|p| p.file_name().unwrap().to_str().unwrap().contains("-640-"))
+        .map(|p| (p.clone(), std::fs::metadata(p).unwrap().modified().unwrap()))
+        .collect();
+    assert_eq!(timestamps.len(), 16);
+    let missing = (0..s.count())
+        .find(|p| !s.frames.contains_key(&(*p, 640)))
+        .unwrap();
+    for page in [missing, 15, 0, 8, 2] {
+        s.displayed = Some(s.requested);
+        s.execute(Action::Go(page));
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !s.frames.contains_key(&(page, 640)) {
+            s.poll();
+            assert!(s.buffer_bytes() <= 6 * 1024 * 1024);
+            assert!(
+                Instant::now() < deadline,
+                "{} / {}",
+                s.preparation_status(),
+                s.status
+            );
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        assert_eq!(s.full_frame(page).unwrap().info.page, page);
+        s.displayed = Some(page);
+    }
+    // Let neighbour prefetch settle, then ensure idle polls do not cycle evictions.
+    for _ in 0..100 {
+        s.poll();
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    let evictions = s.evicted_frames;
+    for _ in 0..100 {
+        s.poll();
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    assert_eq!(s.evicted_frames, evictions);
+    for (path, timestamp) in timestamps {
+        assert_eq!(
+            std::fs::metadata(path).unwrap().modified().unwrap(),
+            timestamp
+        );
+    }
+    s.settings.buffer_mib = 256;
+    s.remember_buffer_budget();
+    prepare(&mut s);
+    s.settings.buffer_mib = 6;
+    s.remember_buffer_budget();
+    assert!(s.buffer_bytes() <= 6 * 1024 * 1024);
+    assert!(s.full_frame(s.requested).is_some());
+    assert!(!s.fully_buffered());
+}
+
+#[test]
+#[ignore = "manual stress test: set PDF_PRESENTER_STRESS_PDF to an authorized local PDF"]
+fn real_pdf_exceeds_budget_and_keeps_navigating() {
+    let path = PathBuf::from(
+        std::env::var_os("PDF_PRESENTER_STRESS_PDF").expect("PDF_PRESENTER_STRESS_PDF"),
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let mut s = studio(&path, &temp.path().join("cache"));
+    s.monitors[0].size = (1920, 1080);
+    s.settings.buffer_mib = 256;
+    let deadline = Instant::now() + Duration::from_secs(180);
+    let mut peak = 0;
+    while s.evicted_frames < 10 {
+        s.poll();
+        peak = peak.max(s.buffer_bytes());
+        assert!(peak <= 256 * 1024 * 1024);
+        assert!(
+            Instant::now() < deadline,
+            "{} / {}",
+            s.preparation_status(),
+            s.status
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    eprintln!(
+        "Pressure reached: {} · peak {} MiB",
+        s.preparation_status(),
+        peak / (1024 * 1024)
+    );
+    assert!(s.full_frame(0).is_some());
+    assert!(!s.fully_buffered());
+    let missing = (0..s.count())
+        .find(|p| s.prepared.contains(p) && !s.frames.contains_key(&(*p, s.target_edge)))
+        .unwrap();
+    for page in [missing, s.count() / 2, s.count() - 1, 0] {
+        let start = Instant::now();
+        s.displayed = Some(s.requested);
+        s.execute(Action::Go(page));
+        while !s.frames.contains_key(&(page, s.target_edge)) {
+            s.poll();
+            assert!(s.buffer_bytes() <= 256 * 1024 * 1024);
+            assert!(
+                start.elapsed() < Duration::from_secs(35),
+                "{} / {}",
+                s.preparation_status(),
+                s.status
+            );
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        s.displayed = Some(page);
+        eprintln!(
+            "Slide {} available in {:?}; {}",
+            page + 1,
+            start.elapsed(),
+            s.preparation_status()
+        );
+    }
+    while s.prepared.len() < s.count() {
+        s.poll();
+        assert!(s.buffer_bytes() <= 256 * 1024 * 1024);
+        assert!(
+            Instant::now() < deadline,
+            "{} / {}",
+            s.preparation_status(),
+            s.status
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    eprintln!("Whole PDF processed: {}", s.preparation_status());
+    assert!(!s.fully_buffered());
 }

@@ -53,6 +53,7 @@ pub struct Studio {
     pub output_buffered: usize,
     pub ram_blocked: bool,
     pub cached_slides: usize,
+    pub evicted_frames: usize,
     pub loading: bool,
     pub notes_loading: bool,
     pub visible_thumbs: HashSet<usize>,
@@ -139,6 +140,7 @@ impl Studio {
             output_buffered: 0,
             ram_blocked: false,
             cached_slides: 0,
+            evicted_frames: 0,
             loading: false,
             notes_loading: false,
             visible_thumbs: HashSet::new(),
@@ -450,6 +452,7 @@ impl Studio {
                             self.notes_loading = false;
                             self.notes_pending = true;
                             self.cached_slides = 0;
+                            self.evicted_frames = 0;
                             self.generation += 1;
                             self.frames.clear();
                             self.prepared.clear();
@@ -562,14 +565,14 @@ impl Studio {
                 && self.prepared.len() < self.count()
                 && let Some(page) = (0..self.count()).rev().find(|p| {
                     let key = (*p, self.target_edge);
-                    !self.frames.contains_key(&key)
+                    !self.prepared.contains(p)
                         && !self.failed.contains(&key)
                         && Some(key) != self.bg_job
                 })
             {
                 self.schedule(page, self.target_edge, true);
             }
-            if !self.bg_busy && self.prepared.len() < self.count() {
+            if !self.bg_busy {
                 let mut jobs = vec![];
                 for page in [self.requested + 1, self.requested.saturating_sub(1)] {
                     if page < self.count() {
@@ -577,7 +580,20 @@ impl Studio {
                     }
                 }
                 // Prepare the entire show, not just the currently visible neighbourhood.
-                jobs.extend((0..self.count()).map(|p| (p, self.target_edge)));
+                if self.prepared.len() < self.count() {
+                    jobs.retain(|(p, _)| !self.prepared.contains(p));
+                    jobs.extend(
+                        (0..self.count())
+                            .filter(|p| !self.prepared.contains(p))
+                            .map(|p| (p, self.target_edge)),
+                    );
+                } else {
+                    if self.browser_open {
+                        jobs.extend(self.visible_thumbs.iter().map(|p| (*p, self.target_edge)));
+                    }
+                    // Refill available RAM after navigation or a budget increase.
+                    jobs.extend((0..self.count()).map(|p| (p, self.target_edge)));
+                }
                 if let Some((page, edge)) = jobs.into_iter().find(|key| {
                     !self.frames.contains_key(key)
                         && Some(*key) != self.fg_job
@@ -588,9 +604,7 @@ impl Studio {
                 }
             }
         }
-        if self.prepared.len() == self.count() {
-            self.ram_blocked = false;
-        }
+
         let edge = self
             .monitors
             .iter()
@@ -615,19 +629,39 @@ impl Studio {
             self.frames.retain(|(_, e), _| *e == edge || *e == 512);
             self.preparation_started = Instant::now();
             self.cached_slides = 0;
+            self.evicted_frames = 0;
             self.output_buffered = 0;
             self.ram_blocked = false;
             self.new_output = true;
         }
     }
     fn schedule(&mut self, page: usize, edge: u32, foreground: bool) {
-        // Reserve the worst-case square frame plus the other in-flight render.
+        // Reserve both worker slots before admission, including progressive previews.
         let reserve = 2 * edge as usize * edge as usize * 4;
-        self.ram_blocked = self.buffer_bytes().saturating_add(reserve)
-            > self.settings.buffer_mib as usize * 1024 * 1024;
-        if self.ram_blocked {
-            return;
+        let limit = self.settings.buffer_mib as usize * 1024 * 1024;
+        while self.buffer_bytes().saturating_add(reserve) > limit {
+            let victim = self
+                .frames
+                .keys()
+                .copied()
+                .filter(|(p, _)| {
+                    *p != self.requested && Some(*p) != self.displayed && *p != page
+                    // Once processed, speculative prefetch must improve locality rather
+                    // than continually swap two equally distant cached slides.
+                    && (!self.prepared.contains(&page)
+                        || page == self.requested
+                        || p.abs_diff(self.requested) > page.abs_diff(self.requested))
+                })
+                .max_by_key(|(p, e)| (*e != self.target_edge, p.abs_diff(self.requested), *p));
+            let Some(victim) = victim else {
+                self.ram_blocked = true;
+                return;
+            };
+            self.frames.remove(&victim);
+            self.evicted_frames += 1;
+            self.new_output = true;
         }
+        self.ram_blocked = false;
         let request = Request::Render {
             epoch: self.generation,
             path: self.deck.as_ref().unwrap().path.clone(),
@@ -668,6 +702,26 @@ impl Studio {
         self.pending_save = true;
     }
     pub fn remember_buffer_budget(&mut self) {
+        let reserved: usize = self
+            .fg_job
+            .iter()
+            .chain(self.bg_job.iter())
+            .map(|(_, edge)| *edge as usize * *edge as usize * 4)
+            .sum();
+        let limit = (self.settings.buffer_mib as usize * 1024 * 1024).saturating_sub(reserved);
+        while self.buffer_bytes() > limit {
+            let victim = self
+                .frames
+                .keys()
+                .copied()
+                .filter(|(p, _)| *p != self.requested && Some(*p) != self.displayed)
+                .max_by_key(|(p, _)| p.abs_diff(self.requested));
+            let Some(victim) = victim else {
+                break;
+            };
+            self.frames.remove(&victim);
+            self.evicted_frames += 1;
+        }
         self.pending_save = true;
         self.ram_blocked = false;
         self.new_output = true;
@@ -675,10 +729,47 @@ impl Studio {
     pub fn buffer_bytes(&self) -> usize {
         self.frames.values().map(|f| f.rgba.len()).sum()
     }
+    pub fn resident_slides(&self) -> usize {
+        self.frames
+            .keys()
+            .filter(|(_, edge)| *edge == self.target_edge)
+            .count()
+    }
+    fn rolling_status(&self, french: bool) -> String {
+        let processed = self.prepared.len();
+        let total = self.count();
+        let eta = if processed > 0 && processed < total {
+            format!(
+                " · ETA ~{} s",
+                (self.preparation_started.elapsed().as_secs_f64() / processed as f64
+                    * (total - processed) as f64)
+                    .ceil() as u64
+            )
+        } else {
+            String::new()
+        };
+        if french {
+            format!(
+                "Cache tournant — {processed}/{total} préparées · {}/{} en RAM ({} Mio) · {} libérées · rechargement du cache à la demande{eta}",
+                self.resident_slides(),
+                total,
+                self.buffer_bytes() / (1024 * 1024),
+                self.evicted_frames
+            )
+        } else {
+            format!(
+                "Rolling buffer — {processed}/{total} prepared · {}/{} in RAM ({} MiB) · {} evicted · cached slides reload on demand{eta}",
+                self.resident_slides(),
+                total,
+                self.buffer_bytes() / (1024 * 1024),
+                self.evicted_frames
+            )
+        }
+    }
     pub fn fully_buffered(&self) -> bool {
         !self.loading
             && self.count() > 0
-            && self.prepared.len() == self.count()
+            && self.resident_slides() == self.count()
             && (self.routes.presentation.is_empty() || self.output_buffered == self.count())
     }
     fn preparation_status_fr(&self) -> String {
@@ -700,9 +791,12 @@ impl Studio {
                 self.target_edge
             );
         }
+        if self.evicted_frames > 0 {
+            return self.rolling_status(self.settings.language.french());
+        }
         if self.ram_blocked {
             return format!(
-                "Budget RAM atteint — {n}/{total} en mémoire. Augmentez le budget dans Menu pour terminer."
+                "Budget RAM atteint — {n}/{total} en mémoire. Mémoire insuffisante pour les images actives et les rendus en cours."
             );
         }
         if !self.failed.is_empty() {
@@ -757,9 +851,12 @@ impl Studio {
                 self.target_edge
             );
         }
+        if self.evicted_frames > 0 {
+            return self.rolling_status(self.settings.language.french());
+        }
         if self.ram_blocked {
             return format!(
-                "RAM budget reached — {n}/{total} buffered. Increase the buffer in Menu; the show is not fully loaded."
+                "RAM budget reached — {n}/{total} buffered. Cannot fit active frames and render reservations; increase the budget."
             );
         }
         if !self.failed.is_empty() {

@@ -20,6 +20,10 @@ two workers, screen-derived resolution, cache-first opening, retained complete b
 explicit preparation progress/ETA and memory-pressure pause. T01's full optical
 latency matrix and T15's persistent disk quota remain open.
 
+0.1.19 replaces the memory-pressure pause with bounded rolling eviction, while
+retaining full RAM residency when the deck fits. Processed-page progress is separate
+from current residency; cached slides reload through workers after eviction.
+
 ## P0 — Instrumentation and two-display proof
 
 - [ ] T01: Add monotonic startup/input/frame markers, bounded logs and a benchmark

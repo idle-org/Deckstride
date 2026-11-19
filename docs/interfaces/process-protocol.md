@@ -35,9 +35,11 @@ status. The two workers prepare the remaining deck concurrently with foreground
 navigation able to supersede outstanding work.
 
 HostState now carries a document/resolution generation, decoded RAM budget and the
-complete available target-frame preload list. The host retains the whole prepared
-deck, acknowledges the number buffered for that generation, and retires only temporary
-previews or obsolete generations/resolutions. READY requires both presenter and host
+currently resident target-frame preload list. Since 0.1.19 the host mirrors this
+working set, retires evicted entries and discards stale read completions. It can
+free distant cached frames to admit a replacement while protecting the displayed
+and requested frames. Its acknowledgment counts actual resident entries for that
+generation, rather than all previously processed slides. READY requires both presenter and host
 counts to reach the deck total. Stale acknowledgments cannot mark another resolution
 ready. The bounded JSON envelope and raw-frame limits remain unchanged. This protocol
 still requires the same executable build at both ends.

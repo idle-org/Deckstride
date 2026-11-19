@@ -191,3 +191,45 @@ Formatting, warnings-denied Clippy/rustdoc and macOS aarch64 compilation pass.
 Whole-application coverage is 83.97%, with no production exclusions. Linux and Windows
 x86_64 release builds succeed. Runtime retesting on Windows remains necessary for
 the reported platform behavior.
+
+
+## 0.1.19 bounded rolling buffers
+
+Supersedes 0.1.13's memory-pressure pause: preparation now evicts distant non-active
+frames while retaining processed disk artifacts. Processed-slide progress and RAM
+residency are distinct; foreground navigation reloads cached slides through workers.
+The displayed/requested pages remain protected, the output mirrors the working set,
+and old reads cannot repopulate frames the presenter has already evicted. Output
+admission accounts for a last-visible frame held outside its cache. Once preparation
+finishes, speculative reloads must improve locality to avoid endless eviction cycles.
+Budget increases refill RAM; decreases free non-active frames with in-flight capacity
+reserved. Full-deck READY semantics are preserved, while rolling mode explicitly
+reports disk reloads, actual resident count, evictions and preparation ETA.
+
+Validation: 49 automated Rust tests, 12 Python tests, formatting and warnings-denied
+Clippy/rustdoc pass; whole-app line coverage is 84.34%. New tests cover eviction,
+cached reload without artifact rewrites, idle stability, budget reduction/refill,
+and pinned output allocations. Native X11 output tests shrink the working set, reload
+evicted entries, then delete processed files and verify the refilled buffer can still
+navigate entirely from RAM. macOS aarch64 compile-check passes.
+
+The user-authorized local `test_pdf/Ravenous.pdf` (322 pages, 60661865 bytes) was tested
+at a 1920-pixel target edge and 256 MiB decoded budget using the release worker.
+All 322 pages were processed; the final working set held 22 slides/about 218 MiB,
+with 303 evictions. The test asserted the decoded budget throughout processing and
+navigation. An evicted slide, middle, final and first page all became available;
+observed request-to-presenter-frame times were 326–362 ms under concurrent background
+preparation. The complete stress test took 12.29 seconds. These are worker/state
+measurements, not optical audience latency or total process RSS. Worker/UI/texture
+memory remains additional. The source SHA-256 was unchanged after the test.
+
+Reproduce explicitly with an authorized local deck (never a CI/private fixture upload):
+
+```sh
+PDF_PRESENTER_STRESS_PDF=/path/to/Ravenous.pdf cargo test --locked --release \
+  --test preparation real_pdf_exceeds_budget_and_keeps_navigating -- --ignored --nocapture
+```
+
+Linux and Windows x86_64 release builds both succeed.
+The test uses temporary processed files and cleans them up. Real Windows/macOS
+multiscreen/runtime acceptance remains separate from these regression checks.

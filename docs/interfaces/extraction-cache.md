@@ -32,11 +32,21 @@ Smaller screens share the largest variant. An exact verified target-size cache h
 bypasses preview rendering. Resolution changes use a distinct existing/new artifact
 key. The disk schema remains v1; prior artifacts at matching resolutions remain usable.
 
-The entire decoded deck is retained in presenter and presentation-process RAM.
-`buffer_mib` (default 1024 per process) bounds each decoded cache; render reservations
-prevent overfilling the presenter budget. No eviction-based false READY state is
-allowed. Insufficient capacity pauses preparation until the budget increases.
-Only temporary preview/superseded-resolution frames are retired. Source/artifact
-reads happen during preparation/recovery, not prepared navigation. OS paging and
-software composition are outside this application-level no-file-read guarantee.
+When the deck fits, the entire decoded deck is retained in presenter and output RAM.
+As of 0.1.19, reaching `buffer_mib` evicts distant non-active frames and continues
+processing the rest of the deck. Requested/displayed slides are protected; foreground
+navigation takes priority. Render reservations still bound presenter admissions.
+Processed-slide progress is independent of RAM residency: an evicted slide remains
+prepared on disk and reloads through a worker on demand. Once all slides are processed,
+background prefetch improves locality without endlessly exchanging distant slides.
+Increasing the budget refills RAM; lowering it retires non-active frames immediately,
+allowing for in-flight reservations. A budget too small for protected frames and render
+reservations still reports pressure rather than discarding active content.
+
+The output host mirrors the presenter working set, counts its last displayed frame
+if retained outside the cache, and frees distant entries before admitting replacements.
+Stale reads for evicted entries are discarded. READY requires the whole deck to be
+resident in both processes; rolling-buffer mode explicitly permits background disk
+reads and is never described as fully RAM-buffered. OS paging and software composition
+are outside this application-level no-file-read guarantee. The disk schema remains v1.
 Disk eviction/quota remains outstanding; full disk reports an explicit error.

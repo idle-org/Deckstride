@@ -444,8 +444,12 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         s.output_buffered
                     };
                 ui.add(
-                    egui::ProgressBar::new(prepared as f32 / (2 * s.count()) as f32)
-                        .desired_height(4.),
+                    egui::ProgressBar::new(if s.evicted_frames > 0 {
+                        s.prepared.len() as f32 / s.count() as f32
+                    } else {
+                        prepared as f32 / (2 * s.count()) as f32
+                    })
+                    .desired_height(4.),
                 );
             }
         });

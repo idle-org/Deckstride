@@ -155,6 +155,36 @@ fn independent_output_acknowledges_frames_and_blanking() {
             break;
         }
     }
+    // Rolling-buffer updates evict absent entries, then reload them from processed
+    // files when they re-enter the working set, without marking them as failed.
+    for (sequence, count, page) in [(90, 2, 0), (91, 8, 7)] {
+        write_json(
+            &mut input,
+            &HostState {
+                sequence,
+                page,
+                generation: 99,
+                frame: Some(frames[page].info.clone()),
+                preload: frames[..count].iter().map(|f| f.info.clone()).collect(),
+                buffer_mib: 256,
+                monitors: vec![monitor.clone()],
+                fullscreen: false,
+                blanked: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            let ack = rx
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .expect("output working-set reload deadline");
+            assert!(ack.status.is_empty(), "{}", ack.status);
+            if ack.sequence == sequence && ack.buffered == count && ack.page == Some(page) {
+                break;
+            }
+        }
+    }
     // The independent output must navigate entirely from RAM after preparation.
     std::fs::remove_dir_all(temp.path().join("cache")).unwrap();
     for page in 0..8 {

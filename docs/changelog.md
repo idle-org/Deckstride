@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.19
+
+- Continue preparing oversized decks by evicting distant frames, protecting active
+  slides and retaining processed disk artifacts. Reload evicted slides on demand.
+- Mirror the rolling working set in the output process; account for its pinned
+  last frame, discard obsolete reads and free distant frames before replacement.
+- Report prepared versus RAM-resident counts, evictions and ETA; reserve READY
+  for fully resident decks. Avoid idle eviction loops and refill when budget grows.
+- Regression-test pressure, cached reload, idle stability and budget changes;
+  exercise the authorized 322-page Ravenous.pdf with a 256 MiB decoded budget.
+
 ### 0.1.18
 
 - Use uv-selected Python 3.11+ throughout Jenkins, including badge initialization,

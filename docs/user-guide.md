@@ -99,16 +99,23 @@ explicit status. ETAs use observed throughput and may change on complex slides.
 outputs are assigned, acknowledged in the independent presentation host's RAM.
 Navigation then performs no application slide-file reads, PDF rendering or image
 decoding. Raster composition still happens, and the OS can page memory under pressure.
-The entire prepared deck stays resident instead of evicting distant slides.
+The entire deck stays resident when it fits the configured RAM budget.
 
 Menu → Preferences → RAM budget controls the decoded-slide allowance for **each process**, default
 1024 MiB, configurable from 256 to 16384 MiB. Presenter and output can each consume
 that allowance; textures, workers and other application memory are additional.
-Preparation reserves capacity for in-flight frames. If the deck cannot fit, it pauses
-and reports that it is **not fully loaded**, rather than claiming READY and loading
-slides later. Increase the budget within available physical RAM to resume. Lowering
-the budget does not evict already buffered slides; reopen to apply a lower allocation
-to an existing show. Cold rendering/decoding may continue while you present early.
+Preparation reserves capacity for in-flight frames. When the deck cannot fit, the
+**Rolling buffer** frees distant slides and continues preparing the remaining pages.
+The requested slide and last acknowledged output remain protected. The status shows
+prepared pages, actual RAM-resident pages, evictions and preparation ETA. Evicted
+slides keep their processed files and reload in the background when requested;
+this mode can require disk access and does not claim READY or zero-load navigation.
+The last output frame stays visible until its replacement is available.
+
+Increasing the budget lets the app refill the buffer; reducing it frees non-active
+frames while preserving room for outstanding renders. If even the active frames and
+render reservations cannot fit, the app reports that specific pressure. Cold rendering
+and cache preparation can continue while you present early.
 After a host restart or resolution change, wait for READY again for RAM-only playback.
 
 ## Recovery and portability
