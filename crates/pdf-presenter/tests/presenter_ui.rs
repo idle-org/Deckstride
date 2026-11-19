@@ -544,3 +544,61 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
     );
     assert!(!s.menu_open, "Escape should dismiss the dropdown");
 }
+
+#[test]
+fn timer_presets_reserve_space_and_progress_tracks_navigation() {
+    use pdf_presenter::settings::TimerPosition;
+    fn text_rect(shapes: &[egui::epaint::ClippedShape], label: &str) -> Option<Rect> {
+        fn find(shape: &egui::Shape, label: &str) -> Option<Rect> {
+            match shape {
+                egui::Shape::Text(t) if t.galley.text() == label => {
+                    Some(Rect::from_min_size(t.pos, t.galley.size()))
+                }
+                egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+                _ => None,
+            }
+        }
+        shapes.iter().find_map(|s| find(&s.shape, label))
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    let mut native = UiState::default();
+    s.layout.header = false;
+    s.layout.footer = false;
+    s.layout.elapsed_position = TimerPosition::AboveSlides;
+    s.layout.clock_position = TimerPosition::BelowNotes;
+    s.layout.elapsed.size = 72.;
+    s.layout.clock.size = 72.;
+    let mut render = |s: &mut Studio| {
+        let mut output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+            presenter_ui::presenter(ui, s, &mut native)
+        });
+        for _ in 0..3 {
+            output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+                presenter_ui::presenter(ui, s, &mut native)
+            });
+        }
+        output
+    };
+    let output = render(&mut s);
+    let elapsed = text_rect(&output.shapes, "Elapsed time").unwrap();
+    let clock = text_rect(&output.shapes, "Time · HH:MM").unwrap();
+    let current = text_rect(&output.shapes, "CURRENT  1 / 30").unwrap();
+    assert!(elapsed.bottom() < current.top());
+    assert!(clock.top() > current.bottom());
+    assert!(text_rect(&output.shapes, "Slide 1 / 30").is_none());
+    s.layout.slide_progress = true;
+    for page in [0, 14, 29] {
+        s.requested = page;
+        let output = render(&mut s);
+        let progress = text_rect(&output.shapes, &format!("Slide {} / 30", page + 1)).unwrap();
+        assert!(progress.top() > text_rect(&output.shapes, "Time · HH:MM").unwrap().bottom());
+    }
+    s.deck = None;
+    assert!(text_rect(&render(&mut s).shapes, "Slide 0 / 0").is_some());
+    s.layout.elapsed.show = false;
+    s.layout.clock.show = false;
+    let output = render(&mut s);
+    assert!(text_rect(&output.shapes, "Elapsed time").is_none());
+    assert!(text_rect(&output.shapes, "Time · HH:MM").is_none());
+}

@@ -11,6 +11,25 @@ pub struct Widget {
     pub show: bool,
     pub size: f32,
 }
+/// Fixed presenter-only timer locations; body rows remain visible with hidden bars.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TimerPosition {
+    #[default]
+    Header,
+    AboveSlides,
+    BelowNotes,
+}
+impl TimerPosition {
+    pub const ALL: [Self; 3] = [Self::Header, Self::AboveSlides, Self::BelowNotes];
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Header => "Header",
+            Self::AboveSlides => "Above slides",
+            Self::BelowNotes => "Below notes",
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct Layout {
@@ -20,6 +39,9 @@ pub struct Layout {
     pub notes: Widget,
     pub elapsed: Widget,
     pub clock: Widget,
+    pub elapsed_position: TimerPosition,
+    pub clock_position: TimerPosition,
+    pub slide_progress: bool,
     pub header: bool,
     pub footer: bool,
 }
@@ -50,6 +72,9 @@ impl Default for Layout {
                 show: true,
                 size: 28.,
             },
+            elapsed_position: TimerPosition::Header,
+            clock_position: TimerPosition::Header,
+            slide_progress: false,
             header: true,
             footer: true,
         }

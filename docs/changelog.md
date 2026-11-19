@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.24
+
+- Separate elapsed time and clock into labeled boxes with independent Header,
+  Above slides and Below notes presets, saved in project/global layouts.
+- Add an opt-in presenter slide-progress bar (requested slide / total), distinct
+  from loading progress and visible with hidden bars. Older layouts retain defaults.
+- Cover settings compatibility/round trips, timer placement and navigation progress.
+
 ### 0.1.23
 
 - Put compact arrow icons at the far left of both header and footer to hide or pin

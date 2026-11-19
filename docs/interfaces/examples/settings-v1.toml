@@ -12,6 +12,9 @@ presenter = ["Primary#1"]
 presentation = ["Projector#1"]
 
 [layout]
+elapsed_position = "above_slides"
+clock_position = "below_notes"
+slide_progress = true
 header = true
 footer = false
 

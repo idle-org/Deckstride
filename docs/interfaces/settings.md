@@ -28,6 +28,15 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   boolean `show` and finite floating `size`; plus boolean `header`/`footer`.
   Previous/next sizes are relative weights 30–160, current 60–200; notes size
   is percentage 12–65; elapsed/clock sizes are logical pixels 16–72. Defaults are in `settings.rs`.
+- `layout.elapsed_position` and `layout.clock_position`: `header` (default),
+  `above_slides`, or `below_notes`, added in 0.1.24. Independent presenter-only
+  placement presets; unknown values are rejected. Body timer rows reserve space
+  and remain visible with hidden bars. Header timers follow header visibility.
+- `layout.slide_progress`: boolean, default false, added in 0.1.24. Shows requested
+  slide / total and its fraction in a reserved bottom body row; empty decks show
+  0 / 0 with zero fill. This is navigation progress, not render/output readiness.
+  These three fields round-trip in both global and project layouts. Older v1
+  layouts omit them and use defaults without migration.
 - `projects`: at most 4096 SHA-256 canonical-path keys mapping to full layouts.
   Path identity uses OS encoded bytes, not source content. Moving files or switching
   platforms may therefore select a different layout. Project overrides win globally.

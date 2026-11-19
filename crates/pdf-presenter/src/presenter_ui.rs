@@ -1,7 +1,7 @@
 use crate::localization::tr;
 // Native controls for the approved presenter layout and safe slide browser.
 use crate::{
-    settings::Layout,
+    settings::{Layout, TimerPosition},
     studio::{Action, Studio},
 };
 use egui::{Color32, Context, FontId, Pos2, Rect, Sense, TextureHandle, TextureOptions, Ui, Vec2};
@@ -113,6 +113,54 @@ fn widget(ui: &mut Ui, label: &str, w: &mut crate::settings::Widget, min: f32, m
     );
     ui.separator();
 }
+fn timer_position(ui: &mut Ui, id: &str, position: &mut TimerPosition) {
+    let locale = ui.ctx().clone();
+    egui::ComboBox::from_id_salt(id)
+        .selected_text(tr(&locale, position.label()))
+        .show_ui(ui, |ui| {
+            for choice in TimerPosition::ALL {
+                ui.selectable_value(position, choice, tr(&locale, choice.label()));
+            }
+        });
+}
+fn timer_height(s: &Studio, position: TimerPosition) -> f32 {
+    [
+        (&s.layout.elapsed, s.layout.elapsed_position),
+        (&s.layout.clock, s.layout.clock_position),
+    ]
+    .into_iter()
+    .filter(|(w, p)| w.show && *p == position)
+    .map(|(w, _)| w.size + 32.)
+    .fold(0., f32::max)
+}
+fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
+    let locale = ui.ctx().clone();
+    let secs = s.started.elapsed().as_secs();
+    for (w, p, label, value) in [
+        (
+            &s.layout.elapsed,
+            s.layout.elapsed_position,
+            "Elapsed time",
+            format!("{:02}:{:02}", secs / 60, secs % 60),
+        ),
+        (
+            &s.layout.clock,
+            s.layout.clock_position,
+            "Time · HH:MM",
+            chrono::Local::now().format("%H:%M").to_string(),
+        ),
+    ] {
+        if w.show && p == position {
+            ui.add_space(16.);
+            egui::Frame::group(ui.style()).show(ui, |ui| {
+                ui.vertical(|ui| {
+                    ui.small(tr(&locale, label));
+                    ui.label(egui::RichText::new(value).size(w.size));
+                });
+            });
+        }
+    }
+}
 pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let locale = ui.ctx().clone();
     native.trim(s);
@@ -161,12 +209,54 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.close();
         }
     });
+    let header_height = (timer_height(s, TimerPosition::Header) + 20.).max(64.);
     let mut body = screen.shrink(16.);
     if s.layout.header {
-        body.min.y += 64.;
+        body.min.y += header_height;
     }
     if s.layout.footer {
         body.max.y -= 90.;
+    }
+    if s.layout.slide_progress {
+        let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - 24.), body.max);
+        body.max.y -= 32.;
+        ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+            let current = if s.count() == 0 {
+                0
+            } else {
+                s.requested.min(s.count() - 1) + 1
+            };
+            let fraction = current as f32 / s.count().max(1) as f32;
+            ui.add(
+                egui::ProgressBar::new(fraction)
+                    .desired_width(rect.width())
+                    .text(format!(
+                        "{} {current} / {}",
+                        tr(&locale, "Slide"),
+                        s.count()
+                    )),
+            );
+        });
+    }
+    for position in [TimerPosition::AboveSlides, TimerPosition::BelowNotes] {
+        let height = timer_height(s, position);
+        if height > 0. {
+            let top = if position == TimerPosition::AboveSlides {
+                body.top()
+            } else {
+                body.bottom() - height
+            };
+            let rect =
+                Rect::from_min_size(Pos2::new(body.left(), top), Vec2::new(body.width(), height));
+            if position == TimerPosition::AboveSlides {
+                body.min.y += height + 8.;
+            } else {
+                body.max.y -= height + 8.;
+            }
+            ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+                ui.horizontal(|ui| timers(ui, s, position));
+            });
+        }
     }
     let preview_visible = s.layout.previous.show || s.layout.current.show || s.layout.next.show;
     let notes_h = if s.layout.notes.show {
@@ -310,7 +400,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         }
     }
     if header {
-        let rect = Rect::from_min_size(screen.min, Vec2::new(screen.width(), 64.));
+        let rect = Rect::from_min_size(screen.min, Vec2::new(screen.width(), header_height));
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(10.)), |ui| {
             ui.horizontal(|ui| {
@@ -387,19 +477,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 {
                     s.actions.push(Action::Blank);
                 }
-                if s.layout.elapsed.show {
-                    let secs = s.started.elapsed().as_secs();
-                    ui.label(
-                        egui::RichText::new(format!("{:02}:{:02}", secs / 60, secs % 60))
-                            .size(s.layout.elapsed.size),
-                    );
-                }
-                if s.layout.clock.show {
-                    ui.label(
-                        egui::RichText::new(chrono::Local::now().format("%H:%M").to_string())
-                            .size(s.layout.clock.size),
-                    );
-                }
+                timers(ui, s, TimerPosition::Header);
             });
         });
     }
@@ -629,6 +707,15 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     16.,
                     72.,
                 );
+                ui.label(tr(&locale, "Elapsed time position"));
+                timer_position(ui, "elapsed-position", &mut s.layout.elapsed_position);
+                ui.label(tr(&locale, "Clock position"));
+                timer_position(ui, "clock-position", &mut s.layout.clock_position);
+                ui.checkbox(
+                    &mut s.layout.slide_progress,
+                    tr(&locale, "Slide progress bar"),
+                );
+                ui.separator();
                 button(
                     ui,
                     tr(&locale, "Save layout · This project"),

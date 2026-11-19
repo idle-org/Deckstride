@@ -14,6 +14,9 @@ fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     project.current.show = false;
     project.header = false;
     project.footer = false;
+    project.elapsed_position = settings::TimerPosition::AboveSlides;
+    project.clock_position = settings::TimerPosition::BelowNotes;
+    project.slide_progress = true;
     settings.projects.insert("show".into(), project.clone());
     settings.routes = Routes {
         presenter: vec!["one".into(), "two".into()],
@@ -92,5 +95,31 @@ fn monitor_recovery_preserves_survivors_and_distinct_groups() {
             .resolve(&["a".into(), "b".into()], 0)
             .presentation
             .is_empty()
+    );
+}
+
+#[test]
+fn legacy_layouts_default_timer_positions_and_progress_is_opt_in() {
+    let legacy: Settings = toml::from_str("version=1\n[layout]\nheader=false").unwrap();
+    assert_eq!(
+        legacy.layout.elapsed_position,
+        settings::TimerPosition::Header
+    );
+    assert_eq!(
+        legacy.layout.clock_position,
+        settings::TimerPosition::Header
+    );
+    assert!(!legacy.layout.slide_progress);
+    assert!(toml::from_str::<Settings>("[layout]\nclock_position='anywhere'").is_err());
+    let example: Settings = toml::from_str(include_str!(
+        "../../../docs/interfaces/examples/settings-v1.toml"
+    ))
+    .unwrap();
+    example.validate().unwrap();
+    assert_eq!(
+        example.layout,
+        toml::from_str::<Settings>(&toml::to_string(&example).unwrap())
+            .unwrap()
+            .layout
     );
 }

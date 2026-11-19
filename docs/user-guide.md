@@ -174,3 +174,13 @@ All slides opens a windowed browser above fullscreen windows and requests focus.
 Opening it again restores/focuses the existing browser. Close or Escape dismisses it.
 The destination remains configurable in the browser, defaulting to the presenter.
 Window-manager focus restrictions may still require clicking the browser on some systems.
+
+### Timer placement and slide progress
+
+In Layout, set **Elapsed time position** and **Clock position** independently to
+Header, Above slides or Below notes. Timers have separate labeled boxes; size and
+visibility controls still apply. Body positions remain visible when bars are hidden.
+Enable **Slide progress bar** for a presenter-only current slide / total indicator
+at the bottom of the content area. It starts disabled and tracks requested slide
+navigation, even while output is blank or preparing; it is separate from loading
+progress. Use Save layout · This project or All projects to remember these choices.
