@@ -22,10 +22,56 @@ use winit::{
 
 type Failure = Box<dyn Error>;
 
+// X11 window-manager changes are asynchronous. Keep only the newest destination
+// and allow exit/restore, movement and fullscreen entry separate event-loop turns.
+#[cfg(target_os = "linux")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Placement {
+    monitor: usize,
+    fullscreen: bool,
+    rect: (i32, i32, u32, u32),
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Default)]
+struct X11Transition {
+    target: Option<Placement>,
+    pending: Option<(Instant, bool)>, // false: move/resize; true: enter fullscreen
+}
+
+#[cfg(target_os = "linux")]
+impl X11Transition {
+    const SETTLE: Duration = Duration::from_millis(120);
+
+    fn request(&mut self, target: Placement, now: Instant) -> bool {
+        if self.target.as_ref() == Some(&target) {
+            return false;
+        }
+        self.target = Some(target);
+        self.pending = Some((now + Self::SETTLE, false));
+        true
+    }
+
+    fn take_due(&mut self, now: Instant) -> Option<bool> {
+        let (deadline, enter) = self.pending?;
+        if now < deadline {
+            return None;
+        }
+        self.pending = if !enter && self.target.as_ref()?.fullscreen {
+            Some((now + Self::SETTLE, true))
+        } else {
+            None
+        };
+        Some(enter)
+    }
+}
+
 struct NativeWindow {
     // Surface must be dropped before its underlying window.
     surface: Surface<Rc<Window>, Rc<Window>>,
     window: Rc<Window>,
+    #[cfg(target_os = "linux")]
+    transition: X11Transition,
 }
 
 impl NativeWindow {
@@ -40,7 +86,12 @@ impl NativeWindow {
         );
         let context = Context::new(window.clone())?;
         let surface = Surface::new(&context, window.clone())?;
-        Ok(Self { surface, window })
+        Ok(Self {
+            surface,
+            window,
+            #[cfg(target_os = "linux")]
+            transition: X11Transition::default(),
+        })
     }
     fn redraw(&mut self, model: &Model, audience: bool, status: &str) -> Result<(), Failure> {
         let size = self.window.inner_size();
@@ -72,6 +123,8 @@ struct App {
     next_check: Instant,
     smoke_step: usize,
     frames: [usize; 2],
+    #[cfg(target_os = "linux")]
+    x11: bool,
 }
 
 fn displays(event_loop: &ActiveEventLoop) -> (Vec<MonitorHandle>, Vec<Display>, usize) {
@@ -107,6 +160,8 @@ impl App {
             next_check: now,
             smoke_step: 0,
             frames: [0; 2],
+            #[cfg(target_os = "linux")]
+            x11: false,
         }
     }
     fn fail(&mut self, event_loop: &ActiveEventLoop, error: impl std::fmt::Display) {
@@ -176,22 +231,40 @@ impl App {
         for (is_audience, native, index, fullscreen) in [
             (
                 false,
-                &self.presenter,
+                &mut self.presenter,
                 model.presenter,
                 model.presenter_fullscreen,
             ),
-            (true, &self.audience, model.audience, model.fullscreen),
+            (true, &mut self.audience, model.audience, model.fullscreen),
         ] {
             let Some(native) = native else {
                 continue;
             };
             let window = &native.window;
             if is_audience && model.disconnected {
+                #[cfg(target_os = "linux")]
+                {
+                    native.transition = X11Transition::default();
+                }
                 window.set_visible(false);
                 window.set_fullscreen(None);
                 continue;
             }
             let (x, y, w, h) = window_rect(&model.displays[index], is_audience, rehearsal);
+            #[cfg(target_os = "linux")]
+            if self.x11 {
+                let target = Placement {
+                    monitor: index,
+                    fullscreen,
+                    rect: (x, y, w, h),
+                };
+                if native.transition.request(target, Instant::now()) {
+                    window.set_fullscreen(None);
+                    window.set_cursor_visible(true);
+                    window.request_redraw();
+                }
+                continue;
+            }
             if fullscreen {
                 window.set_fullscreen(Some(Fullscreen::Borderless(Some(
                     self.handles[index].clone(),
@@ -212,6 +285,35 @@ impl App {
         );
         println!("{}", self.status);
     }
+    #[cfg(target_os = "linux")]
+    fn finish_x11_placement(&mut self, now: Instant) {
+        for (is_audience, native) in [(false, &mut self.presenter), (true, &mut self.audience)] {
+            let Some(native) = native else {
+                continue;
+            };
+            let Some(enter) = native.transition.take_due(now) else {
+                continue;
+            };
+            let target = native.transition.target.as_ref().unwrap();
+            if enter {
+                if let Some(monitor) = self.handles.get(target.monitor) {
+                    native
+                        .window
+                        .set_fullscreen(Some(Fullscreen::Borderless(Some(monitor.clone()))));
+                    native.window.set_cursor_visible(!is_audience);
+                }
+            } else {
+                let (x, y, w, h) = target.rect;
+                native
+                    .window
+                    .set_outer_position(PhysicalPosition::new(x, y));
+                let _ = native.window.request_inner_size(PhysicalSize::new(w, h));
+                native.window.set_visible(true);
+            }
+            native.window.request_redraw();
+        }
+    }
+
     fn action(&mut self, action: Action) {
         if let Some(model) = &mut self.model {
             if model.apply(action) {
@@ -304,6 +406,11 @@ impl App {
 
 impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        #[cfg(target_os = "linux")]
+        {
+            use winit::platform::x11::ActiveEventLoopExtX11;
+            self.x11 = event_loop.is_x11();
+        }
         if self.presenter.is_none()
             && let Err(error) = self.refresh(event_loop, true)
         {
@@ -380,7 +487,16 @@ impl ApplicationHandler for App {
                 self.smoke(event_loop);
             }
         }
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_check));
+        #[cfg(target_os = "linux")]
+        self.finish_x11_placement(now);
+        let deadline = self.next_check;
+        #[cfg(target_os = "linux")]
+        let deadline = [&self.presenter, &self.audience]
+            .into_iter()
+            .flatten()
+            .filter_map(|native| native.transition.pending.map(|(when, _)| when))
+            .fold(deadline, Instant::min);
+        event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
     }
 }
 
@@ -393,4 +509,52 @@ pub fn run(options: Options) -> Result<(), Failure> {
         return Err(error.into());
     }
     Ok(())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    fn target(monitor: usize, fullscreen: bool) -> Placement {
+        Placement {
+            monitor,
+            fullscreen,
+            rect: (24, 48, 900, 600),
+        }
+    }
+
+    #[test]
+    fn fullscreen_moves_after_exit_and_enters_after_movement() {
+        let now = Instant::now();
+        let mut t = X11Transition::default();
+        assert!(t.request(target(1, true), now));
+        assert_eq!(t.take_due(now), None);
+        assert_eq!(t.take_due(now + X11Transition::SETTLE), Some(false));
+        assert_eq!(t.take_due(now + X11Transition::SETTLE), None);
+        assert_eq!(t.take_due(now + X11Transition::SETTLE * 2), Some(true));
+        assert_eq!(t.take_due(now + X11Transition::SETTLE * 3), None);
+        assert!(!t.request(target(1, true), now));
+        assert!(t.pending.is_none());
+    }
+
+    #[test]
+    fn newer_request_cancels_pending_fullscreen_and_unrelated_windows_stay_put() {
+        let now = Instant::now();
+        let mut presenter = X11Transition::default();
+        let mut audience = X11Transition::default();
+        presenter.request(target(0, false), now);
+        audience.request(target(1, true), now);
+        assert_eq!(presenter.take_due(now + X11Transition::SETTLE), Some(false));
+        assert_eq!(audience.take_due(now + X11Transition::SETTLE), Some(false));
+        let changed = now + X11Transition::SETTLE;
+        assert!(audience.request(target(0, false), changed));
+        assert!(!presenter.request(target(0, false), changed));
+        assert!(presenter.pending.is_none());
+        assert_eq!(
+            audience.take_due(changed + X11Transition::SETTLE),
+            Some(false)
+        );
+        assert!(audience.pending.is_none());
+        assert_eq!(audience.target, Some(target(0, false)));
+    }
 }

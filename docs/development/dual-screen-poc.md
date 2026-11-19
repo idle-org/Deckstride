@@ -97,3 +97,15 @@ normal system C/runtime and desktop libraries; compatibility with older distribu
 has not been established. The Xvfb wrapper has lifecycle/error tests; an actual Xvfb
 run was unavailable locally, so Jenkins still needs its new Xvfb prerequisite installed.
 The Windows proof retains a console for display-list and startup diagnostics.
+
+
+## Linux transition follow-up — 0.1.4
+
+The user reports smooth Windows swap/fullscreen operation and functioning but messy
+Linux transitions. The X11 path now applies only changed window assignments, exits
+fullscreen, allows 120 ms for the window manager to restore geometry, then moves and
+resizes. Fullscreen entry follows another 120 ms later. These are event-loop deadlines,
+not sleeps: slide and blank controls remain responsive, and a newer request replaces
+pending work. This is a small settling-time workaround to retest, not compositor
+acknowledgement or a guarantee for every window manager. Windows and Wayland placement
+are unchanged. No new dependencies, window framework or system settings are involved.

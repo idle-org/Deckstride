@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.4
+
+- Narrow Linux/X11 fix for mock-window swap/fullscreen transitions: stop resetting
+  unaffected windows and stage exit, movement and fullscreen entry without blocking.
+  New requests replace pending transitions. Windows and Wayland paths are unchanged.
+  Validation: 16 Rust tests including native smoke, Clippy/rustdoc, Windows compile
+  check and 89.06% whole-application coverage; Linux physical swap retest is pending.
+- User reports Windows swap/fullscreen working smoothly; Linux works but transitions
+  were messy. This is partial user evidence, not full platform acceptance.
+
+
 ### 0.1.3
 
 - Added a native dual-screen proof: presenter/current-next controls, fullscreen mock
