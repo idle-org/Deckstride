@@ -4,6 +4,12 @@
 
 ### 0.1.33
 
+- Prepare local Linux/Windows x86_64 preview artifacts with rust_realease; verify
+  all six artifact checksums, portable/binstall archive contents, extracted Linux
+  Wayland/X11 smoke, launcher and embedded notices. The installed older tool omits
+  portable bundles, so those were assembled from its binaries using the configured
+  file list. Windows runtime remains untested; no remote publication performed.
+
 - Associate All slides with a presenter window on Linux: send Wayland's toplevel
   parent hint and X11's transient/dialog hints so tiling desktops can float it.
   Keep the browser separate, resizable and non-modal; refresh its parent after

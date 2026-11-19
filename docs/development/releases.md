@@ -29,20 +29,43 @@ and regenerated with `python3 scripts/notices.py` after dependency changes.
 Before publication, run all checks in [CI](ci.md), inspect bundle contents and
 checksums, and test extracted binaries on clean Windows/Linux machines. Physical
 multiscreen, sleep and performance acceptance remains in [the plan](plan.md).
-Version 0.1.17 is prepared as a **preview**, not a production-readiness claim.
+Version 0.1.33 is prepared as a **preview**, not a production-readiness claim.
 
-Publication is a separate explicit action: create local `v0.1.17` at the reviewed
+Publication is a separate explicit action: create local `v0.1.33` at the reviewed
 commit, push that commit/tag, then run:
 
 ```sh
 rust_realease . --package pdf-presenter --prerelease \
-  --message-file docs/development/release-notes/v0.1.17.md \
+  --message-file docs/development/release-notes/v0.1.33.md \
   --token-file ../gitea-token.txt
 ```
 
 `--dry-run` previews without remote mutation. Before tagging, its missing-tag
 prerequisite is expected. Do not use automatic tag/push options as part of local
 preparation. Never put credentials in configuration, artifacts or Git.
+
+## Local validation for 0.1.33
+
+Built Linux x86_64 GNU and Windows x86_64 GNU from commit `6bba0c4` with
+`CROSS_CONTAINER_ENGINE=podman rust_realease . --package pdf-presenter --compile-only`.
+Artifacts are in `dist/release-oTFW9Q/`. The installed tool is 0.1.6-rc.2: it builds
+raw binaries and binstall archives but does not implement the configured portable
+bundles. Those two bundles were assembled from the same binaries using exactly the
+file list, names and archive roots in `rust-release.toml`; SHA256SUMS covers all six
+artifacts. This older tool does not emit an artifact manifest.
+
+All six checksums and all archive member lists were verified. The extracted Linux
+portable executable passed native smoke on Wayland and X11, embedded notices were
+checked, and the optional launcher was installed in temporary XDG directories and
+passed desktop-file-validate. Temporary extracted files were removed. Windows PE
+imports list only system DLLs; Linux ELF imports libc/libm/libgcc_s/the loader.
+Source validation for the included changes is recorded under 0.1.33 in the
+[changelog](../changelog.md); full local Linux coverage was 86.38%.
+
+The dependency-notice regeneration produced no changes. Private untracked PDFs
+were preserved and excluded from all archives. No tag, push or remote release was
+created. Windows runtime, Niri placement, clean-machine and physical multi-monitor
+acceptance remain pending. See [0.1.33 release notes](release-notes/v0.1.33.md).
 
 ## Local validation for 0.1.17
 
