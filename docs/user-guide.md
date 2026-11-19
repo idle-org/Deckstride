@@ -19,9 +19,12 @@ presenter is withheld to protect notes. Reconnect an operator screen, or restart
 windowed rehearsal after verifying privacy. Duplicate monitor names are distinguished
 by enumeration order; verify identical models.
 
-**Show presentation** activates output; **Blank presentation** or B hides it. Navigation
+Output is enabled by default when opening a document. Menu → Preferences → Show presentation
+automatically lets you save an opt-out. **Show presentation** restores blanked output; **Blank presentation** or B hides it. Navigation
 preserves blanking. Until an uncached requested slide is ready, output holds the last
-usable frame. The footer distinguishes requested and acknowledged displayed slides.
+usable frame. The footer distinguishes requested and acknowledged displayed slides. A red
+**NO OUTPUT DISPLAYED** warning marks blanking, no assigned output or no document;
+it remains visible when the footer is hidden. Preparing output has a separate status.
 Escape cancels a pending slide number/menu, closes the browser, or safely leaves
 fullscreen and blanks output. Closing a presentation window blanks it; close a
 presenter or choose Menu → Quit to end the application.
@@ -72,10 +75,10 @@ Opening a show starts two supervised preparation workers. The current slide gets
 Then the **entire deck** is prepared at the largest connected role screen's pixel
 edge, preserving slide aspect ratio. Smaller screens use that same frame scaled to
 fit; separate copies for every smaller resolution would waste RAM. The current
-renderer limit is 4096 pixels per side, shown in Menu. Resolution changes start a
+renderer limit is 4096 pixels per side, shown in Menu → Preferences. Resolution changes start a
 new preparation pass with a new buffer identity.
 
-Processed frames are kept in the application's persistent cache; Menu shows its
+Processed frames are kept in the application's persistent cache; Menu → Preferences → Storage locations shows its
 location. Reopening with unchanged source contents, resolution and renderer reuses
 those frames without PDF rasterization or image decoding. It still verifies source
 identity/checksums and reads frames into RAM: a restart cannot literally take zero
@@ -94,7 +97,7 @@ Navigation then performs no application slide-file reads, PDF rendering or image
 decoding. Raster composition still happens, and the OS can page memory under pressure.
 The entire prepared deck stays resident instead of evicting distant slides.
 
-Menu → RAM budget controls the decoded-slide allowance for **each process**, default
+Menu → Preferences → RAM budget controls the decoded-slide allowance for **each process**, default
 1024 MiB, configurable from 256 to 16384 MiB. Presenter and output can each consume
 that allowance; textures, workers and other application memory are additional.
 Preparation reserves capacity for in-flight frames. If the deck cannot fit, it pauses
@@ -124,3 +127,22 @@ you may remove its `slides-v1` directory while the app is closed. A full/unwrita
 reports an error and retains the last working output. OS window services/system
 libraries are prerequisites; PDF/image/font libraries are bundled in the executable. `--licenses` prints bundled
 dependency/font notices without launching a window.
+
+## Appearance and language
+
+Menu opens a dropdown below its button; click outside or press Escape to dismiss it.
+Displays uses numbered screen cards with direct Unused / Presenter / Presentation
+choices. Repeat a role to mirror it, then Apply and remember.
+
+Menu → Appearance → Theme offers the same 20 built-in palettes as Canvas Pilot, including light,
+dark and High Contrast. Menu → Appearance → Language offers System, English and Français. System
+uses the native OS locale and falls back to English for other languages. Choices are
+saved globally and apply to all presenter/browser windows; slides are never recolored.
+The controls and preparation progress are translated; detailed worker/OS diagnostics
+remain verbatim. Additional Canvas Pilot languages and external theme/language packs
+are not included in this version.
+
+All slides opens a windowed browser above fullscreen windows and requests focus.
+Opening it again restores/focuses the existing browser. Close or Escape dismisses it.
+The destination remains configurable in the browser, defaulting to the presenter.
+Window-manager focus restrictions may still require clicking the browser on some systems.

@@ -10,7 +10,7 @@
 
 **Native presenter:** open PDFs or naturally ordered picture folders, with configurable
 presenter previews/notes, a safe slide browser and mirrored display roles. Outputs
-start blanked; use **Show presentation** when destinations are ready. Both roles
+show automatically when a document opens (saved opt-out in Menu). Both roles
 default to fullscreen; a single monitor uses presenter-only rehearsal.
 
 ```sh

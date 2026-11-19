@@ -77,3 +77,8 @@ pub mod output;
 pub mod presenter_ui;
 /// Shared native application state.
 pub mod studio;
+
+/// Presenter interface language.
+pub mod localization;
+/// Standalone presenter palettes.
+pub mod theme;

@@ -1,4 +1,7 @@
 version = 1
+auto_show = true
+theme = "midra"
+language = "system"
 presenter_fullscreen = true
 presentation_fullscreen = true
 thumbnail_size = 220.0

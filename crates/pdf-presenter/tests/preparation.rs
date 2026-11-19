@@ -174,3 +174,19 @@ fn navigating_buffered_show_during_failed_open_does_not_cancel_open_completion()
     assert_eq!(s.requested, 1);
     assert!(std::sync::Arc::ptr_eq(&frame, &s.full_frame(1).unwrap()));
 }
+
+#[test]
+fn opening_document_honors_auto_show_and_navigation_preserves_manual_blank() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("show.pdf");
+    common::pdf(&path);
+    for auto_show in [true, false] {
+        let mut s = studio(&path, &temp.path().join("cache"));
+        s.settings.auto_show = auto_show;
+        prepare(&mut s);
+        assert_eq!(s.blanked, !auto_show);
+        s.blanked = true;
+        s.execute(Action::Go(1));
+        assert!(s.blanked);
+    }
+}

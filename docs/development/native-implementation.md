@@ -125,3 +125,29 @@ coverage is 84.42% (75% floor), with no production exclusions. Linux and Windows
 artifacts are rebuilt, and macOS aarch64 is compile-checked. The native presenter was
 visually inspected with the local PDF and showed all three slides buffered in RAM.
 Navigating the previous buffered show while a new load fails is also regression-tested.
+
+
+## 0.1.14 presenter workflow
+
+Menu is an anchored dropdown with Appearance and Preferences submenus. Displays uses
+numbered screen cards and direct role selection. The independent windowed slide
+browser requests topmost placement/focus; reopening restores/focuses it. Output is
+enabled by default on successful document open, with a globally saved opt-out.
+Emergency/topology blanking still applies, and NO OUTPUT DISPLAYED is explicit even
+with a hidden footer. Appearance contains all 20 Canvas Pilot built-in palettes and
+System/English/French. Additional languages and external packs remain unimplemented;
+worker/OS diagnostics are preserved verbatim. This repository remains standalone.
+
+Validation on the available Linux/X11 desktop: real pointer clicks opened All slides,
+its Close control, the compact dropdown and display cards. A separate release run
+loaded persisted French/Corporate Light preferences and auto_show=false, showing the
+red output indicator and translated warning. The test harness had to raise its app
+before synthetic pointer delivery; input sent to another foreground window was not
+an application failure. Temporary preferences/cache and owned test processes were
+cleaned up. This is local GUI evidence, not acceptance of the multi-OS physical matrix.
+
+41 Rust tests, including native smoke/output and new pointer-dispatch/default-output
+regressions, and 10 Python tests pass. Formatting, Clippy/rustdoc with warnings denied,
+and macOS aarch64 compile-check pass. Whole-application coverage is 82.73% (75% floor),
+without production exclusions. Linux and Windows x86_64 release builds succeed. Windows/macOS runtime validation
+remains open.

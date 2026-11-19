@@ -138,6 +138,9 @@ pub struct Settings {
     pub browser_monitor: Option<String>,
     pub thumbnail_size: f32,
     pub buffer_mib: u32,
+    pub auto_show: bool,
+    pub theme: crate::theme::Theme,
+    pub language: crate::localization::Language,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -151,6 +154,9 @@ impl Default for Settings {
             browser_monitor: None,
             thumbnail_size: 220.,
             buffer_mib: 1024,
+            auto_show: true,
+            theme: Default::default(),
+            language: Default::default(),
         }
     }
 }

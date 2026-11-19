@@ -12,6 +12,18 @@ with an error, without rewriting the bad file. Missing files use defaults. Reads
 bounded to 4 MiB. Writes validate then atomically replace using a same-directory
 flushed temporary file. Unknown fields are ignored and not preserved on round trip.
 
+- `auto_show`: boolean, default true (0.1.14). Enables output on startup and successful
+  document open; false starts/opens blanked. Manual navigation preserves blanking.
+  Display topology changes, safe fullscreen exit and host recovery still blank output.
+- `theme`: built-in palette enum in snake_case, default `midra` (0.1.14). Values:
+  `midra`, `high_contrast`, `foxified_dark`, `corporate_light`, `bluecore`,
+  `dupont_monsanto`, `eden_green`, `foxified_light`, `hci`, `iron_docks`, `peaceframe`,
+  `rebel`, `sirius_mind`, `solarized`, `sons_of_banard`, `storm_pilot`,
+  `tessier_ashpol`, `ustf`, `verdant_rebel`, `weicat_industrial`.
+- `language`: `system` (default), `en` or `fr` (0.1.14). Native OS locale selects
+  French for `fr*`, English otherwise. Unknown theme/language values are rejected.
+  Missing new fields in older v1 files use these defaults; no migration is required.
+  Theme, language and automatic-output changes persist asynchronously, globally.
 - `layout`: `previous`, `current`, `next`, `notes`, `elapsed`, `clock`, each with
   boolean `show` and finite floating `size`; plus boolean `header`/`footer`.
   Previous/next sizes are relative weights 30–160, current 60–200; notes size

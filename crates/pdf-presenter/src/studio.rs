@@ -126,7 +126,7 @@ impl Studio {
             deck: None,
             requested: 0,
             displayed: None,
-            blanked: true,
+            blanked: false,
             status: "Ready — open a PDF or picture folder, or drop it here.".into(),
             awake_status: "Sleep protection starting…".into(),
             generation: 0,
@@ -228,9 +228,14 @@ impl Studio {
             self.privacy_hold = recovering && self.routes.presenter.is_empty();
             self.draft_routes = self.routes.clone();
             self.dirty_routes = true;
-            self.blanked = true;
+            self.blanked = recovering || !self.settings.auto_show;
             self.new_output = true;
-            self.status="Screen setup refreshed. Presentation is blanked; review destinations and Show when ready.".into();
+            self.status = if recovering {
+                "Screen setup changed. Output blanked; review destinations before showing."
+            } else {
+                "Screen setup ready."
+            }
+            .into();
         }
     }
     pub fn execute(&mut self, action: Action) {
@@ -327,6 +332,7 @@ impl Studio {
                         self.status = format!("Settings: {error}");
                     } else if let Some(settings) = packet.reply.settings {
                         if !self.smoke {
+                            self.blanked = !settings.auto_show;
                             self.settings = settings;
                             self.layout = self.settings.for_project(&self.project());
                             self.routes = Routes::default();
@@ -442,7 +448,7 @@ impl Studio {
                                 )
                             });
                             self.deck = Some(info);
-                            self.blanked = true;
+                            self.blanked = !self.settings.auto_show;
                             self.new_output = true;
                         }
                         if let Some(info) = packet.reply.frame {
@@ -639,6 +645,9 @@ impl Studio {
     pub fn buffer_generation(&self) -> u64 {
         (self.generation << 32) | u64::from(self.target_edge)
     }
+    pub fn save_preferences(&mut self) {
+        self.pending_save = true;
+    }
     pub fn remember_buffer_budget(&mut self) {
         self.pending_save = true;
         self.ram_blocked = false;
@@ -653,7 +662,62 @@ impl Studio {
             && self.prepared.len() == self.count()
             && (self.routes.presentation.is_empty() || self.output_buffered == self.count())
     }
+    fn preparation_status_fr(&self) -> String {
+        if self.loading {
+            return "Ouverture et vérification du cache… Estimation en cours".into();
+        }
+        if self.deck.is_none() {
+            return self.status.clone();
+        }
+        let n = self.prepared.len();
+        let total = self.count();
+        let ram = self.buffer_bytes() / (1024 * 1024);
+        if self.notes_loading {
+            return format!("Lecture des notes · {n}/{total} en mémoire · diffusion disponible");
+        }
+        if self.fully_buffered() {
+            return format!(
+                "PRÊT — {total} diapositives en RAM · {ram} Mio · {} px",
+                self.target_edge
+            );
+        }
+        if self.ram_blocked {
+            return format!(
+                "Budget RAM atteint — {n}/{total} en mémoire. Augmentez le budget dans Menu pour terminer."
+            );
+        }
+        if !self.failed.is_empty() {
+            return format!(
+                "Préparation incomplète — {n}/{total} en mémoire. {}",
+                self.status
+            );
+        }
+        let count = if n == total { self.output_buffered } else { n };
+        let eta = if count > 0 && count < total {
+            format!(
+                "~{} s restantes",
+                (self.preparation_started.elapsed().as_secs_f64() / count as f64
+                    * (total - count) as f64)
+                    .ceil() as u64
+            )
+        } else {
+            "Estimation en cours…".into()
+        };
+        if n == total {
+            format!(
+                "Chargement de la sortie — {count}/{total} · {ram} Mio dans le présentateur · {eta}"
+            )
+        } else {
+            format!(
+                "Préparation {} px — {n}/{total} · {ram} Mio · {eta} · {} en cache",
+                self.target_edge, self.cached_slides
+            )
+        }
+    }
     pub fn preparation_status(&self) -> String {
+        if self.settings.language.french() {
+            return self.preparation_status_fr();
+        }
         if self.loading {
             return "Opening source and verifying cached slide identity… ETA estimating".into();
         }

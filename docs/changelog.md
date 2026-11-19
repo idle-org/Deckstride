@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### 0.1.14
+
+- Replace the floating Menu with an anchored dropdown; present display assignments
+  as numbered cards with direct role choices.
+- Raise/focus the windowed slide browser over fullscreen presenter windows and
+  restore an existing browser when opened again; add an explicit Close control.
+- Show output by default on document open, with a saved opt-out. Distinguish disabled
+  output using a colored indicator and NO OUTPUT DISPLAYED, including with hidden bars.
+- Add Canvas Pilot’s 20 built-in palettes and System/English/French interface and
+  progress preferences. Persist globally with backward-compatible settings defaults.
+  Detailed diagnostics remain verbatim; other languages/external packs are not bundled.
+- Retain emergency blanking, topology privacy protection and existing RAM preparation.
+
+
 ### 0.1.13
 
 - Prepare every slide at the largest active screen resolution (4096-pixel edge cap),

@@ -57,6 +57,11 @@ impl NativeWindow {
             el.create_window(
                 Window::default_attributes()
                     .with_title(title)
+                    .with_window_level(if role == Role::Browser {
+                        winit::window::WindowLevel::AlwaysOnTop
+                    } else {
+                        winit::window::WindowLevel::Normal
+                    })
                     .with_visible(false)
                     .with_inner_size(PhysicalSize::new(1100, 750)),
             )?,
@@ -118,6 +123,9 @@ impl NativeWindow {
             ));
         }
         self.window.set_visible(true);
+        if self.role == Role::Browser {
+            self.window.focus_window();
+        }
         self.window
             .set_cursor_visible(self.role != Role::Presentation);
     }
@@ -153,6 +161,10 @@ impl NativeWindow {
         }
         if u64::from(size.width) * u64::from(size.height) > 40_000_000 {
             return Err("Display exceeds 40 megapixels".into());
+        }
+        if let Some(s) = studio.as_ref() {
+            s.settings.theme.apply(&self.ctx);
+            crate::localization::apply(&self.ctx, &s.settings.language);
         }
         let input = self.input.take_egui_input(&self.window);
         let role = self.role;
@@ -505,6 +517,12 @@ impl App {
             let actions = std::mem::take(&mut s.actions);
             repaint |= !actions.is_empty();
             for action in actions {
+                if matches!(action, Action::OpenBrowser) {
+                    for window in self.windows.iter().filter(|w| w.role == Role::Browser) {
+                        window.window.set_minimized(false);
+                        window.window.focus_window();
+                    }
+                }
                 s.execute(action);
             }
             if let Some(output) = &self.output {

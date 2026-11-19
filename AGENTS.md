@@ -59,8 +59,9 @@ implementation choices for target packaging and clean-machine acceptance.
 Open source PDFs read-only. Never rewrite a document as a side effect of presenting.
 Failed loads retain the working document. Bound renderer memory/cache usage; handle
 malformed, encrypted and large PDFs explicitly. Keep slow rendering off the UI thread.
-Audience outputs must never show operator notes, dialogs, paths or controls. Require
-explicit output activation, start blanked, and preserve blanking during navigation.
+Audience outputs must never show operator notes, dialogs, paths or controls. Show presentation output automatically on startup/document open by default, with a
+saved opt-out. Preserve manual blanking during navigation; topology changes and host
+failure recovery still blank explicitly and must show an unmistakable operator warning.
 Display disconnects must not move operator content onto an audience output.
 Never claim physical multiscreen acceptance from headless unit tests.
 

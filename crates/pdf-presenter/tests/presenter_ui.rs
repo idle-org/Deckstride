@@ -117,6 +117,7 @@ fn browser_virtualizes_thumbnails_without_changing_presented_slide() {
 #[test]
 fn shared_actions_preserve_blanking_and_save_scope() {
     let mut s = studio();
+    s.blanked = true;
     s.execute(Action::Go(5));
     assert_eq!(s.requested, 5);
     assert!(s.blanked);
@@ -163,4 +164,105 @@ fn lost_operator_screen_never_becomes_notes_on_previous_public_output() {
     s.set_monitors(monitors, 0);
     assert!(!s.privacy_hold);
     assert_eq!(s.routes.presenter, vec!["one"]);
+}
+
+#[test]
+fn palettes_and_languages_apply_to_presenter_browser_and_popups() {
+    use pdf_presenter::{
+        localization::{Language, apply, tr},
+        theme::Theme,
+    };
+    let ctx = Context::default();
+    let mut s = studio();
+    let mut ui = UiState::default();
+    for theme in Theme::ALL {
+        theme.apply(&ctx);
+        assert_eq!(
+            ctx.global_style().visuals.text_color(),
+            theme.palette().text
+        );
+        for language in Language::ALL {
+            apply(&ctx, &language);
+            if language == Language::Fr {
+                assert_eq!(tr(&ctx, "Displays"), "Écrans");
+            }
+            s.menu_open = true;
+            s.displays_open = true;
+            s.layout_open = true;
+            let output = ctx.run_ui(input(Vec2::new(1400., 1000.)), |root| {
+                presenter_ui::presenter(root, &mut s, &mut ui)
+            });
+            assert!(!output.shapes.is_empty());
+            let output = ctx.run_ui(input(Vec2::new(1000., 700.)), |root| {
+                presenter_ui::browser(root, &mut s, &mut ui)
+            });
+            assert!(!output.shapes.is_empty());
+        }
+    }
+}
+#[test]
+fn startup_output_is_enabled_but_disconnect_still_blanks() {
+    let mut s = Studio::new(true, None);
+    assert!(!s.blanked);
+    let monitors = studio().monitors;
+    s.set_monitors(monitors.clone(), 0);
+    assert!(!s.blanked);
+    s.set_monitors(vec![monitors[0].clone()], 0);
+    assert!(s.blanked);
+    let mut opt_out = Studio::new(true, None);
+    opt_out.settings.auto_show = false;
+    opt_out.set_monitors(monitors, 0);
+    assert!(opt_out.blanked);
+}
+
+#[test]
+fn header_click_opens_slide_browser_and_menu_dropdown() {
+    fn text_position(shapes: &[egui::epaint::ClippedShape], label: &str) -> Pos2 {
+        fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+            match shape {
+                egui::Shape::Text(t) if t.galley.text() == label => {
+                    Some(t.pos + t.galley.size() * 0.5)
+                }
+                egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+                _ => None,
+            }
+        }
+        shapes.iter().find_map(|s| find(&s.shape, label)).unwrap()
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    let mut native = UiState::default();
+    let size = Vec2::new(1920., 1080.);
+    for label in ["All slides", "Menu"] {
+        let mut output = ctx.run_ui(input(size), |ui| {
+            presenter_ui::presenter(ui, &mut s, &mut native)
+        });
+        for _ in 0..2 {
+            output = ctx.run_ui(input(size), |ui| {
+                presenter_ui::presenter(ui, &mut s, &mut native)
+            });
+        }
+        let pos = text_position(&output.shapes, label);
+        for pressed in [true, false] {
+            let mut raw = input(size);
+            raw.events = vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ];
+            let _ = ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, &mut s, &mut native));
+        }
+        if label == "All slides" {
+            assert!(
+                s.actions.iter().any(|a| matches!(a, Action::OpenBrowser)),
+                "All slides click at {pos:?} must dispatch an action"
+            );
+        } else {
+            assert!(s.menu_open, "Menu click must open the anchored dropdown");
+        }
+    }
 }

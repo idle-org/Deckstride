@@ -7,6 +7,7 @@ repository.workspace = true
 description = "Portable multiscreen PDF and image presenter"
 
 [dependencies]
+sys-locale = "=0.3.2"
 winit = "=0.30.13"
 softbuffer = { version = "=0.4.8", default-features = false, features = ["x11", "x11-dlopen", "wayland", "wayland-dlopen"] }
 font8x8 = "=0.3.1"

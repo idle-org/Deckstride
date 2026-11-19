@@ -1,4 +1,5 @@
-//! Native controls for the approved presenter layout and safe slide browser.
+use crate::localization::tr;
+// Native controls for the approved presenter layout and safe slide browser.
 use crate::{
     settings::Layout,
     studio::{Action, Studio},
@@ -28,6 +29,7 @@ impl Default for UiState {
 }
 impl UiState {
     pub fn image(&mut self, ui: &mut Ui, s: &Studio, page: usize, rect: Rect) {
+        let locale = ui.ctx().clone();
         ui.painter()
             .rect_filled(rect, 6., Color32::from_rgb(18, 28, 31));
         if let Some(frame) = s.frame(page) {
@@ -59,9 +61,9 @@ impl UiState {
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
                 if page < s.count() {
-                    "Preparing slide…"
+                    tr(&locale, "Preparing slide…")
                 } else {
-                    "No slide"
+                    tr(&locale, "No slide")
                 },
                 FontId::proportional(18.),
                 Color32::GRAY,
@@ -103,19 +105,21 @@ fn button(ui: &mut Ui, label: &str, action: Action, actions: &mut Vec<Action>) {
     }
 }
 fn widget(ui: &mut Ui, label: &str, w: &mut crate::settings::Widget, min: f32, max: f32) {
+    let locale = ui.ctx().clone();
     ui.checkbox(&mut w.show, label);
     ui.add_enabled(
         w.show,
-        egui::Slider::new(&mut w.size, min..=max).text("Size"),
+        egui::Slider::new(&mut w.size, min..=max).text(tr(&locale, "Size")),
     );
     ui.separator();
 }
 pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
+    let locale = ui.ctx().clone();
     native.trim(s);
     let ctx = ui.ctx().clone();
     let screen = ui.max_rect();
     ui.painter()
-        .rect_filled(screen, 0., Color32::from_rgb(16, 21, 23));
+        .rect_filled(screen, 0., ui.visuals().panel_fill);
     let now = Instant::now();
     let pointer = ctx.input(|i| i.pointer.hover_pos());
     if pointer.is_some_and(|p| p.y < screen.top() + 72.) {
@@ -128,14 +132,14 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let footer = s.layout.footer || native.footer_until > now;
     let background = ui.interact(screen, ui.id().with("context"), Sense::click());
     background.context_menu(|ui| {
-        ui.checkbox(&mut s.layout.header, "Keep header visible");
-        ui.checkbox(&mut s.layout.footer, "Keep footer visible");
-        if ui.button("Show both").clicked() {
+        ui.checkbox(&mut s.layout.header, tr(&locale, "Keep header visible"));
+        ui.checkbox(&mut s.layout.footer, tr(&locale, "Keep footer visible"));
+        if ui.button(tr(&locale, "Show both")).clicked() {
             s.layout.header = true;
             s.layout.footer = true;
             ui.close();
         }
-        if ui.button("Layout…").clicked() {
+        if ui.button(tr(&locale, "Layout…")).clicked() {
             s.layout_open = true;
             ui.close();
         }
@@ -173,13 +177,17 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     if preview_visible {
         let items = [
             (
-                "PREVIOUS",
+                tr(&locale, "PREVIOUS"),
                 s.requested.checked_sub(1),
                 s.layout.previous.clone(),
             ),
-            ("CURRENT", Some(s.requested), s.layout.current.clone()),
             (
-                "NEXT",
+                tr(&locale, "CURRENT"),
+                Some(s.requested),
+                s.layout.current.clone(),
+            ),
+            (
+                tr(&locale, "NEXT"),
                 (s.requested + 1 < s.count()).then_some(s.requested + 1),
                 s.layout.next.clone(),
             ),
@@ -208,7 +216,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     page.map_or(String::new(), |p| format!("{} / {}", p + 1, s.count()))
                 ),
                 FontId::proportional(13.),
-                TEAL,
+                ui.visuals().hyperlink_color,
             );
             if let Some(page) = page {
                 native.image(
@@ -223,21 +231,20 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
     if s.layout.notes.show {
         let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - notes_h), body.max);
-        ui.painter()
-            .rect_filled(rect, 8., Color32::from_rgb(25, 33, 36));
+        ui.painter().rect_filled(rect, 8., ui.visuals().window_fill);
         ui.painter().text(
             rect.min + Vec2::splat(14.),
             egui::Align2::LEFT_TOP,
-            "PRESENTER NOTES · AUTO-FIT",
+            tr(&locale, "PRESENTER NOTES · AUTO-FIT"),
             FontId::proportional(12.),
-            TEAL,
+            ui.visuals().hyperlink_color,
         );
         let text = s
             .deck
             .as_ref()
             .and_then(|d| d.notes.get(s.requested))
             .filter(|n| !n.is_empty())
-            .map_or("No notes for this slide", String::as_str);
+            .map_or(tr(&locale, "No notes for this slide"), String::as_str);
         let area = Rect::from_min_max(rect.min + Vec2::new(16., 40.), rect.max - Vec2::splat(16.));
         if area.is_positive() {
             if native
@@ -251,7 +258,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     f.layout(
                         text.into(),
                         FontId::proportional(lo),
-                        Color32::WHITE,
+                        ui.visuals().text_color(),
                         area.width(),
                     )
                 });
@@ -261,7 +268,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         f.layout(
                             text.into(),
                             FontId::proportional(mid),
-                            Color32::WHITE,
+                            ui.visuals().text_color(),
                             area.width(),
                         )
                     });
@@ -277,49 +284,87 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             if let Some((_, _, galley)) = &native.note_cache {
                 ui.painter()
                     .with_clip_rect(area)
-                    .galley(area.min, galley.clone(), Color32::WHITE);
+                    .galley_with_override_text_color(
+                        area.min,
+                        galley.clone(),
+                        ui.visuals().text_color(),
+                    );
             }
         }
     }
     if header {
         let rect = Rect::from_min_size(screen.min, Vec2::new(screen.width(), 64.));
-        ui.painter()
-            .rect_filled(rect, 0., Color32::from_rgb(25, 37, 40));
+        ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(10.)), |ui| {
             ui.horizontal(|ui| {
                 if ui
-                    .button(if s.layout.header { "Hide" } else { "Pin" })
+                    .button(if s.layout.header {
+                        tr(&locale, "Hide")
+                    } else {
+                        tr(&locale, "Pin")
+                    })
                     .clicked()
                 {
                     s.layout.header = !s.layout.header;
                     native.header_until = now;
                 }
-                if ui.button("Menu").clicked() {
-                    s.menu_open = !s.menu_open;
-                }
+                let trigger = ui.button(tr(&locale, "Menu"));
+                let mut menu_open = if trigger.clicked() {
+                    !s.menu_open
+                } else {
+                    s.menu_open
+                };
+                egui::Popup::menu(&trigger)
+                    .open_bool(&mut menu_open)
+                    .show(|ui| {
+                        egui::ScrollArea::vertical()
+                            .max_height(520.)
+                            .show(ui, |ui| menu(ui, s));
+                    });
+                s.menu_open = menu_open;
                 ui.label(
                     s.deck
                         .as_ref()
                         .map_or("PDF Presenter", |d| d.title.as_str()),
                 );
-                if ui.button("Displays").clicked() {
+                if ui.button(tr(&locale, "Displays")).clicked() {
                     s.draft_routes = s.routes.clone();
                     s.displays_open = true;
                 }
-                button(ui, "All slides", Action::OpenBrowser, &mut s.actions);
-                if ui.button("Layout").clicked() {
-                    s.layout_open = !s.layout_open;
-                }
                 button(
                     ui,
-                    if s.blanked {
-                        "Show presentation"
-                    } else {
-                        "Blank presentation"
-                    },
-                    Action::Blank,
+                    tr(&locale, "All slides"),
+                    Action::OpenBrowser,
                     &mut s.actions,
                 );
+                if ui.button(tr(&locale, "Layout")).clicked() {
+                    s.layout_open = !s.layout_open;
+                }
+                let inactive = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
+                let color = if inactive {
+                    ui.visuals().error_fg_color
+                } else {
+                    ui.visuals().hyperlink_color
+                };
+                let (indicator, _) = ui.allocate_exact_size(Vec2::splat(12.), Sense::hover());
+                ui.painter().circle_filled(indicator.center(), 5., color);
+                if ui
+                    .button(
+                        egui::RichText::new(if s.blanked {
+                            tr(&locale, "Show presentation")
+                        } else {
+                            tr(&locale, "Blank presentation")
+                        })
+                        .color(if s.blanked {
+                            ui.visuals().error_fg_color
+                        } else {
+                            ui.visuals().hyperlink_color
+                        }),
+                    )
+                    .clicked()
+                {
+                    s.actions.push(Action::Blank);
+                }
                 if s.layout.elapsed.show {
                     let secs = s.started.elapsed().as_secs();
                     ui.label(
@@ -341,36 +386,47 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             Pos2::new(screen.left(), screen.bottom() - 90.),
             Vec2::new(screen.width(), 90.),
         );
-        ui.painter()
-            .rect_filled(rect, 0., Color32::from_rgb(25, 37, 40));
+        ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(8.)), |ui| {
             ui.horizontal(|ui| {
                 button(
                     ui,
-                    "Previous",
+                    tr(&locale, "Previous"),
                     Action::Go(s.requested.saturating_sub(1)),
                     &mut s.actions,
                 );
-                button(ui, "Next", Action::Go(s.requested + 1), &mut s.actions);
+                button(
+                    ui,
+                    tr(&locale, "Next"),
+                    Action::Go(s.requested + 1),
+                    &mut s.actions,
+                );
                 ui.label(format!(
                     "{} / {}",
                     if s.count() == 0 { 0 } else { s.requested + 1 },
                     s.count()
                 ));
+                let unavailable = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
                 ui.colored_label(
-                    TEAL,
-                    if s.routes.presentation.is_empty() {
-                        "REHEARSAL"
-                    } else if s.blanked {
-                        "BLANKED"
-                    } else if s.displayed == Some(s.requested) {
-                        "PRESENTING"
+                    if unavailable {
+                        ui.visuals().error_fg_color
                     } else {
-                        "PREPARING"
+                        ui.visuals().hyperlink_color
+                    },
+                    if unavailable {
+                        tr(&locale, "NO OUTPUT DISPLAYED")
+                    } else if s.displayed == Some(s.requested) {
+                        tr(&locale, "PRESENTING")
+                    } else {
+                        tr(&locale, "PREPARING OUTPUT")
                     },
                 );
                 if ui
-                    .button(if s.layout.footer { "Hide" } else { "Pin" })
+                    .button(if s.layout.footer {
+                        tr(&locale, "Hide")
+                    } else {
+                        tr(&locale, "Pin")
+                    })
                     .clicked()
                 {
                     s.layout.footer = !s.layout.footer;
@@ -405,65 +461,54 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 });
             });
     }
+    if !footer && (s.blanked || s.routes.presentation.is_empty() || s.count() == 0) {
+        egui::Area::new("output-warning".into())
+            .anchor(egui::Align2::RIGHT_TOP, Vec2::new(-12., 76.))
+            .interactable(false)
+            .show(&ctx, |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.colored_label(
+                        ui.visuals().error_fg_color,
+                        tr(&locale, "NO OUTPUT DISPLAYED"),
+                    );
+                });
+            });
+    }
     if !s.jump.is_empty() {
         egui::Area::new("jump".into())
             .anchor(egui::Align2::CENTER_BOTTOM, Vec2::new(0., -80.))
             .show(&ctx, |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.label(format!(
-                        "Go to slide {} · Enter to show · Esc to cancel",
-                        s.jump
+                        "{} {} · {}",
+                        if s.settings.language.french() {
+                            "Diapositive"
+                        } else {
+                            "Go to slide"
+                        },
+                        s.jump,
+                        if s.settings.language.french() {
+                            "Entrée : diffuser · Échap : annuler"
+                        } else {
+                            "Enter to show · Esc to cancel"
+                        }
                     ));
                 });
             });
     }
-    if s.menu_open {
-        egui::Window::new("Menu")
-            .collapsible(false)
-            .resizable(false)
-            .show(&ctx, |ui| {
-                button(ui, "Open PDF…", Action::Pick(false), &mut s.actions);
-                button(
-                    ui,
-                    "Open picture folder…",
-                    Action::Pick(true),
-                    &mut s.actions,
-                );
-                button(ui, "All slides", Action::OpenBrowser, &mut s.actions);
-                if ui.button("Reset timer").clicked() {
-                    s.started = Instant::now();
-                }
-                button(
-                    ui,
-                    "Leave fullscreen / safe blank",
-                    Action::Windowed,
-                    &mut s.actions,
-                );
-                ui.separator();
-                ui.label(s.preparation_status());
-                ui.label(format!("Processed slides: {}", s.cache_path.display()));
-                ui.label("RAM budget per process (presenter + output each use this allowance):");
-                if ui.add(egui::Slider::new(&mut s.settings.buffer_mib, 256..=16384).text("MiB")).changed() { s.remember_buffer_budget(); }
-                ui.small("Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px.");
-                ui.label(format!("Configuration: {}", s.settings_path.display()));
-                button(ui, "Quit", Action::Exit, &mut s.actions);
-                if ui.button("Close menu").clicked() {
-                    s.menu_open = false;
-                }
-            });
-    }
     if s.layout_open {
         let mut open = true;
-        egui::Window::new("Your presenter view")
+        egui::Window::new(tr(&locale, "Your presenter view"))
+            .id(egui::Id::new("layout-window"))
             .open(&mut open)
             .default_width(330.)
             .vscroll(true)
             .show(&ctx, |ui| {
                 ui.horizontal(|ui| {
-                    if ui.button("Balanced").clicked() {
+                    if ui.button(tr(&locale, "Balanced")).clicked() {
                         s.layout = Layout::default();
                     }
-                    if ui.button("Slide focus").clicked() {
+                    if ui.button(tr(&locale, "Slide focus")).clicked() {
                         s.layout = Layout::default();
                         s.layout.previous.show = false;
                         s.layout.next.show = false;
@@ -471,117 +516,209 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         s.layout.elapsed.show = false;
                         s.layout.clock.show = false;
                     }
-                    if ui.button("Notes first").clicked() {
+                    if ui.button(tr(&locale, "Notes first")).clicked() {
                         s.layout.notes.show = true;
                         s.layout.notes.size = 60.;
                         s.layout.previous.show = false;
                     }
                 });
-                ui.checkbox(&mut s.layout.header, "Keep header visible");
-                ui.checkbox(&mut s.layout.footer, "Keep footer visible");
-                ui.small("Hidden bars reveal near edges. Right-click to restore.");
-                widget(ui, "Previous slide", &mut s.layout.previous, 30., 160.);
-                widget(ui, "Current slide", &mut s.layout.current, 60., 200.);
-                widget(ui, "Next slide", &mut s.layout.next, 30., 160.);
-                widget(ui, "Notes", &mut s.layout.notes, 12., 65.);
-                widget(ui, "Elapsed time", &mut s.layout.elapsed, 16., 72.);
-                widget(ui, "Time · HH:MM", &mut s.layout.clock, 16., 72.);
+                ui.checkbox(&mut s.layout.header, tr(&locale, "Keep header visible"));
+                ui.checkbox(&mut s.layout.footer, tr(&locale, "Keep footer visible"));
+                ui.small(tr(
+                    &locale,
+                    "Hidden bars reveal near edges. Right-click to restore.",
+                ));
+                widget(
+                    ui,
+                    tr(&locale, "Previous slide"),
+                    &mut s.layout.previous,
+                    30.,
+                    160.,
+                );
+                widget(
+                    ui,
+                    tr(&locale, "Current slide"),
+                    &mut s.layout.current,
+                    60.,
+                    200.,
+                );
+                widget(ui, tr(&locale, "Next slide"), &mut s.layout.next, 30., 160.);
+                widget(ui, tr(&locale, "Notes"), &mut s.layout.notes, 12., 65.);
+                widget(
+                    ui,
+                    tr(&locale, "Elapsed time"),
+                    &mut s.layout.elapsed,
+                    16.,
+                    72.,
+                );
+                widget(
+                    ui,
+                    tr(&locale, "Time · HH:MM"),
+                    &mut s.layout.clock,
+                    16.,
+                    72.,
+                );
                 button(
                     ui,
-                    "Save layout · This project",
+                    tr(&locale, "Save layout · This project"),
                     Action::SaveProject,
                     &mut s.actions,
                 );
                 button(
                     ui,
-                    "Save layout · All projects",
+                    tr(&locale, "Save layout · All projects"),
                     Action::SaveGlobal,
                     &mut s.actions,
                 );
                 button(
                     ui,
-                    "Use all-projects default",
+                    tr(&locale, "Use all-projects default"),
                     Action::UseGlobal,
                     &mut s.actions,
                 );
-                ui.small("Project layouts override the default.");
+                ui.small(tr(&locale, "Project layouts override the default."));
             });
         s.layout_open = open;
     }
     if s.displays_open {
         let mut open = true;
-        egui::Window::new("Displays")
+        egui::Window::new(tr(&locale, "Displays"))
+            .id(egui::Id::new("displays-window"))
             .open(&mut open)
-            .default_width(520.)
+            .default_width(600.)
+            .vscroll(true)
             .show(&ctx, |ui| {
-                ui.label("Each screen has one role; repeat a role to mirror it.");
-                for m in &s.monitors {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("{} · {}×{}", m.name, m.size.0, m.size.1));
-                        let mut role = if s.draft_routes.presenter.contains(&m.id) {
-                            1
-                        } else if s.draft_routes.presentation.contains(&m.id) {
-                            2
-                        } else {
-                            0
-                        };
-                        egui::ComboBox::from_id_salt(&m.id)
-                            .selected_text(["Unused", "Presenter", "Presentation"][role])
-                            .show_ui(ui, |ui| {
-                                for (i, name) in
-                                    ["Unused", "Presenter", "Presentation"].iter().enumerate()
-                                {
-                                    ui.selectable_value(&mut role, i, *name);
-                                }
+                ui.label(tr(
+                    &locale,
+                    "Each screen has one role; repeat a role to mirror it.",
+                ));
+                for (index, m) in s.monitors.iter().enumerate() {
+                    egui::Frame::group(ui.style())
+                        .inner_margin(12.)
+                        .show(ui, |ui| {
+                            ui.set_min_width(540.);
+                            ui.horizontal(|ui| {
+                                let (rect, _) =
+                                    ui.allocate_exact_size(Vec2::new(64., 40.), Sense::hover());
+                                ui.painter()
+                                    .rect_filled(rect, 4., ui.visuals().extreme_bg_color);
+                                ui.painter().rect_stroke(
+                                    rect,
+                                    4.,
+                                    egui::Stroke::new(2_f32, ui.visuals().hyperlink_color),
+                                    egui::StrokeKind::Inside,
+                                );
+                                ui.painter().text(
+                                    rect.center(),
+                                    egui::Align2::CENTER_CENTER,
+                                    (index + 1).to_string(),
+                                    FontId::proportional(22.),
+                                    ui.visuals().text_color(),
+                                );
+                                ui.vertical(|ui| {
+                                    ui.strong(&m.name);
+                                    ui.small(format!("{} × {} px", m.size.0, m.size.1));
+                                });
                             });
-                        s.draft_routes.presenter.retain(|id| id != &m.id);
-                        s.draft_routes.presentation.retain(|id| id != &m.id);
-                        match role {
-                            1 => s.draft_routes.presenter.push(m.id.clone()),
-                            2 => s.draft_routes.presentation.push(m.id.clone()),
-                            _ => {}
-                        }
-                    });
+                            ui.add_space(8.);
+                            let mut role = if s.draft_routes.presenter.contains(&m.id) {
+                                1
+                            } else if s.draft_routes.presentation.contains(&m.id) {
+                                2
+                            } else {
+                                0
+                            };
+                            ui.push_id(&m.id, |ui| {
+                                ui.horizontal(|ui| {
+                                    for (i, name) in [
+                                        tr(&locale, "Unused"),
+                                        tr(&locale, "Presenter"),
+                                        tr(&locale, "Presentation"),
+                                    ]
+                                    .iter()
+                                    .enumerate()
+                                    {
+                                        ui.selectable_value(&mut role, i, *name);
+                                    }
+                                });
+                            });
+                            s.draft_routes.presenter.retain(|id| id != &m.id);
+                            s.draft_routes.presentation.retain(|id| id != &m.id);
+                            match role {
+                                1 => s.draft_routes.presenter.push(m.id.clone()),
+                                2 => s.draft_routes.presentation.push(m.id.clone()),
+                                _ => {}
+                            }
+                        });
+                    ui.add_space(8.);
                 }
-                if ui.button("Swap groups").clicked() && !s.draft_routes.presentation.is_empty() {
+                if ui.button(tr(&locale, "Swap groups")).clicked()
+                    && !s.draft_routes.presentation.is_empty()
+                {
                     std::mem::swap(
                         &mut s.draft_routes.presenter,
                         &mut s.draft_routes.presentation,
                     );
                 }
-                ui.checkbox(&mut s.settings.presenter_fullscreen, "Presenter fullscreen");
+                ui.checkbox(
+                    &mut s.settings.presenter_fullscreen,
+                    tr(&locale, "Presenter fullscreen"),
+                );
                 ui.checkbox(
                     &mut s.settings.presentation_fullscreen,
-                    "Presentation fullscreen",
+                    tr(&locale, "Presentation fullscreen"),
                 );
                 button(
                     ui,
-                    "Apply and remember",
+                    tr(&locale, "Apply and remember"),
                     Action::ApplyRoutes,
                     &mut s.actions,
                 );
-                ui.small("Applying a setup blanks output. Show when destinations are verified.");
+                ui.small(tr(
+                    &locale,
+                    "Applying a setup blanks output. Show when destinations are verified.",
+                ));
             });
         s.displays_open &= open;
     }
 }
 pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
+    let locale = ui.ctx().clone();
+    ui.painter()
+        .rect_filled(ui.max_rect(), 0., ui.visuals().panel_fill);
     native.trim(s);
+    if s.count() == 0 {
+        ui.label(tr(
+            &locale,
+            "Open a PDF or picture folder to browse slides.",
+        ));
+    }
     ui.horizontal_wrapped(|ui| {
-        ui.heading("All slides");
-        ui.add(
-            egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.).text("Preview size"),
+        ui.heading(tr(&locale, "All slides"));
+        button(
+            ui,
+            tr(&locale, "Close"),
+            Action::CloseBrowser,
+            &mut s.actions,
         );
-        ui.checkbox(&mut s.change_on_click, "Change on click");
+        ui.add(
+            egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.)
+                .text(tr(&locale, "Preview size")),
+        );
+        ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
         egui::ComboBox::from_id_salt("browser-monitor")
             .selected_text(
                 s.settings
                     .browser_monitor
                     .as_deref()
-                    .unwrap_or("Presenter screen"),
+                    .unwrap_or(tr(&locale, "Presenter screen")),
             )
             .show_ui(ui, |ui| {
-                ui.selectable_value(&mut s.settings.browser_monitor, None, "Presenter screen");
+                ui.selectable_value(
+                    &mut s.settings.browser_monitor,
+                    None,
+                    tr(&locale, "Presenter screen"),
+                );
                 for monitor in &s.monitors {
                     ui.selectable_value(
                         &mut s.settings.browser_monitor,
@@ -592,25 +729,45 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         button(
             ui,
-            "Show selected",
+            tr(&locale, "Show selected"),
             Action::Go(s.browser_selected),
             &mut s.actions,
         );
     });
     ui.label(format!(
-        "Selected {} · Current {} · {}",
+        "{} {} · {} {} · {}",
+        if s.settings.language.french() {
+            "Sélection"
+        } else {
+            "Selected"
+        },
         s.browser_selected + 1,
+        if s.settings.language.french() {
+            "Actuelle"
+        } else {
+            "Current"
+        },
         s.requested + 1,
         if s.change_on_click {
-            "Click changes presentation"
+            tr(&locale, "Click changes presentation")
         } else {
-            "Click only selects — browse safely"
+            tr(&locale, "Click only selects — browse safely")
         }
     ));
     if !s.jump.is_empty() {
         ui.label(format!(
-            "Go to slide {} — Enter to show, Escape to cancel",
-            s.jump
+            "{} {} — {}",
+            if s.settings.language.french() {
+                "Diapositive"
+            } else {
+                "Go to slide"
+            },
+            s.jump,
+            if s.settings.language.french() {
+                "Entrée : diffuser, Échap : annuler"
+            } else {
+                "Enter to show, Escape to cancel"
+            }
         ));
     }
     let size = s.settings.thumbnail_size;
@@ -637,7 +794,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                 egui::Stroke::new(
                                     2_f32,
                                     if s.requested == page {
-                                        TEAL
+                                        ui.visuals().hyperlink_color
                                     } else {
                                         Color32::GOLD
                                     },
@@ -655,7 +812,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             "{}{}",
                             page + 1,
                             if s.requested == page {
-                                " · CURRENT"
+                                tr(&locale, " · CURRENT")
                             } else {
                                 ""
                             }
@@ -665,4 +822,100 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         }
     });
+}
+
+fn menu(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    ui.set_min_width(260.);
+    let actions_before = s.actions.len();
+    button(
+        ui,
+        tr(&locale, "Open PDF…"),
+        Action::Pick(false),
+        &mut s.actions,
+    );
+    button(
+        ui,
+        tr(&locale, "Open picture folder…"),
+        Action::Pick(true),
+        &mut s.actions,
+    );
+    ui.separator();
+    button(
+        ui,
+        tr(&locale, "All slides"),
+        Action::OpenBrowser,
+        &mut s.actions,
+    );
+    if ui.button(tr(&locale, "Displays")).clicked() {
+        s.draft_routes = s.routes.clone();
+        s.displays_open = true;
+        ui.close();
+    }
+    if ui.button(tr(&locale, "Layout")).clicked() {
+        s.layout_open = true;
+        ui.close();
+    }
+    ui.menu_button(tr(&locale, "Appearance"), |ui| {
+        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+            ui.set_min_width(250.);
+            let mut changed = false;
+            ui.label(tr(&locale, "Theme"));
+            egui::ComboBox::from_id_salt("theme")
+                .selected_text(s.settings.theme.name())
+                .show_ui(ui, |ui| {
+                    for theme in crate::theme::Theme::ALL {
+                        let name = theme.name();
+                        changed |= ui
+                            .selectable_value(&mut s.settings.theme, theme.clone(), name)
+                            .changed();
+                    }
+                });
+            ui.label(tr(&locale, "Language"));
+            egui::ComboBox::from_id_salt("language")
+                .selected_text(s.settings.language.name())
+                .show_ui(ui, |ui| {
+                    for language in crate::localization::Language::ALL {
+                        changed |= ui
+                            .selectable_value(&mut s.settings.language, language, language.name())
+                            .changed();
+                    }
+                });
+            if changed {
+                s.save_preferences();
+                ui.ctx().request_repaint();
+            }
+        });
+    });
+    ui.menu_button(tr(&locale,"Preferences"), |ui| {
+        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
+            ui.set_width(370.);
+            if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show presentation automatically when opening a document")).changed() {s.save_preferences();}
+            ui.separator();
+            ui.label(tr(&locale,"RAM budget per process (presenter + output each use this allowance):"));
+            if ui.add(egui::Slider::new(&mut s.settings.buffer_mib,256..=16384).text("MiB")).changed() {s.remember_buffer_budget();}
+            ui.small(tr(&locale,"Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px."));
+            ui.separator();
+            ui.label(s.preparation_status());
+            ui.collapsing(tr(&locale,"Storage locations"), |ui| {
+                ui.label(format!("{}: {}",if s.settings.language.french(){"Diapositives préparées"}else{"Processed slides"},s.cache_path.display()));
+                ui.label(format!("Configuration: {}",s.settings_path.display()));
+            });
+        });
+    });
+    ui.separator();
+    if ui.button(tr(&locale, "Reset timer")).clicked() {
+        s.started = Instant::now();
+        ui.close();
+    }
+    button(
+        ui,
+        tr(&locale, "Leave fullscreen / safe blank"),
+        Action::Windowed,
+        &mut s.actions,
+    );
+    button(ui, tr(&locale, "Quit"), Action::Exit, &mut s.actions);
+    if s.actions.len() != actions_before {
+        ui.close();
+    }
 }
