@@ -8,20 +8,24 @@
   <img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/coverage.svg" alt="Line coverage">
 </p>
 
-**Repository foundation — not yet a usable PDF presenter.** The goal is a blazingly fast Pympress-style PDF presenter: selectable presenter
-and audience displays on Windows, macOS and Linux, progressive rendering with
-reusable image caches, and current/next previews with notes when extractable.
-Reliable dual-screen operation on all three OSes is a hard requirement. Releases
-will be portable executables with all non-system dependencies bundled. It is independent of those projects.
-
-The initial Rust core tests page navigation and audience blanking. PDF loading,
-rendering, presenter UI and display selection are planned. Build status badges
-become available after the first Jenkins publication.
+**Dual-screen proof of concept:** native presenter controls and fullscreen mock
+slides on the secondary display. With one display it opens two windowed rehearsal
+views. PDF loading, notes, sleep inhibition and production fault isolation are not
+implemented yet.
 
 ```sh
 cargo run --locked -p pdf-presenter
-cargo test --locked --workspace
+# Or choose display numbers explicitly:
+cargo run --locked -p pdf-presenter -- --presenter 1 --audience 2
 ```
+
+**S** swaps displays, **B** blanks, **F** toggles audience fullscreen, **Escape**
+returns to safe windowed mode, and **Q** quits.
+[Run the dual-screen test](docs/development/dual-screen-poc.md).
+
+The goal remains a fast, resilient Pympress-style presenter on Windows, macOS and
+Linux, with selectable displays and portable executables bundling all non-system
+dependencies. This first proof needs physical testing on each OS.
 
 Builds independently; no sibling beffroi-tools or Canvas Pilot checkout is required.
 

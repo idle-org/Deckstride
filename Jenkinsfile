@@ -31,6 +31,7 @@ pipeline {
                     set -eu
                     python3 -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required for CI"'
                     test -n "${BRANCH_NAME:?Configure this job as a Multibranch Pipeline}"
+                    command -v Xvfb
                     uname -sr
                     rustc --version
                     if ! cargo llvm-cov --version | grep -Fx 'cargo-llvm-cov 0.9.1'; then
@@ -59,7 +60,7 @@ pipeline {
                     sh '''
                         set -eu
                         python3 -m unittest discover -s tests -v
-                        cargo test --locked --workspace --all-features
+                        python3 scripts/gui_ci.py cargo test --locked --workspace --all-features
                         cargo build --locked --workspace --all-features
                         python3 scripts/ci.py tests-passed
                     '''
@@ -67,7 +68,7 @@ pipeline {
             }
         }
         stage('Coverage') {
-            steps { sh 'python3 scripts/ci.py coverage' }
+            steps { sh 'python3 scripts/gui_ci.py python3 scripts/ci.py coverage' }
         }
     }
 

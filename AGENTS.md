@@ -2,12 +2,16 @@
 
 Standalone Rust application foundation for multiscreen PDF presentation. Read
 `AGENT_DOCUMENTATION.md` and `docs/development/plan.md` before implementing behavior.
-The current executable reports bootstrap status; do not describe it as a PDF viewer.
+The current executable is the dual-screen mock proof described in
+`docs/development/dual-screen-poc.md`; it is not a PDF viewer. The proof uses one
+event loop for two windows; production process isolation and sleep guards remain
+pending. Mock-output startup is explicitly active for this display test.
 
 ## Structure and intended architecture
 
 - `crates/pdf-presenter/src/lib.rs`: tested, UI-independent presentation state.
-- `src/main.rs` in that crate: executable entry point; future desktop host.
+- `src/main.rs` in that crate: CLI/native entry point. `desktop.rs` owns native
+  windows; `poc.rs` owns display selection and controls; `paint.rs` draws mock frames.
 - `crates/pdf-presenter/tests/`: meaningful behavior tests, including boundary cases.
 - `crates/pdf-presenter/assets/`: generated app artwork and provenance.
 - `scripts/`, `tests/`, `Jenkinsfile`: standalone validation and badge publication.

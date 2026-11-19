@@ -1,6 +1,8 @@
 # Implementation task list
 
-All tasks below are pending. Completed bootstrap work remains in the [plan](plan.md).
+Production task completion remains pending. The 0.1.3 [mock display proof](dual-screen-poc.md)
+implements the two native windows and selection/control portion of T02, in one process;
+T02 isolation and T03/T04 physical acceptance remain open. Completed work is in the [plan](plan.md).
 The [implementation choices](implementation.md) define the selected direction and
 initial budgets. A checkbox means code, relevant tests and evidence exist, not just
 that an API was identified. Do not mark physical acceptance from unit tests.

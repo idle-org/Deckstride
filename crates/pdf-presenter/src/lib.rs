@@ -56,3 +56,10 @@ impl Presentation {
         self.page = self.page.saturating_sub(1);
     }
 }
+
+/// Native desktop proof of concept.
+pub mod desktop;
+/// Software mock-slide drawing and controls.
+pub mod paint;
+/// Mock presentation and monitor selection.
+pub mod poc;

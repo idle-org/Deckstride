@@ -42,8 +42,16 @@ static linking, embedded assets and clean-machine acceptance.
 Independent workspace, source license, app/repository icon, agent instructions,
 Jenkins pipeline, badge helpers and tests. The presentation core has bounded
 zero-based navigation and audience blanking, with output initially blanked.
-The executable only identifies the project's current status. No PDF renderer or
-native windows have been implemented; no physical-display acceptance is recorded.
+The bootstrap established the initial CLI and tests. Native mock windows were added
+in 0.1.3, as described below.
+
+## Implemented display proof — 0.1.3
+
+[Dual-screen proof](dual-screen-poc.md): two native mock windows, primary/secondary
+defaults, explicit display selection, swap, fullscreen and blanking controls. Tested
+locally on one Linux/X11 display; physical dual-screen acceptance on all three OSes
+remains pending. One-process prototype only; production isolation and sleep guards
+are not implemented.
 
 ## Implementation work
 

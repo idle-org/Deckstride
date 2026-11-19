@@ -1,7 +1,9 @@
 # Implementation choices
 
-Status: implementation direction selected 2026-11-19; no desktop/PDF implementation
-exists yet. The [task list](tasks.md) owns execution order and evidence. Choices below
+Status: implementation direction selected 2026-11-19. The 0.1.3
+[dual-screen proof](dual-screen-poc.md) now uses winit/softbuffer in one event loop
+to validate native window behavior. PDF rendering and the production architecture
+below remain pending. The [task list](tasks.md) owns execution order and evidence. Choices below
 are engineering decisions to validate, not measured claims about an existing app.
 
 ## Optimization priorities
