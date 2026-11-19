@@ -5,7 +5,7 @@ use crate::{
     worker::{Bridge, Request},
 };
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashMap, HashSet},
     path::PathBuf,
     sync::Arc,
     time::{Duration, Instant},
@@ -47,7 +47,14 @@ pub struct Studio {
     pub awake_status: String,
     pub generation: u64,
     pub frames: HashMap<(usize, u32), Arc<Frame>>,
-    order: VecDeque<(usize, u32)>,
+    pub prepared: HashSet<usize>,
+    pub target_edge: u32,
+    pub preparation_started: Instant,
+    pub output_buffered: usize,
+    pub ram_blocked: bool,
+    pub cached_slides: usize,
+    pub loading: bool,
+    pub notes_loading: bool,
     pub visible_thumbs: HashSet<usize>,
     pub layout_open: bool,
     pub displays_open: bool,
@@ -66,6 +73,8 @@ pub struct Studio {
     pub dialog: Bridge,
     fg_busy: bool,
     bg_busy: bool,
+    fg_job: Option<(usize, u32)>,
+    bg_job: Option<(usize, u32)>,
     notes_pending: bool,
     pending_open: Option<PathBuf>,
     pending_save: bool,
@@ -80,9 +89,17 @@ pub struct Studio {
     pub smoke: bool,
     pub startup: Instant,
     _smoke_dir: Option<tempfile::TempDir>,
+    worker_program: PathBuf,
 }
 impl Studio {
     pub fn new(smoke: bool, open_path: Option<PathBuf>) -> Self {
+        Self::with_program(
+            smoke,
+            open_path,
+            std::env::current_exe().unwrap_or_default(),
+        )
+    }
+    pub fn with_program(smoke: bool, open_path: Option<PathBuf>, worker_program: PathBuf) -> Self {
         let (mut settings_path, mut cache_path) = settings::paths().unwrap_or_else(|_| {
             (
                 PathBuf::from("settings.toml"),
@@ -98,7 +115,7 @@ impl Studio {
             settings_path = dir.path().join("settings.toml");
             cache_path = dir.path().join("cache");
         }
-        let io = Bridge::new(Duration::from_secs(10));
+        let io = Bridge::with_program(Duration::from_secs(10), worker_program.clone());
         io.submit(0, 0, Request::LoadSettings(settings_path.clone()));
         Self {
             settings: Settings::default(),
@@ -114,7 +131,14 @@ impl Studio {
             awake_status: "Sleep protection starting…".into(),
             generation: 0,
             frames: HashMap::new(),
-            order: VecDeque::new(),
+            prepared: HashSet::new(),
+            target_edge: 1920,
+            preparation_started: Instant::now(),
+            output_buffered: 0,
+            ram_blocked: false,
+            cached_slides: 0,
+            loading: false,
+            notes_loading: false,
             visible_thumbs: HashSet::new(),
             layout_open: false,
             displays_open: false,
@@ -127,12 +151,14 @@ impl Studio {
             actions: vec![],
             settings_path,
             cache_path,
-            fg: Bridge::new(Duration::from_secs(30)),
-            bg: Bridge::new(Duration::from_secs(30)),
+            fg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
+            bg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             io,
-            dialog: Bridge::new(Duration::from_secs(300)),
+            dialog: Bridge::with_program(Duration::from_secs(300), worker_program.clone()),
             fg_busy: false,
             bg_busy: false,
+            fg_job: None,
+            bg_job: None,
             notes_pending: false,
             pending_open: None,
             pending_save: false,
@@ -147,6 +173,7 @@ impl Studio {
             smoke,
             startup: Instant::now(),
             _smoke_dir: smoke_dir,
+            worker_program,
         }
     }
     pub fn count(&self) -> usize {
@@ -158,12 +185,12 @@ impl Studio {
             .map_or_else(|| "empty".into(), |d| d.key.clone())
     }
     pub fn frame(&self, page: usize) -> Option<Arc<Frame>> {
-        [2560, 1280, 320]
+        [self.target_edge, 512, 1280, 320]
             .iter()
             .find_map(|&edge| self.frames.get(&(page, edge)).cloned())
     }
     pub fn full_frame(&self, page: usize) -> Option<Arc<Frame>> {
-        [2560, 1280]
+        [self.target_edge, 512, 1280]
             .iter()
             .find_map(|&edge| self.frames.get(&(page, edge)).cloned())
     }
@@ -210,9 +237,12 @@ impl Studio {
         match action {
             Action::Open(path) => {
                 if self.fg_busy {
-                    self.fg = Bridge::new(Duration::from_secs(30));
+                    self.fg =
+                        Bridge::with_program(Duration::from_secs(30), self.worker_program.clone());
                     self.fg_busy = false;
+                    self.fg_job = None;
                 }
+                self.loading = true;
                 self.pending_open = Some(path);
                 self.status = "Opening document in an isolated worker…".into();
             }
@@ -223,9 +253,13 @@ impl Studio {
             }
             Action::Go(page) => {
                 if page < self.count() {
-                    if page != self.requested && self.fg_busy {
-                        self.fg = Bridge::new(Duration::from_secs(30));
+                    if page != self.requested && self.fg_busy && !self.loading {
+                        self.fg = Bridge::with_program(
+                            Duration::from_secs(30),
+                            self.worker_program.clone(),
+                        );
                         self.fg_busy = false;
+                        self.fg_job = None;
                     }
                     self.requested = page;
                     self.jump.clear();
@@ -294,7 +328,7 @@ impl Studio {
                     } else if let Some(settings) = packet.reply.settings {
                         if !self.smoke {
                             self.settings = settings;
-                            self.layout = self.settings.layout.clone();
+                            self.layout = self.settings.for_project(&self.project());
                             self.routes = Routes::default();
                         }
                         self.dirty_routes = true;
@@ -308,9 +342,7 @@ impl Studio {
             };
             self.initialized = true;
         }
-        if self.initialized
-            && let Some(path) = self.open_path.take()
-        {
+        if let Some(path) = self.open_path.take() {
             self.execute(Action::Open(path));
         }
         if self.pending_save
@@ -350,8 +382,10 @@ impl Studio {
                 };
                 if foreground {
                     self.fg_busy = false;
+                    self.fg_job = None;
                 } else {
                     self.bg_busy = false;
+                    self.bg_job = None;
                 }
                 if c.generation != self.generation {
                     continue;
@@ -360,11 +394,18 @@ impl Studio {
                     Ok(packet) => {
                         if let Some(error) = packet.reply.error {
                             self.status = error;
-                            self.failed.insert(((c.tag >> 32) as usize, c.tag as u32));
+                            if c.tag == u64::MAX {
+                                self.notes_loading = false;
+                            } else if self.loading && foreground {
+                                self.loading = false;
+                            } else {
+                                self.failed.insert(((c.tag >> 32) as usize, c.tag as u32));
+                            }
                             continue;
                         }
                         if let Some(info) = packet.reply.info {
                             if c.tag == u64::MAX {
+                                self.notes_loading = false;
                                 if let Some(deck) = &mut self.deck {
                                     deck.notes = info.notes;
                                     deck.warnings = info.warnings;
@@ -374,10 +415,22 @@ impl Studio {
                                 }
                                 continue;
                             }
+                            self.loading = false;
+                            self.bg = Bridge::with_program(
+                                Duration::from_secs(30),
+                                self.worker_program.clone(),
+                            );
+                            self.bg_busy = false;
+                            self.bg_job = None;
+                            self.notes_loading = false;
                             self.notes_pending = true;
+                            self.cached_slides = 0;
                             self.generation += 1;
                             self.frames.clear();
-                            self.order.clear();
+                            self.prepared.clear();
+                            self.preparation_started = Instant::now();
+                            self.output_buffered = 0;
+                            self.ram_blocked = false;
                             self.failed.clear();
                             self.requested = 0;
                             self.displayed = None;
@@ -393,28 +446,45 @@ impl Studio {
                             self.new_output = true;
                         }
                         if let Some(info) = packet.reply.frame {
-                            let key = (info.page, c.tag as u32);
+                            let key = (info.page, packet.reply.edge.unwrap_or(c.tag as u32));
+                            if key.1 != self.target_edge && key.1 != 512 {
+                                continue;
+                            }
+                            if key.1 == self.target_edge
+                                && packet.reply.cached
+                                && !self.prepared.contains(&key.0)
+                            {
+                                self.cached_slides += 1;
+                            }
                             let frame = Arc::new(Frame {
                                 info,
                                 rgba: packet.data,
                             });
+                            if key.1 == self.target_edge {
+                                self.frames.retain(|(page, edge), _| {
+                                    *page != key.0 || *edge == self.target_edge
+                                });
+                            }
                             self.frames.insert(key, frame);
-                            self.order.retain(|k| *k != key);
-                            self.order.push_back(key);
-                            self.trim_cache();
+                            if key.1 == self.target_edge {
+                                self.prepared.insert(key.0);
+                            }
+                            self.new_output = true;
                             if key.0 == self.requested {
                                 self.new_output = true;
-                                self.status = format!(
-                                    "Slide {} ready · {} cached frames",
-                                    self.requested + 1,
-                                    self.frames.len()
-                                );
+                                self.status = format!("Slide {} ready", self.requested + 1);
                             }
                         }
                     }
                     Err(e) => {
                         self.status = e;
-                        self.failed.insert(((c.tag >> 32) as usize, c.tag as u32));
+                        if c.tag == u64::MAX {
+                            self.notes_loading = false;
+                        } else if self.loading && foreground {
+                            self.loading = false;
+                        } else {
+                            self.failed.insert(((c.tag >> 32) as usize, c.tag as u32));
+                        }
                     }
                 }
             }
@@ -438,11 +508,7 @@ impl Studio {
         }
         if self.deck.is_some() && self.pending_open.is_none() {
             if !self.fg_busy {
-                let edge = if self.frames.contains_key(&(self.requested, 1280)) {
-                    2560
-                } else {
-                    1280
-                };
+                let edge = self.target_edge;
                 if !self.frames.contains_key(&(self.requested, edge))
                     && !self.failed.contains(&(self.requested, edge))
                 {
@@ -462,37 +528,98 @@ impl Studio {
                 )
             {
                 self.notes_pending = false;
+                self.notes_loading = true;
                 self.bg_busy = true;
             }
-            if !self.bg_busy {
+            // Use spare foreground capacity to prepare the tail while background fills forward.
+            // Interactive navigation still cancels/supersedes this work immediately.
+            if !self.fg_busy
+                && self.prepared.len() < self.count()
+                && let Some(page) = (0..self.count()).rev().find(|p| {
+                    let key = (*p, self.target_edge);
+                    !self.frames.contains_key(&key)
+                        && !self.failed.contains(&key)
+                        && Some(key) != self.bg_job
+                })
+            {
+                self.schedule(page, self.target_edge, true);
+            }
+            if !self.bg_busy && self.prepared.len() < self.count() {
                 let mut jobs = vec![];
-                if self.requested + 1 < self.count() {
-                    jobs.push((self.requested + 1, 1280));
-                }
-                if self.requested > 0 {
-                    jobs.push((self.requested - 1, 1280));
-                }
-                for &page in &self.visible_thumbs {
+                for page in [self.requested + 1, self.requested.saturating_sub(1)] {
                     if page < self.count() {
-                        jobs.push((page, 320));
+                        jobs.push((page, self.target_edge));
                     }
                 }
-                if let Some((page, edge)) = jobs
-                    .into_iter()
-                    .find(|key| !self.frames.contains_key(key) && !self.failed.contains(key))
-                {
+                // Prepare the entire show, not just the currently visible neighbourhood.
+                jobs.extend((0..self.count()).map(|p| (p, self.target_edge)));
+                if let Some((page, edge)) = jobs.into_iter().find(|key| {
+                    !self.frames.contains_key(key)
+                        && Some(*key) != self.fg_job
+                        && !self.failed.contains(key)
+                        && key.0 != self.requested
+                }) {
                     self.schedule(page, edge, false);
                 }
             }
         }
+        if self.prepared.len() == self.count() {
+            self.ram_blocked = false;
+        }
+        let edge = self
+            .monitors
+            .iter()
+            .filter(|m| self.routes.presentation.contains(&m.id))
+            .chain(
+                self.monitors
+                    .iter()
+                    .filter(|m| self.routes.presenter.contains(&m.id)),
+            )
+            .map(|m| m.size.0.max(m.size.1))
+            .max()
+            .unwrap_or(1920)
+            .clamp(512, 4096);
+        if edge != self.target_edge {
+            self.target_edge = edge;
+            self.prepared = self
+                .frames
+                .keys()
+                .filter(|(_, e)| *e == edge)
+                .map(|(p, _)| *p)
+                .collect();
+            self.frames.retain(|(_, e), _| *e == edge || *e == 512);
+            self.preparation_started = Instant::now();
+            self.cached_slides = 0;
+            self.output_buffered = 0;
+            self.ram_blocked = false;
+            self.new_output = true;
+        }
     }
     fn schedule(&mut self, page: usize, edge: u32, foreground: bool) {
+        // Reserve the worst-case square frame plus the other in-flight render.
+        let reserve = 2 * edge as usize * edge as usize * 4;
+        self.ram_blocked = self.buffer_bytes().saturating_add(reserve)
+            > self.settings.buffer_mib as usize * 1024 * 1024;
+        if self.ram_blocked {
+            return;
+        }
         let request = Request::Render {
             epoch: self.generation,
             path: self.deck.as_ref().unwrap().path.clone(),
             cache: self.cache_path.clone(),
             page,
             edge,
+        };
+        let request = if foreground && page == self.requested && self.frame(page).is_none() {
+            Request::Preview {
+                epoch: self.generation,
+                path: self.deck.as_ref().unwrap().path.clone(),
+                cache: self.cache_path.clone(),
+                page,
+                edge,
+            }
+        } else {
+            request
         };
         let bridge = if foreground { &self.fg } else { &self.bg };
         if bridge.submit(
@@ -502,25 +629,92 @@ impl Studio {
         ) {
             if foreground {
                 self.fg_busy = true;
+                self.fg_job = Some((page, edge));
             } else {
                 self.bg_busy = true;
+                self.bg_job = Some((page, edge));
             }
         }
     }
-    fn trim_cache(&mut self) {
-        let mut bytes: usize = self.frames.values().map(|f| f.rgba.len()).sum();
-        let count = self.order.len();
-        for _ in 0..count {
-            if bytes <= 128 * 1024 * 1024 {
-                break;
-            }
-            if let Some(key) = self.order.pop_front() {
-                if key.0.abs_diff(self.requested) <= 1 {
-                    self.order.push_back(key);
-                } else if let Some(frame) = self.frames.remove(&key) {
-                    bytes -= frame.rgba.len();
+    pub fn buffer_generation(&self) -> u64 {
+        (self.generation << 32) | u64::from(self.target_edge)
+    }
+    pub fn remember_buffer_budget(&mut self) {
+        self.pending_save = true;
+        self.ram_blocked = false;
+        self.new_output = true;
+    }
+    pub fn buffer_bytes(&self) -> usize {
+        self.frames.values().map(|f| f.rgba.len()).sum()
+    }
+    pub fn fully_buffered(&self) -> bool {
+        !self.loading
+            && self.count() > 0
+            && self.prepared.len() == self.count()
+            && (self.routes.presentation.is_empty() || self.output_buffered == self.count())
+    }
+    pub fn preparation_status(&self) -> String {
+        if self.loading {
+            return "Opening source and verifying cached slide identity… ETA estimating".into();
+        }
+        if self.deck.is_none() {
+            return self.status.clone();
+        }
+        let n = self.prepared.len();
+        let total = self.count();
+        let ram = self.buffer_bytes() / (1024 * 1024);
+        if self.notes_loading {
+            return format!(
+                "Reading presenter notes · {n}/{total} slides buffered · playback remains available"
+            );
+        }
+        if self.fully_buffered() {
+            return format!(
+                "READY — all {total} slides buffered in RAM · {ram} MiB · {} px",
+                self.target_edge
+            );
+        }
+        if self.ram_blocked {
+            return format!(
+                "RAM budget reached — {n}/{total} buffered. Increase the buffer in Menu; the show is not fully loaded."
+            );
+        }
+        if !self.failed.is_empty() {
+            return format!(
+                "Preparation incomplete — {n}/{total} buffered; a slide failed. {}",
+                self.status
+            );
+        }
+        let eta = if n >= 2 && n < total {
+            format!(
+                "~{} s remaining",
+                (self.preparation_started.elapsed().as_secs_f64() / n as f64 * (total - n) as f64)
+                    .ceil() as u64
+            )
+        } else {
+            "estimating…".into()
+        };
+        if n == total {
+            format!(
+                "Buffering presentation output — {}/{total} slides · {ram} MiB in presenter RAM · {}",
+                self.output_buffered,
+                if self.output_buffered > 0 {
+                    format!(
+                        "~{} s remaining",
+                        (self.preparation_started.elapsed().as_secs_f64()
+                            / self.output_buffered as f64
+                            * total.saturating_sub(self.output_buffered) as f64)
+                            .ceil() as u64
+                    )
+                } else {
+                    "ETA estimating…".into()
                 }
-            }
+            )
+        } else {
+            format!(
+                "Preparing {} px — {n}/{total} slides · {ram} MiB · ETA {eta} · {} cached",
+                self.target_edge, self.cached_slides
+            )
         }
     }
 }

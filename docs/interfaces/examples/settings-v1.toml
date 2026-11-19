@@ -2,6 +2,7 @@ version = 1
 presenter_fullscreen = true
 presentation_fullscreen = true
 thumbnail_size = 220.0
+buffer_mib = 1024
 
 [routes]
 presenter = ["Primary#1"]

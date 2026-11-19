@@ -26,3 +26,18 @@ this is not optical proof that a projector displayed a frame. Heartbeats detect 
 stopped host after 8 s; at most three starts, recovery blanked. A presenter crash
 leaves the independent host displaying its last frame. Normal exit sends quit and
 allows bounded shutdown outside the UI loop. Reconnection to an orphan is pending.
+
+## Whole-deck buffering in 0.1.13
+
+Preview requests first check the verified target-resolution artifact, falling back to
+512 only on a miss. Replies identify the actual requested render edge and cache-hit
+status. The two workers prepare the remaining deck concurrently with foreground
+navigation able to supersede outstanding work.
+
+HostState now carries a document/resolution generation, decoded RAM budget and the
+complete available target-frame preload list. The host retains the whole prepared
+deck, acknowledges the number buffered for that generation, and retires only temporary
+previews or obsolete generations/resolutions. READY requires both presenter and host
+counts to reach the deck total. Stale acknowledgments cannot mark another resolution
+ready. The bounded JSON envelope and raw-frame limits remain unchanged. This protocol
+still requires the same executable build at both ends.

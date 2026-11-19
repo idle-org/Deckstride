@@ -34,6 +34,13 @@ pub enum Request {
         path: PathBuf,
         cache: PathBuf,
     },
+    Preview {
+        epoch: u64,
+        path: PathBuf,
+        cache: PathBuf,
+        page: usize,
+        edge: u32,
+    },
     ReadFrame(PathBuf),
     LoadSettings(PathBuf),
     SaveSettings {
@@ -53,6 +60,8 @@ pub struct Reply {
     pub settings: Option<Settings>,
     pub picked: Option<PathBuf>,
     pub bytes: usize,
+    pub edge: Option<u32>,
+    pub cached: bool,
 }
 pub struct ResultPacket {
     pub reply: Reply,
@@ -134,6 +143,7 @@ pub fn run() -> Result<(), String> {
         let result = (|| -> Result<ResultPacket, String> {
             let mut reply = Reply::default();
             let mut data = vec![];
+            let preview = matches!(&request, Request::Preview { .. });
             match request {
                 Request::Open { epoch, path, cache } => {
                     let doc = document::Document::open_slides(&path, cache)?;
@@ -141,7 +151,14 @@ pub fn run() -> Result<(), String> {
                     source = Some(doc);
                     source_epoch = epoch;
                 }
-                Request::Render {
+                Request::Preview {
+                    epoch,
+                    path,
+                    cache,
+                    page,
+                    edge,
+                }
+                | Request::Render {
                     epoch,
                     path,
                     cache,
@@ -154,7 +171,16 @@ pub fn run() -> Result<(), String> {
                         source_epoch = epoch;
                     }
                     let doc = source.as_ref().unwrap();
-                    let Frame { info, rgba } = doc.render(page, edge)?;
+                    let (frame, actual_edge, cached) =
+                        if let Some(frame) = doc.cached(page, edge)? {
+                            (frame, edge, true)
+                        } else {
+                            let actual_edge = if preview { 512.min(edge) } else { edge };
+                            (doc.render(page, actual_edge)?, actual_edge, false)
+                        };
+                    let Frame { info, rgba } = frame;
+                    reply.edge = Some(actual_edge);
+                    reply.cached = cached;
                     reply.frame = Some(info);
                     data = rgba;
                 }

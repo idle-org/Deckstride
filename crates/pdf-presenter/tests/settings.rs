@@ -6,6 +6,7 @@ fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     assert_eq!(settings::read(&path).unwrap().version, 1);
     let mut settings = Settings::default();
     settings.layout.notes.size = 42.;
+    settings.buffer_mib = 2048;
     let mut project = Layout::default();
     project.current.show = false;
     project.header = false;
@@ -20,6 +21,7 @@ fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     assert_eq!(loaded.for_project("show"), project);
     assert_eq!(loaded.for_project("other").notes.size, 42.);
     assert_eq!(loaded.routes, settings.routes);
+    assert_eq!(loaded.buffer_mib, 2048);
     let bytes = std::fs::read(&path).unwrap();
     settings.version = 2;
     assert!(settings::write(&path, &settings).is_err());
@@ -33,6 +35,9 @@ fn settings_reject_invalid_versions_ranges_and_duplicate_roles() {
     };
     assert!(s.validate().is_err());
     s.version = 1;
+    s.buffer_mib = 128;
+    assert!(s.validate().is_err());
+    s.buffer_mib = 1024;
     s.layout.clock.size = f32::NAN;
     assert!(s.validate().is_err());
     s.layout = Default::default();
@@ -49,6 +54,7 @@ fn settings_reject_invalid_versions_ranges_and_duplicate_roles() {
     assert!(settings::read(&p).is_err());
     std::fs::write(&p, "version=1").unwrap();
     assert!(settings::read(&p).unwrap().layout.header);
+    assert_eq!(settings::read(&p).unwrap().buffer_mib, 1024);
 }
 #[test]
 fn monitor_recovery_preserves_survivors_and_distinct_groups() {

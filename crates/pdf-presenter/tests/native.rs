@@ -100,10 +100,14 @@ fn independent_output_acknowledges_frames_and_blanking() {
         .1;
     let monitor = format!("{name}#1");
     let temp = tempfile::tempdir().unwrap();
-    let pdf = temp.path().join("host.pdf");
-    common::pdf(&pdf);
-    let doc = Document::open(&pdf, temp.path().join("cache")).unwrap();
-    let frames = [doc.render(0, 320).unwrap(), doc.render(1, 320).unwrap()];
+    for page in 0..8 {
+        common::image(
+            &temp.path().join(format!("slide{page}.png")),
+            [page * 30, 128, 220, 255],
+        );
+    }
+    let doc = Document::open(temp.path(), temp.path().join("cache")).unwrap();
+    let frames: Vec<_> = (0..8).map(|page| doc.render(page, 320).unwrap()).collect();
     struct ChildGuard(std::process::Child);
     impl Drop for ChildGuard {
         fn drop(&mut self) {
@@ -129,12 +133,51 @@ fn independent_output_acknowledges_frames_and_blanking() {
             }
         }
     });
-    for (sequence, page, blanked) in [(1, 0, false), (2, 1, false), (3, 1, true)] {
+    write_json(
+        &mut input,
+        &HostState {
+            generation: 99,
+            frame: Some(frames[0].info.clone()),
+            preload: frames.iter().map(|f| f.info.clone()).collect(),
+            buffer_mib: 256,
+            monitors: vec![monitor.clone()],
+            blanked: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        let ack = rx
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+            .expect("full output buffer deadline");
+        if ack.generation == 99 && ack.buffered == 8 {
+            break;
+        }
+    }
+    // The independent output must navigate entirely from RAM after preparation.
+    std::fs::remove_dir_all(temp.path().join("cache")).unwrap();
+    for page in 0..8 {
+        std::fs::remove_file(temp.path().join(format!("slide{page}.png"))).unwrap();
+    }
+    for (sequence, page, blanked) in [
+        (1, 7, false),
+        (2, 0, false),
+        (3, 6, false),
+        (4, 1, false),
+        (5, 5, false),
+        (6, 2, false),
+        (7, 4, false),
+        (8, 3, true),
+    ] {
         write_json(
             &mut input,
             &HostState {
                 sequence,
                 page,
+                generation: 99,
+                preload: frames.iter().map(|f| f.info.clone()).collect(),
+                buffer_mib: 256,
                 frame: Some(frames[page].info.clone()),
                 monitors: vec![monitor.clone()],
                 fullscreen: false,

@@ -265,6 +265,18 @@ impl Document {
         })
     }
     pub fn render(&self, page: usize, edge: u32) -> Result<Frame, String> {
+        self.render_inner(page, edge, false)?
+            .ok_or_else(|| "Missing rendered frame".into())
+    }
+    pub fn cached(&self, page: usize, edge: u32) -> Result<Option<Frame>, String> {
+        self.render_inner(page, edge, true)
+    }
+    fn render_inner(
+        &self,
+        page: usize,
+        edge: u32,
+        cached_only: bool,
+    ) -> Result<Option<Frame>, String> {
         if page >= self.info.names.len() {
             return Err("Slide out of range".into());
         }
@@ -279,7 +291,7 @@ impl Document {
         let dir = self.cache.join(&self.info.key).join(&identity);
         let path = dir.join(format!("{page}-{edge}-hayro09.rgba"));
         if let Ok((width, height, rgba)) = read_frame(&path) {
-            return Ok(Frame {
+            return Ok(Some(Frame {
                 info: FrameInfo {
                     page,
                     width,
@@ -288,7 +300,10 @@ impl Document {
                     sha256: identity,
                 },
                 rgba,
-            });
+            }));
+        }
+        if cached_only {
+            return Ok(None);
         }
         let (width, height, rgba) = match &self.source {
             Source::Pdf(pdf) => {
@@ -342,7 +357,7 @@ impl Document {
             &dir.join(format!("{page}-{edge}-extraction.json")),
             &serde_json::to_vec_pretty(&manifest).unwrap(),
         )?;
-        Ok(Frame {
+        Ok(Some(Frame {
             info: FrameInfo {
                 page,
                 width,
@@ -351,7 +366,7 @@ impl Document {
                 sha256: identity,
             },
             rgba,
-        })
+        }))
     }
 }
 pub fn validate_frame(w: u32, h: u32, len: usize) -> Result<(), String> {

@@ -26,9 +26,17 @@ its informational manifest. The manifest is not consumed for loading and cannot
 redirect a file read. Unsupported manifest versions are not imported. Cache files
 are disposable, not an interchange format or project representation.
 
-First render uses a 1280-pixel edge, then current-slide refinement at 2560;
-neighbours use 1280 and visible browser thumbnails 320. No eager whole-deck render.
-Decoded presenter cache targets 128 MiB with current/adjacent slides pinned;
-output retains at most six decoded frames. Disk eviction/quota remains outstanding.
-A cache write failure reports an error and holds existing output. Source bytes
-remain unchanged, including on malformed inputs and regeneration.
+As of 0.1.13, a cold first frame uses a 512-pixel edge, then all slides are prepared
+at the maximum pixel edge of connected presenter/presentation screens (512–4096).
+Smaller screens share the largest variant. An exact verified target-size cache hit
+bypasses preview rendering. Resolution changes use a distinct existing/new artifact
+key. The disk schema remains v1; prior artifacts at matching resolutions remain usable.
+
+The entire decoded deck is retained in presenter and presentation-process RAM.
+`buffer_mib` (default 1024 per process) bounds each decoded cache; render reservations
+prevent overfilling the presenter budget. No eviction-based false READY state is
+allowed. Insufficient capacity pauses preparation until the budget increases.
+Only temporary preview/superseded-resolution frames are retired. Source/artifact
+reads happen during preparation/recovery, not prepared navigation. OS paging and
+software composition are outside this application-level no-file-read guarantee.
+Disk eviction/quota remains outstanding; full disk reports an explicit error.

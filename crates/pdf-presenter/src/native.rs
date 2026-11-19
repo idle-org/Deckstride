@@ -261,6 +261,8 @@ struct Host {
     cache: HashMap<std::path::PathBuf, Arc<Frame>>,
     frame: Option<Arc<Frame>>,
     presented: HashSet<WindowId>,
+    failed_reads: HashSet<std::path::PathBuf>,
+    preload_cursor: usize,
 }
 struct App {
     studio: Option<Studio>,
@@ -507,11 +509,15 @@ impl App {
             }
             if let Some(output) = &self.output {
                 while let Ok(ack) = output.rx.try_recv() {
+                    if ack.generation == s.buffer_generation() {
+                        s.output_buffered = ack.buffered;
+                    }
                     if !ack.awake.is_empty() {
                         s.awake_status = ack.awake;
                     }
                     if !ack.status.is_empty() {
                         s.status = ack.status;
+                        s.output_buffered = 0;
                         s.blanked = true;
                         s.new_output = true;
                     }
@@ -524,11 +530,22 @@ impl App {
                     let state = HostState {
                         sequence: s.output_sequence,
                         page: s.requested,
-                        frame: s.frame_info(),
-                        preload: [s.requested.saturating_sub(1), s.requested + 1]
-                            .iter()
-                            .filter_map(|&p| s.full_frame(p).map(|f| f.info.clone()))
-                            .collect(),
+                        frame: if s.routes.presentation.is_empty() {
+                            None
+                        } else {
+                            s.frame_info()
+                        },
+                        generation: s.buffer_generation(),
+                        buffer_mib: s.settings.buffer_mib,
+                        preload: if s.routes.presentation.is_empty() {
+                            vec![]
+                        } else {
+                            (0..s.count())
+                                .filter_map(|p| {
+                                    s.frames.get(&(p, s.target_edge)).map(|f| f.info.clone())
+                                })
+                                .collect()
+                        },
                         monitors: s.routes.presentation.clone(),
                         fullscreen: s.settings.presentation_fullscreen,
                         blanked: s.blanked,
@@ -570,45 +587,95 @@ impl App {
                         w.ui.textures.clear();
                     }
                 }
+                if state.generation != host.state.generation {
+                    host.cache.clear();
+                    host.failed_reads.clear();
+                    host.frame = None;
+                }
+                // Keep the prepared deck resident; retire previews/superseded resolutions only.
+                let retained: HashSet<_> = state
+                    .preload
+                    .iter()
+                    .map(|f| &f.path)
+                    .chain(state.frame.iter().map(|f| &f.path))
+                    .collect();
+                host.cache.retain(|path, _| retained.contains(path));
+                host.preload_cursor = 0;
+                if state.buffer_mib > host.state.buffer_mib {
+                    host.failed_reads.clear();
+                }
+                if state.monitors.is_empty() {
+                    host.frame = None;
+                }
                 host.state = state;
             }
             while let Ok(c) = host.reader.rx.try_recv() {
                 repaint = true;
-                host.reading = None;
-                if let Ok(packet) = c.result
-                    && let Some(info) = packet.reply.frame
-                {
-                    let frame = Arc::new(Frame {
-                        info,
-                        rgba: packet.data,
-                    });
-                    if host.cache.len() >= 6 {
-                        host.cache.clear();
+                let reading = host.reading.take();
+                if c.generation != host.state.generation {
+                    continue;
+                }
+                match c.result {
+                    Ok(packet) if packet.reply.frame.is_some() => {
+                        let info = packet.reply.frame.unwrap();
+                        let bytes: usize = host.cache.values().map(|f| f.rgba.len()).sum();
+                        let limit = host.state.buffer_mib.max(256) as usize * 1024 * 1024;
+                        if bytes.saturating_add(packet.data.len()) <= limit {
+                            host.cache.insert(
+                                info.path.clone(),
+                                Arc::new(Frame {
+                                    info,
+                                    rgba: packet.data,
+                                }),
+                            );
+                        } else if let Some(path) = reading {
+                            host.failed_reads.insert(path);
+                            let _ = host.acks.try_send(Ack {
+                                status: "Presentation RAM budget reached; increase the budget in Menu to finish buffering.".into(),
+                                ..Default::default()
+                            });
+                        }
                     }
-                    host.cache.insert(frame.info.path.clone(), frame);
+                    _ => {
+                        if let Some(path) = reading {
+                            host.failed_reads.insert(path);
+                            let _ = host.acks.try_send(Ack {
+                                status:
+                                    "Could not buffer an output slide; reopen the source to retry."
+                                        .into(),
+                                ..Default::default()
+                            });
+                        }
+                    }
                 }
             }
             if let Some(info) = &host.state.frame {
                 if let Some(frame) = host.cache.get(&info.path) {
                     host.frame = Some(frame.clone());
                 } else if host.reading.is_none()
-                    && host
-                        .reader
-                        .submit(0, 0, Request::ReadFrame(info.path.clone()))
+                    && !host.failed_reads.contains(&info.path)
+                    && host.reader.submit(
+                        host.state.generation,
+                        0,
+                        Request::ReadFrame(info.path.clone()),
+                    )
                 {
                     host.reading = Some(info.path.clone());
                 }
             }
-            if host.reading.is_none() {
-                for info in &host.state.preload {
-                    if !host.cache.contains_key(&info.path)
-                        && host
-                            .reader
-                            .submit(0, 0, Request::ReadFrame(info.path.clone()))
-                    {
-                        host.reading = Some(info.path.clone());
-                        break;
-                    }
+            while host.reading.is_none() && host.preload_cursor < host.state.preload.len() {
+                let info = &host.state.preload[host.preload_cursor];
+                if host.cache.contains_key(&info.path) || host.failed_reads.contains(&info.path) {
+                    host.preload_cursor += 1;
+                } else if host.reader.submit(
+                    host.state.generation,
+                    0,
+                    Request::ReadFrame(info.path.clone()),
+                ) {
+                    host.reading = Some(info.path.clone());
+                    host.preload_cursor += 1;
+                } else {
+                    break;
                 }
             }
         }
@@ -746,6 +813,13 @@ impl ApplicationHandler for App {
                     && host.presented.len() >= self.windows.len();
                 let _ = host.acks.try_send(Ack {
                     sequence: host.state.sequence,
+                    generation: host.state.generation,
+                    buffered: host
+                        .state
+                        .preload
+                        .iter()
+                        .filter(|f| host.cache.contains_key(&f.path))
+                        .count(),
                     page: shown.then_some(host.state.page),
                     ..Default::default()
                 });
@@ -863,6 +937,8 @@ pub fn run_output() -> Result<(), Failure> {
             cache: HashMap::new(),
             frame: None,
             presented: HashSet::new(),
+            failed_reads: HashSet::new(),
+            preload_cursor: 0,
         }),
         output: None,
         lease: Some(SleepLease::new()),

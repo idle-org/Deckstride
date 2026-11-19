@@ -62,7 +62,47 @@ Choose another monitor in its toolbar. Preview size changes the grid. Clicking s
 without navigating unless Change on click is checked; it resets to OFF each time the
 browser opens. Show selected navigates explicitly and respects output blanking.
 The selected tile and current slide have distinct outlines. Closing the browser saves
-its monitor and preview-size preferences. Only visible thumbnails are prepared.
+its monitor and preview-size preferences. The grid uses the slides already in memory;
+only visible thumbnail textures are retained.
+
+## Preparation, processed slides and RAM
+
+Opening a show starts two supervised preparation workers. The current slide gets a
+512-pixel preview first if a verified full-resolution cache entry is unavailable.
+Then the **entire deck** is prepared at the largest connected role screen's pixel
+edge, preserving slide aspect ratio. Smaller screens use that same frame scaled to
+fit; separate copies for every smaller resolution would waste RAM. The current
+renderer limit is 4096 pixels per side, shown in Menu. Resolution changes start a
+new preparation pass with a new buffer identity.
+
+Processed frames are kept in the application's persistent cache; Menu shows its
+location. Reopening with unchanged source contents, resolution and renderer reuses
+those frames without PDF rasterization or image decoding. It still verifies source
+identity/checksums and reads frames into RAM: a restart cannot literally take zero
+time. A warm full-size cached frame appears directly, without an unnecessary preview
+render. Sources and their folders remain unchanged.
+
+The footer shows the active operation, slides prepared/total, cache reuse, decoded
+RAM usage, and an approximate ETA once there are enough completed slides. It also
+shows output-process buffering separately. A compact progress notification remains
+visible while preparing if the footer is hidden. Notes reading and failures have
+explicit status. ETAs use observed throughput and may change on complex slides.
+
+**READY** means every target-resolution slide is held in presenter RAM and, when
+outputs are assigned, acknowledged in the independent presentation host's RAM.
+Navigation then performs no application slide-file reads, PDF rendering or image
+decoding. Raster composition still happens, and the OS can page memory under pressure.
+The entire prepared deck stays resident instead of evicting distant slides.
+
+Menu → RAM budget controls the decoded-slide allowance for **each process**, default
+1024 MiB, configurable from 256 to 16384 MiB. Presenter and output can each consume
+that allowance; textures, workers and other application memory are additional.
+Preparation reserves capacity for in-flight frames. If the deck cannot fit, it pauses
+and reports that it is **not fully loaded**, rather than claiming READY and loading
+slides later. Increase the budget within available physical RAM to resume. Lowering
+the budget does not evict already buffered slides; reopen to apply a lower allocation
+to an existing show. Cold rendering/decoding may continue while you present early.
+After a host restart or resolution change, wait for READY again for RAM-only playback.
 
 ## Recovery and portability
 

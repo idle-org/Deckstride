@@ -71,6 +71,8 @@ impl UiState {
     fn trim(&mut self, s: &Studio) {
         self.textures.retain(|(generation, page, edge), _| {
             *generation == s.generation
+                && (page.abs_diff(s.requested) <= 1
+                    || (s.browser_open && s.visible_thumbs.contains(page)))
                 && s.frames
                     .values()
                     .any(|f| f.info.page == *page && f.info.width.max(f.info.height) == *edge)
@@ -143,7 +145,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         body.min.y += 64.;
     }
     if s.layout.footer {
-        body.max.y -= 66.;
+        body.max.y -= 90.;
     }
     let preview_visible = s.layout.previous.show || s.layout.current.show || s.layout.next.show;
     let notes_h = if s.layout.notes.show {
@@ -336,8 +338,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
     if footer {
         let rect = Rect::from_min_size(
-            Pos2::new(screen.left(), screen.bottom() - 66.),
-            Vec2::new(screen.width(), 66.),
+            Pos2::new(screen.left(), screen.bottom() - 90.),
+            Vec2::new(screen.width(), 90.),
         );
         ui.painter()
             .rect_filled(rect, 0., Color32::from_rgb(25, 37, 40));
@@ -376,8 +378,32 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 }
                 ui.small(&s.awake_status);
             });
+            ui.label(s.preparation_status());
             ui.small(&s.status);
+            if s.count() > 0 && !s.fully_buffered() {
+                let prepared = s.prepared.len()
+                    + if s.routes.presentation.is_empty() {
+                        s.prepared.len()
+                    } else {
+                        s.output_buffered
+                    };
+                ui.add(
+                    egui::ProgressBar::new(prepared as f32 / (2 * s.count()) as f32)
+                        .desired_height(4.),
+                );
+            }
         });
+    }
+    if !footer && (s.loading || s.notes_loading || (s.deck.is_some() && !s.fully_buffered())) {
+        egui::Area::new("preparation-progress".into())
+            .anchor(egui::Align2::LEFT_BOTTOM, Vec2::new(12., -12.))
+            .interactable(false)
+            .show(&ctx, |ui| {
+                egui::Frame::popup(ui.style()).show(ui, |ui| {
+                    ui.set_max_width((screen.width() - 24.).max(100.));
+                    ui.label(s.preparation_status());
+                });
+            });
     }
     if !s.jump.is_empty() {
         egui::Area::new("jump".into())
@@ -413,6 +439,12 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     Action::Windowed,
                     &mut s.actions,
                 );
+                ui.separator();
+                ui.label(s.preparation_status());
+                ui.label(format!("Processed slides: {}", s.cache_path.display()));
+                ui.label("RAM budget per process (presenter + output each use this allowance):");
+                if ui.add(egui::Slider::new(&mut s.settings.buffer_mib, 256..=16384).text("MiB")).changed() { s.remember_buffer_budget(); }
+                ui.small("Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px.");
                 ui.label(format!("Configuration: {}", s.settings_path.display()));
                 button(ui, "Quit", Action::Exit, &mut s.actions);
                 if ui.button("Close menu").clicked() {

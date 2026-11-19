@@ -15,6 +15,11 @@ blanked output-host restart. T01 full latency instrumentation, T15 disk quota,
 T17 explicit notes-region crop, T18 reconnect, platform acceptance and clean-machine
 release checks remain open. Do not mark their broader acceptance from this code alone.
 
+0.1.13 adds whole-deck processed-frame reuse and RAM preparation to T09/T12/T13:
+two workers, screen-derived resolution, cache-first opening, retained complete buffers,
+explicit preparation progress/ETA and memory-pressure pause. T01's full optical
+latency matrix and T15's persistent disk quota remain open.
+
 ## P0 — Instrumentation and two-display proof
 
 - [ ] T01: Add monotonic startup/input/frame markers, bounded logs and a benchmark

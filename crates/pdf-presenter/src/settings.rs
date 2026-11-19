@@ -137,6 +137,7 @@ pub struct Settings {
     pub presentation_fullscreen: bool,
     pub browser_monitor: Option<String>,
     pub thumbnail_size: f32,
+    pub buffer_mib: u32,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -149,6 +150,7 @@ impl Default for Settings {
             presentation_fullscreen: true,
             browser_monitor: None,
             thumbnail_size: 220.,
+            buffer_mib: 1024,
         }
     }
 }
@@ -156,6 +158,9 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         if self.version != 1 {
             return Err(format!("Unsupported settings version {}", self.version));
+        }
+        if !(256..=16384).contains(&self.buffer_mib) {
+            return Err("RAM buffer must be 256–16384 MiB per process".into());
         }
         if self.projects.len() > 4096 || !(100. ..=400.).contains(&self.thumbnail_size) {
             return Err("Invalid settings limits".into());

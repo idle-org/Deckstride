@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### 0.1.13
+
+- Prepare every slide at the largest active screen resolution (4096-pixel edge cap),
+  using two supervised workers and a quick cold preview. Reopen verified processed
+  frames without rerendering or decoding; avoid redundant preview renders on cache hits.
+- Retain the complete prepared deck in presenter and output RAM. READY requires both
+  buffers; preparation pauses explicitly at the configurable RAM budget instead of
+  evicting slides and incurring later disk reads. Resolution/host changes reset readiness.
+- Show preparation stage, slide counts, cache reuse, RAM use and estimated time left;
+  retain a compact notification when menus are hidden. Keep errors visible separately.
+- Test warm-cache reuse, budget pause/resume, resolution changes and navigation after
+  deleting source/cache files, including eight slides in the independent output host.
+
+
 ### 0.1.12
 
 - Implement the approved native presenter workflow: independently sized/hidden widgets,

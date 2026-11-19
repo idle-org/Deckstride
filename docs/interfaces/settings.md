@@ -25,6 +25,10 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
 - `presenter_fullscreen`, `presentation_fullscreen`: booleans, default true.
 - `browser_monitor`: optional monitor ID; missing/unavailable means presenter screen.
 - `thumbnail_size`: logical width in pixels, finite 100–400; default 220.
+- `buffer_mib`: integer 256–16384, default 1024, added in 0.1.13. Decoded slide RAM
+  allowance for each presenter/output process; one MiB = 1048576 bytes. Additional
+  worker/texture/UI memory is not included. Older v1 files default to 1024. The menu
+  persists changes asynchronously; lowering does not evict resident frames.
 
 Transient reveals, blank/current/selected slides, elapsed time, loaded document,
 Change on click and worker state are not persisted. HTML prototype localStorage is

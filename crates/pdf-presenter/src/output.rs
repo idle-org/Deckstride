@@ -17,9 +17,13 @@ use std::{
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct HostState {
     pub sequence: u64,
+    #[serde(default)]
+    pub generation: u64,
     pub page: usize,
     pub frame: Option<FrameInfo>,
     pub preload: Vec<FrameInfo>,
+    #[serde(default)]
+    pub buffer_mib: u32,
     pub monitors: Vec<String>,
     pub fullscreen: bool,
     pub blanked: bool,
@@ -31,6 +35,10 @@ pub struct Ack {
     pub page: Option<usize>,
     pub status: String,
     pub awake: String,
+    #[serde(default)]
+    pub generation: u64,
+    #[serde(default)]
+    pub buffered: usize,
 }
 pub struct OutputLink {
     pub tx: SyncSender<HostState>,

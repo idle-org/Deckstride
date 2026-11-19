@@ -1,4 +1,4 @@
-# Native implementation — 0.1.12
+# Native implementation — 0.1.12 and 0.1.13
 
 The HTML approval is implemented in the native executable. This record supersedes
 starting-stack proposals in `implementation.md`; historical acceptance budgets still
@@ -33,12 +33,19 @@ The minimal output process only receives raw frames and display/blank state, nev
 operator notes or menus. This establishes a software rendering baseline; it does not
 claim GPU-level throughput at every resolution.
 
-Cold rendering requests 1280-pixel frames and then 2560 refinement. Neighbours and
-visible thumbnails are prepared in the background, with no full-deck eager render.
-Raw RGBA with dimensions and SHA-256 trailer avoids repeated image decode; disk
-artifacts are disposable and namespaced by source hash and renderer. See
-[cache](../interfaces/extraction-cache.md), [settings](../interfaces/settings.md) and
-[private IPC](../interfaces/process-protocol.md) contracts.
+0.1.13 replaces neighbour-only caching with whole-deck preparation and RAM residency.
+A cold 512-pixel preview precedes screen-sized frames; warm verified full-size cache
+hits skip that preview. Two workers fill the complete deck, and the independent
+output acknowledges its own complete RAM buffer before READY. Small-screen outputs
+share the largest screen-sized variant (4096-pixel cap). Progress, cache reuse, RAM
+usage, approximate ETA and memory-pressure pause are explicit in the presenter.
+No application slide-file reads, decoding or rasterization occur on prepared navigation.
+OS paging can still occur; configuring enough available physical RAM remains necessary.
+
+The default decoded budget is 1024 MiB per process, adjustable in Menu. Insufficient
+capacity pauses rather than evicts and never reports READY. Worker/texture memory is
+additional. See [cache](../interfaces/extraction-cache.md),
+[settings](../interfaces/settings.md) and [private IPC](../interfaces/process-protocol.md).
 
 The original single-process mock remains available through `--display-proof` for
 window-management comparison. It is not the default native presenter.
@@ -101,3 +108,20 @@ benchmark or comparison against Pympress. The source PDF remains untracked and u
 
 These remain visible release gates; native workflow implementation is not a claim
 that the hard multiscreen/performance requirements have already been accepted.
+
+## 0.1.13 preparation regression evidence
+
+New tests prepare eight slides, reopen the same persistent cache without rewriting
+artifacts or generating an unnecessary 512-pixel preview, then delete both source
+and processed files before random navigation. Both the presenter-state test and the
+independent native output-host test continue from resident frames. Additional tests
+cover resolution-generation invalidation, output acknowledgment readiness, budget
+pause/resume without eviction and backward-compatible settings defaults. This is
+application I/O evidence, not an optical latency or OS-page-locking claim.
+
+Validation for 0.1.13: 37 Rust tests (including native window/output tests), 10 Python
+helper tests, formatting and warnings-denied Clippy/rustdoc pass. The whole-application
+coverage is 84.42% (75% floor), with no production exclusions. Linux and Windows release
+artifacts are rebuilt, and macOS aarch64 is compile-checked. The native presenter was
+visually inspected with the local PDF and showed all three slides buffered in RAM.
+Navigating the previous buffered show while a new load fails is also regression-tested.
