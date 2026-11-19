@@ -60,3 +60,22 @@ the guard; submission failure never sets it. The native host re-enables presente
 input and restores owner focus after completion, including a worker killed while the
 common dialog had disabled its owner. Existing slide-browser windows temporarily
 lose topmost status while the chooser is active. Rendering/output stay independent.
+
+
+## Output shutdown and lost presenter, 0.1.16
+
+No wire fields change. EOF/failed input drops the host command sender; the native
+host detects receiver disconnection instead of treating it as an empty queue forever.
+An established output keeps its last frame after unexpected connection loss, while
+Close or Escape requests exit on the next event-loop tick. A disconnected host with
+no windows exits immediately. B still blanks. With a live presenter, output Close or
+Escape retains the existing emergency-blank behavior.
+
+Normal presenter shutdown signals the supervisor and allows 500 ms for graceful
+completion, then terminates/reaps the owned child through a separate shared process
+handle. The handle is never locked during pipe writes, so a blocked writer cannot
+prevent termination. A further one-second manager completion wait is bounded.
+Event-loop errors and OutputLink destruction use this cleanup path as well. OS process
+termination/reaping still relies on OS responsiveness; these bounds are not a promise
+against kernel/driver failure. Unexpected presenter death deliberately does not use
+parent-death termination for the audience, to preserve the last usable frame.

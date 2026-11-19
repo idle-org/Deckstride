@@ -30,7 +30,7 @@ usable frame. The footer distinguishes requested and acknowledged displayed slid
 **NO OUTPUT DISPLAYED** warning marks blanking, no assigned output or no document;
 it remains visible when the footer is hidden. Preparing output has a separate status.
 Escape cancels a pending slide number/menu, closes the browser, or safely leaves
-fullscreen and blanks output. Closing a presentation window blanks it; close a
+fullscreen and blanks output. While the presenter is connected, closing a presentation window blanks it; close a
 presenter or choose Menu → Quit to end the application.
 
 Arrow keys, Page Up/Down and Space navigate from the presenter. Type a 1-based slide
@@ -117,7 +117,10 @@ Rendering, notes, file dialogs and settings I/O run in supervised child processe
 the same executable. A stuck renderer is terminated after its deadline; the UI and
 last output remain available. Reopen the source to retry failed pages. A presentation
 host failure restarts blanked with a status message, up to three starts. If the
-presenter crashes, the output process holds its last frame; B/Escape can blank it.
+presenter crashes, the output process holds its last frame. B can blank it; Escape or
+its normal window Close control exits the disconnected output. Closing the presenter
+normally shuts down the output process too, with a separate termination fallback if
+its IPC writer is stuck.
 Automatic reconnection to that orphaned show is not implemented yet.
 
 Sleep protection is requested for both native processes, including while blanked.

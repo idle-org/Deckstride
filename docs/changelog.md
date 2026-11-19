@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.16
+
+- Ensure presenter shutdown can terminate/reap its output process even when the
+  supervisor is blocked writing to a full IPC pipe. Run cleanup on event-loop errors
+  and destructor paths as well as normal exit.
+- Detect loss of the presenter connection. Preserve the last audience frame, but
+  allow the orphaned output to exit through its window Close control or Escape.
+- Add blocked-pipe shutdown/drop regression coverage and native Linux/X11 orphan
+  Close/Escape tests. Windows/macOS runtime acceptance remains pending.
+
+
 ### 0.1.15
 
 - Give Windows PDF/folder dialogs the active presenter window as their owner, so

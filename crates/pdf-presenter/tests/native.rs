@@ -210,3 +210,183 @@ fn independent_output_acknowledges_frames_and_blanking() {
     }
     assert!(child.0.try_wait().unwrap().is_some(), "host did not exit");
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn orphaned_output_holds_until_closed_then_exits_on_close_or_escape() {
+    if std::env::var_os("PDF_PRESENTER_GUI_TESTS").is_none() {
+        return;
+    }
+    use pdf_presenter::{output::HostState, worker::write_json};
+    use x11_dl::xlib;
+    let x = xlib::Xlib::open().unwrap();
+    // A private X11 connection is used only by this test thread.
+    let display = unsafe { (x.XOpenDisplay)(std::ptr::null()) };
+    assert!(!display.is_null());
+    struct DisplayGuard<'a>(&'a xlib::Xlib, *mut xlib::Display);
+    impl Drop for DisplayGuard<'_> {
+        fn drop(&mut self) {
+            unsafe {
+                (self.0.XCloseDisplay)(self.1);
+            }
+        }
+    }
+    let _display = DisplayGuard(&x, display);
+    let root = unsafe { (x.XDefaultRootWindow)(display) };
+    let pid_atom = unsafe { (x.XInternAtom)(display, c"_NET_WM_PID".as_ptr(), 0) };
+    fn find(
+        x: &xlib::Xlib,
+        d: *mut xlib::Display,
+        w: xlib::Window,
+        atom: xlib::Atom,
+        pid: u32,
+    ) -> Option<xlib::Window> {
+        // Xlib owns returned buffers; free them after copying their contents.
+        unsafe {
+            let (mut kind, mut format, mut n, mut after) = (0, 0, 0, 0);
+            let mut data = std::ptr::null_mut();
+            (x.XGetWindowProperty)(
+                d,
+                w,
+                atom,
+                0,
+                1,
+                0,
+                xlib::XA_CARDINAL,
+                &mut kind,
+                &mut format,
+                &mut n,
+                &mut after,
+                &mut data,
+            );
+            let matches = !data.is_null()
+                && format == 32
+                && n == 1
+                && *(data as *const std::os::raw::c_ulong) == u64::from(pid);
+            if !data.is_null() {
+                (x.XFree)(data.cast());
+            }
+            if matches {
+                return Some(w);
+            }
+            let (mut root, mut parent, mut count) = (0, 0, 0);
+            let mut children = std::ptr::null_mut();
+            if (x.XQueryTree)(d, w, &mut root, &mut parent, &mut children, &mut count) == 0 {
+                return None;
+            }
+            let found = if children.is_null() {
+                None
+            } else {
+                std::slice::from_raw_parts(children, count as usize)
+                    .iter()
+                    .find_map(|child| find(x, d, *child, atom, pid))
+            };
+            if !children.is_null() {
+                (x.XFree)(children.cast());
+            }
+            found
+        }
+    }
+    let listing = run_native(&["--list-monitors"]);
+    let listing = String::from_utf8(listing.stdout).unwrap();
+    let line = listing
+        .lines()
+        .find(|l| l.starts_with("Display 1:"))
+        .unwrap();
+    let name = line
+        .split(" at ")
+        .next()
+        .unwrap()
+        .rsplit_once(' ')
+        .unwrap()
+        .0
+        .split_once(": ")
+        .unwrap()
+        .1;
+    for escape in [false, true] {
+        struct ChildGuard(std::process::Child);
+        impl Drop for ChildGuard {
+            fn drop(&mut self) {
+                let _ = self.0.kill();
+                let _ = self.0.wait();
+            }
+        }
+        let mut child = ChildGuard(
+            Command::new(env!("CARGO_BIN_EXE_pdf-presenter"))
+                .env("WINIT_UNIX_BACKEND", "x11")
+                .arg("--presentation-host")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .spawn()
+                .unwrap(),
+        );
+        let mut input = child.0.stdin.take().unwrap();
+        write_json(
+            &mut input,
+            &HostState {
+                monitors: vec![format!("{name}#1")],
+                fullscreen: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let window = loop {
+            if let Some(window) = find(&x, display, root, pid_atom, child.0.id()) {
+                break window;
+            }
+            assert!(Instant::now() < deadline, "output window not created");
+            std::thread::sleep(Duration::from_millis(10));
+        };
+        // EOF models a vanished presenter. Keep the output alive until the operator closes it.
+        drop(input);
+        std::thread::sleep(Duration::from_millis(300));
+        assert!(child.0.try_wait().unwrap().is_none());
+        unsafe {
+            let mut event: xlib::XEvent = std::mem::zeroed();
+            if escape {
+                event.key = xlib::XKeyEvent {
+                    type_: xlib::KeyPress,
+                    display,
+                    window,
+                    root,
+                    keycode: (x.XKeysymToKeycode)(display, 0xff1b).into(),
+                    same_screen: 1,
+                    ..std::mem::zeroed()
+                };
+            } else {
+                let mut data = xlib::ClientMessageData::new();
+                data.set_long(
+                    0,
+                    (x.XInternAtom)(display, c"WM_DELETE_WINDOW".as_ptr(), 0) as _,
+                );
+                event.client_message = xlib::XClientMessageEvent {
+                    type_: xlib::ClientMessage,
+                    display,
+                    window,
+                    message_type: (x.XInternAtom)(display, c"WM_PROTOCOLS".as_ptr(), 0),
+                    format: 32,
+                    data,
+                    ..std::mem::zeroed()
+                };
+            }
+            (x.XSendEvent)(
+                display,
+                window,
+                0,
+                if escape { xlib::KeyPressMask } else { 0 },
+                &mut event,
+            );
+            (x.XFlush)(display);
+        }
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while child.0.try_wait().unwrap().is_none() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(
+            child.0.try_wait().unwrap().is_some(),
+            "orphan ignored {}",
+            if escape { "Escape" } else { "Close" }
+        );
+    }
+}

@@ -169,3 +169,25 @@ compile-check pass; Windows fullscreen/modal placement requires user runtime ret
 Formatting and warnings-denied Clippy/rustdoc pass. Whole-app coverage is 82.88% with
 no production exclusions. An initial coverage run failed to merge a corrupted worker
 profile; a fresh full run passed. Linux release is rebuilt for the shared admission fix.
+
+
+## 0.1.16 output lifecycle correction
+
+The output Close handler previously only blanked, even after the presenter pipe
+closed. The native host now observes receiver disconnection and accepts Close/Escape
+as exit when orphaned, while retaining crash-time last-frame preservation until then.
+Normal presenter exit, event-loop errors and OutputLink destruction all shut down the
+owned host. A separate shared process handle permits termination/reaping even when
+the supervisor is blocked writing a large state into an unread pipe.
+
+Regression tests fill a fake output's pipe and verify both shutdown and Drop reap it
+within two seconds. Native Linux/X11 tests create real output windows, disconnect
+the parent pipe, verify the process remains alive, then send WM_DELETE_WINDOW or
+Escape and verify clean exit without force-kill. Test guards kill only on failure or
+cleanup. These checks do not establish Windows/macOS physical acceptance.
+
+46 Rust tests and 10 Python tests pass, including the native window/output tests.
+Formatting, warnings-denied Clippy/rustdoc and macOS aarch64 compilation pass.
+Whole-application coverage is 83.97%, with no production exclusions. Linux and Windows
+x86_64 release builds succeed. Runtime retesting on Windows remains necessary for
+the reported platform behavior.

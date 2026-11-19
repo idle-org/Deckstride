@@ -6,9 +6,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{
     io::Read,
-    process::Child,
+    path::PathBuf,
+    process::{Child, Command, Stdio},
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicBool, Ordering},
         mpsc::{self, Receiver, SyncSender},
     },
@@ -45,6 +46,7 @@ pub struct OutputLink {
     pub rx: Receiver<Ack>,
     stop: Arc<AtomicBool>,
     manager: Option<std::thread::JoinHandle<()>>,
+    child: Arc<Mutex<Option<Child>>>,
 }
 impl Default for OutputLink {
     fn default() -> Self {
@@ -53,26 +55,39 @@ impl Default for OutputLink {
 }
 impl OutputLink {
     pub fn new() -> Self {
+        Self::with_program(std::env::current_exe().unwrap_or_default())
+    }
+    pub fn with_program(program: PathBuf) -> Self {
         let (tx, commands) = mpsc::sync_channel::<HostState>(2);
         let (results, rx) = mpsc::sync_channel(8);
         let stop = Arc::new(AtomicBool::new(false));
         let end = stop.clone();
+        let child = Arc::new(Mutex::new(None));
+        let managed_child = child.clone();
         let manager = std::thread::spawn(move || {
             let mut attempts = 0;
             while !end.load(Ordering::Relaxed) && attempts < 3 {
                 attempts += 1;
-                let mut child = match spawn_mode("--presentation-host") {
+                let mut command = Command::new(&program);
+                command
+                    .arg("--presentation-host")
+                    .stdin(Stdio::piped())
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::null());
+                crate::worker::quiet_child(&mut command);
+                let mut process = match command.spawn() {
                     Ok(c) => c,
                     Err(e) => {
                         let _ = results.try_send(Ack {
-                            status: e,
+                            status: e.to_string(),
                             ..Default::default()
                         });
                         return;
                     }
                 };
-                let mut stdin = child.stdin.take().unwrap();
-                let mut stdout = child.stdout.take().unwrap();
+                let mut stdin = process.stdin.take().unwrap();
+                let mut stdout = process.stdout.take().unwrap();
+                *managed_child.lock().unwrap() = Some(process);
                 let (ack_tx, ack_rx) = mpsc::sync_channel(8);
                 std::thread::spawn(move || {
                     while let Ok(ack) = read_json::<Ack>(&mut stdout) {
@@ -91,8 +106,7 @@ impl OutputLink {
                             },
                         );
                         std::thread::sleep(Duration::from_millis(300));
-                        let _ = child.kill();
-                        let _ = child.wait();
+                        terminate_output(&managed_child);
                         return;
                     }
                     let mut latest = None;
@@ -109,15 +123,18 @@ impl OutputLink {
                         heartbeat = Instant::now();
                         let _ = results.try_send(ack);
                     }
-                    if child.try_wait().ok().flatten().is_some()
+                    if managed_child
+                        .lock()
+                        .unwrap()
+                        .as_mut()
+                        .is_none_or(|c| c.try_wait().ok().flatten().is_some())
                         || heartbeat.elapsed() > Duration::from_secs(8)
                     {
                         break;
                     }
                     std::thread::sleep(Duration::from_millis(4));
                 }
-                let _ = child.kill();
-                let _ = child.wait();
+                terminate_output(&managed_child);
                 let _=results.try_send(Ack{status:"Presentation host stopped. Output will restart blanked; review screens before resuming.".into(),..Default::default()});
                 // Restart receives a fresh state from the presenter; never silently resume output.
                 drop(last);
@@ -129,6 +146,7 @@ impl OutputLink {
             rx,
             stop,
             manager: Some(manager),
+            child,
         }
     }
 }
@@ -136,7 +154,13 @@ impl OutputLink {
     /// Called after the event loop exits, never from an input/render callback.
     pub fn shutdown(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
-        let deadline = Instant::now() + Duration::from_secs(2);
+        let grace = Instant::now() + Duration::from_millis(500);
+        while self.manager.as_ref().is_some_and(|t| !t.is_finished()) && Instant::now() < grace {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        // This does not use the IPC writer: it also works when that writer is blocked.
+        terminate_output(&self.child);
+        let deadline = Instant::now() + Duration::from_secs(1);
         while self.manager.as_ref().is_some_and(|t| !t.is_finished()) && Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(10));
         }
@@ -147,11 +171,18 @@ impl OutputLink {
         }
     }
 }
-impl Drop for OutputLink {
-    fn drop(&mut self) {
-        self.stop.store(true, Ordering::Relaxed);
+fn terminate_output(child: &Mutex<Option<Child>>) {
+    if let Some(mut process) = child.lock().unwrap().take() {
+        let _ = process.kill();
+        let _ = process.wait();
     }
 }
+impl Drop for OutputLink {
+    fn drop(&mut self) {
+        self.shutdown();
+    }
+}
+
 pub struct SleepLease {
     child: Option<Child>,
     pub status: Receiver<String>,
@@ -270,4 +301,48 @@ fn hold_x11_fallback(_lease: Option<X11Lease>, status: String) -> Result<(), Str
     write_json(&mut std::io::stdout().lock(), &status)?;
     let _ = std::io::stdin().read(&mut [0]);
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod shutdown_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn shutdown_and_drop_reap_output_even_when_its_input_pipe_is_full() {
+        let temp = tempfile::tempdir().unwrap();
+        let program = temp.path().join("unresponsive-output");
+        std::fs::write(&program, "#!/bin/sh\nexec sleep 60\n").unwrap();
+        std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).unwrap();
+        for explicit in [true, false] {
+            let mut link = OutputLink::with_program(program.clone());
+            let child = link.child.clone();
+            let deadline = Instant::now() + Duration::from_secs(5);
+            let pid = loop {
+                if let Some(process) = child.lock().unwrap().as_ref() {
+                    break process.id();
+                }
+                assert!(Instant::now() < deadline, "output did not spawn");
+                std::thread::sleep(Duration::from_millis(10));
+            };
+            link.tx
+                .send(HostState {
+                    monitors: vec!["x".repeat(2 * 1024 * 1024)],
+                    ..Default::default()
+                })
+                .unwrap();
+            // The child never reads stdin: this message is larger than the pipe capacity.
+            std::thread::sleep(Duration::from_millis(100));
+            let start = Instant::now();
+            if explicit {
+                link.shutdown();
+                assert!(link.manager.is_none());
+            }
+            drop(link);
+            assert!(start.elapsed() < Duration::from_secs(2));
+            assert!(child.lock().unwrap().is_none());
+            // The PID is only used immediately after reaping our own child.
+            assert_eq!(unsafe { libc::kill(pid as i32, 0) }, -1);
+        }
+    }
 }

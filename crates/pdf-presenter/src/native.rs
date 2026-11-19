@@ -265,6 +265,8 @@ fn monitors(el: &ActiveEventLoop) -> (Vec<(Monitor, MonitorHandle)>, usize) {
     (handles, primary)
 }
 struct Host {
+    parent_connected: bool,
+    close_requested: bool,
     commands: Receiver<HostState>,
     acks: SyncSender<Ack>,
     state: HostState,
@@ -441,6 +443,7 @@ impl App {
             {
                 if let Some(h) = &mut self.host {
                     h.state.blanked = true;
+                    h.close_requested = matches!(key, Key::Named(NamedKey::Escape));
                     let _ = h.acks.try_send(Ack {
                         status: "Presentation blanked from output keyboard.".into(),
                         ..Default::default()
@@ -631,7 +634,18 @@ impl App {
                 );
         }
         if let Some(host) = &mut self.host {
-            while let Ok(state) = host.commands.try_recv() {
+            loop {
+                let state = match host.commands.try_recv() {
+                    Ok(state) => state,
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        host.parent_connected = false;
+                        break;
+                    }
+                };
+                if !state.blanked {
+                    host.close_requested = false;
+                }
                 repaint = true;
                 if state.quit {
                     el.exit();
@@ -666,6 +680,10 @@ impl App {
                     host.frame = None;
                 }
                 host.state = state;
+            }
+            if !host.parent_connected && (host.close_requested || self.windows.is_empty()) {
+                el.exit();
+                return;
             }
             while let Ok(c) = host.reader.rx.try_recv() {
                 repaint = true;
@@ -797,6 +815,7 @@ impl ApplicationHandler for App {
                         s.execute(Action::CloseBrowser);
                     }
                 } else if let Some(h) = &mut self.host {
+                    h.close_requested = true;
                     h.state.blanked = true;
                     let _ = h.acks.try_send(Ack {
                         status: "Presentation blanked from output window.".into(),
@@ -954,10 +973,11 @@ pub fn run(options: crate::poc::Options, path: Option<std::path::PathBuf>) -> Re
         override_presenter: options.presenter,
         override_output: options.audience,
     };
-    el.run_app(&mut app)?;
+    let result = el.run_app(&mut app);
     if let Some(output) = &mut app.output {
         output.shutdown();
     }
+    result?;
     if let Some(e) = app.error {
         return Err(e.into());
     }
@@ -987,6 +1007,8 @@ pub fn run_output() -> Result<(), Failure> {
     let mut app = App {
         studio: None,
         host: Some(Host {
+            parent_connected: true,
+            close_requested: false,
             commands,
             acks,
             state: Default::default(),

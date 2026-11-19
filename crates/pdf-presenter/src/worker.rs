@@ -229,7 +229,7 @@ pub fn run() -> Result<(), String> {
     }
     Ok(())
 }
-fn quiet_child(command: &mut Command) {
+pub(crate) fn quiet_child(command: &mut Command) {
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
