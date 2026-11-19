@@ -3,6 +3,10 @@
 Run the portable executable and choose Menu → Open PDF or Open picture folder.
 You can also drop a file/folder on the presenter, pass its path on the command line,
 or use `--open PATH`. The source is read-only. A failed load keeps the previous show.
+Only one file/folder chooser can be open at a time: Open commands are disabled until
+you select a source, cancel or the chooser times out. On Windows the chooser belongs
+to the active presenter window and appears above its fullscreen view. Repeated clicks
+do not queue additional dialogs.
 A single connected monitor starts presenter-only rehearsal; `--windowed` disables
 fullscreen for the session. `--list-monitors` lists CLI display numbers.
 

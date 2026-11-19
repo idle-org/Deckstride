@@ -828,18 +828,23 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     let locale = ui.ctx().clone();
     ui.set_min_width(260.);
     let actions_before = s.actions.len();
-    button(
-        ui,
-        tr(&locale, "Open PDF…"),
-        Action::Pick(false),
-        &mut s.actions,
-    );
-    button(
-        ui,
-        tr(&locale, "Open picture folder…"),
-        Action::Pick(true),
-        &mut s.actions,
-    );
+    ui.add_enabled_ui(!s.dialog_busy, |ui| {
+        button(
+            ui,
+            tr(&locale, "Open PDF…"),
+            Action::Pick(false),
+            &mut s.actions,
+        );
+        button(
+            ui,
+            tr(&locale, "Open picture folder…"),
+            Action::Pick(true),
+            &mut s.actions,
+        );
+    });
+    if s.dialog_busy {
+        ui.label(tr(&locale, "File chooser already open"));
+    }
     ui.separator();
     button(
         ui,

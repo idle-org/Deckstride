@@ -151,3 +151,21 @@ regressions, and 10 Python tests pass. Formatting, Clippy/rustdoc with warnings 
 and macOS aarch64 compile-check pass. Whole-application coverage is 82.73% (75% floor),
 without production exclusions. Linux and Windows x86_64 release builds succeed. Windows/macOS runtime validation
 remains open.
+
+
+## 0.1.15 Windows chooser correction
+
+The reported Windows dialog was unowned because rfd ran in a worker without the
+presenter's HWND. Repeated Open actions were also admitted into the four-entry worker
+queue. The worker now receives the active presenter HWND and uses it as the common
+dialog owner, retaining the killable-worker design. A shared outstanding-request guard
+prevents queuing, and native completion restores owner input/focus even after timeout.
+
+44 Rust tests and 10 Python tests pass. The new controlled-transport regression sends
+100 alternating PDF/folder requests, verifies exactly one admission and no delayed
+reopening after cancellation, then tests explicit retry, selection, worker error,
+timeout and submission failure. Windows x86_64 release compilation and macOS aarch64
+compile-check pass; Windows fullscreen/modal placement requires user runtime retest.
+Formatting and warnings-denied Clippy/rustdoc pass. Whole-app coverage is 82.88% with
+no production exclusions. An initial coverage run failed to merge a corrupted worker
+profile; a fresh full run passed. Linux release is rebuilt for the shared admission fix.

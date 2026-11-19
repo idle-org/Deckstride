@@ -71,6 +71,8 @@ pub struct Studio {
     pub bg: Bridge,
     pub io: Bridge,
     pub dialog: Bridge,
+    pub dialog_busy: bool,
+    pub dialog_owner: Option<isize>,
     fg_busy: bool,
     bg_busy: bool,
     fg_job: Option<(usize, u32)>,
@@ -155,6 +157,8 @@ impl Studio {
             bg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             io,
             dialog: Bridge::with_program(Duration::from_secs(300), worker_program.clone()),
+            dialog_busy: false,
+            dialog_owner: None,
             fg_busy: false,
             bg_busy: false,
             fg_job: None,
@@ -252,8 +256,21 @@ impl Studio {
                 self.status = "Opening document in an isolated worker…".into();
             }
             Action::Pick(folder) => {
-                if !self.dialog.submit(0, 0, Request::Pick { folder }) {
-                    self.status = "A file chooser is already active.".into();
+                if !self.dialog_busy {
+                    self.dialog_busy = self.dialog.submit(
+                        0,
+                        0,
+                        Request::Pick {
+                            folder,
+                            owner: self.dialog_owner,
+                        },
+                    );
+                    self.status = if self.dialog_busy {
+                        "File chooser open — select a presentation or cancel."
+                    } else {
+                        "Could not open the file chooser. Try again."
+                    }
+                    .into();
                 }
             }
             Action::Go(page) => {
@@ -364,6 +381,8 @@ impl Studio {
             self.pending_save = false;
         }
         while let Ok(c) = self.dialog.rx.try_recv() {
+            self.dialog_busy = false;
+            self.status = "File chooser closed.".into();
             match c.result {
                 Ok(p) => {
                     if let Some(path) = p.reply.picked {

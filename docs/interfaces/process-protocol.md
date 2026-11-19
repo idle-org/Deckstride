@@ -41,3 +41,22 @@ previews or obsolete generations/resolutions. READY requires both presenter and 
 counts to reach the deck total. Stale acknowledgments cannot mark another resolution
 ready. The bounded JSON envelope and raw-frame limits remain unchanged. This protocol
 still requires the same executable build at both ends.
+
+
+## File chooser ownership and admission, 0.1.15
+
+`Pick` carries `folder` and optional `owner` (a signed native Windows HWND integer;
+null on other platforms). This identifier belongs to the parent presenter process,
+is never dereferenced as worker memory, and is passed to the Windows common dialog
+as its owner. Only the active presenter (or first available presenter) supplies it;
+an audience window is never the owner. Windows requests without an owner fail clearly.
+The protocol remains private and requires matching executable builds.
+
+The shared Studio admits exactly one outstanding chooser job, including across
+mirrored presenters and alternating PDF/folder requests. Repeated Open actions are
+ignored and the corresponding menu controls are disabled until a completion arrives.
+Success, cancellation, worker error and the existing 300-second deadline all release
+the guard; submission failure never sets it. The native host re-enables presenter
+input and restores owner focus after completion, including a worker killed while the
+common dialog had disabled its owner. Existing slide-browser windows temporarily
+lose topmost status while the chooser is active. Rendering/output stay independent.

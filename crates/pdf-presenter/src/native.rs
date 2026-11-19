@@ -513,10 +513,26 @@ impl App {
                 s.layout_open,
                 s.browser_open,
             );
+            let chooser_was_open = s.dialog_busy;
             s.poll();
             let actions = std::mem::take(&mut s.actions);
             repaint |= !actions.is_empty();
             for action in actions {
+                #[cfg(target_os = "windows")]
+                if matches!(action, Action::Pick(_)) && !s.dialog_busy {
+                    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+                    s.dialog_owner = self
+                        .windows
+                        .iter()
+                        .filter(|w| w.role == Role::Presenter)
+                        .find(|w| w.window.has_focus())
+                        .or_else(|| self.windows.iter().find(|w| w.role == Role::Presenter))
+                        .and_then(|w| w.window.window_handle().ok())
+                        .and_then(|h| match h.as_raw() {
+                            RawWindowHandle::Win32(h) => Some(h.hwnd.get()),
+                            _ => None,
+                        });
+                }
                 if matches!(action, Action::OpenBrowser) {
                     for window in self.windows.iter().filter(|w| w.role == Role::Browser) {
                         window.window.set_minimized(false);
@@ -524,6 +540,30 @@ impl App {
                     }
                 }
                 s.execute(action);
+            }
+            if chooser_was_open != s.dialog_busy {
+                repaint = true;
+                for window in &self.windows {
+                    if window.role == Role::Browser {
+                        window.window.set_window_level(if s.dialog_busy {
+                            winit::window::WindowLevel::Normal
+                        } else {
+                            winit::window::WindowLevel::AlwaysOnTop
+                        });
+                    }
+                    #[cfg(target_os = "windows")]
+                    if !s.dialog_busy && window.role == Role::Presenter {
+                        use winit::{
+                            platform::windows::WindowExtWindows,
+                            raw_window_handle::{HasWindowHandle, RawWindowHandle},
+                        };
+                        // The worker can time out while COM has the owner disabled.
+                        window.window.set_enable(true);
+                        if window.window.window_handle().ok().is_some_and(|h| matches!(h.as_raw(),RawWindowHandle::Win32(h) if Some(h.hwnd.get()) == s.dialog_owner)) {
+                            window.window.focus_window();
+                        }
+                    }
+                }
             }
             if let Some(output) = &self.output {
                 while let Ok(ack) = output.rx.try_recv() {

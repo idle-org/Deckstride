@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.15
+
+- Give Windows PDF/folder dialogs the active presenter window as their owner, so
+  they remain above its fullscreen view. Restore owner input/focus on completion,
+  including worker failure/timeout; temporarily lower a topmost slide browser.
+- Permit only one outstanding chooser request across all presenter windows. Disable
+  Open controls while it is active; repeated clicks cannot queue more dialogs.
+- Test a 100-request burst, cancellation, selection, failures, retry and owner IPC.
+  Windows compilation passes; native Windows modal placement still needs user retest.
+
+
 ### 0.1.14
 
 - Replace the floating Menu with an anchored dropdown; present display assignments

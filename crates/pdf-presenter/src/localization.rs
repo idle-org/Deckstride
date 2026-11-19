@@ -39,6 +39,7 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         return text;
     }
     match text {
+        "File chooser already open" => "Sélecteur de fichiers déjà ouvert",
         "Appearance" => "Apparence",
         "Preferences" => "Préférences",
         "Storage locations" => "Emplacements de stockage",

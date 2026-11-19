@@ -49,6 +49,8 @@ pub enum Request {
     },
     Pick {
         folder: bool,
+        /// Windows owner HWND; never a pointer dereferenced by the worker.
+        owner: Option<isize>,
     },
     SleepTest(u64),
 }
@@ -200,8 +202,8 @@ pub fn run() -> Result<(), String> {
                 }
                 Request::LoadSettings(path) => reply.settings = Some(settings::read(&path)?),
                 Request::SaveSettings { path, settings } => settings::write(&path, &settings)?,
-                Request::Pick { folder } => {
-                    let dialog = rfd::FileDialog::new().set_title("Open presentation");
+                Request::Pick { folder, owner } => {
+                    let dialog = picker_dialog(owner)?;
                     reply.picked = if folder {
                         dialog.pick_folder()
                     } else {
@@ -376,5 +378,40 @@ impl Bridge {
 impl Drop for Bridge {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
+    }
+}
+
+fn picker_dialog(owner: Option<isize>) -> Result<rfd::FileDialog, String> {
+    let dialog = rfd::FileDialog::new().set_title("Open presentation");
+    #[cfg(target_os = "windows")]
+    {
+        use winit::raw_window_handle::{
+            DisplayHandle, HandleError, HasDisplayHandle, HasWindowHandle, RawWindowHandle,
+            Win32WindowHandle, WindowHandle,
+        };
+        struct Owner(std::num::NonZeroIsize);
+        impl HasWindowHandle for Owner {
+            fn window_handle(&self) -> Result<WindowHandle<'_>, HandleError> {
+                // The parent passes its live presenter HWND over private same-build IPC.
+                // rfd copies this OS identifier; no worker memory is dereferenced.
+                Ok(unsafe {
+                    WindowHandle::borrow_raw(RawWindowHandle::Win32(Win32WindowHandle::new(self.0)))
+                })
+            }
+        }
+        impl HasDisplayHandle for Owner {
+            fn display_handle(&self) -> Result<DisplayHandle<'_>, HandleError> {
+                Ok(DisplayHandle::windows())
+            }
+        }
+        let owner = owner
+            .and_then(std::num::NonZeroIsize::new)
+            .ok_or("No presenter window available for the file chooser")?;
+        Ok(dialog.set_parent(&Owner(owner)))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = owner;
+        Ok(dialog)
     }
 }
