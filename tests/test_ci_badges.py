@@ -93,6 +93,19 @@ class BadgeTests(unittest.TestCase):
                 self.assertFalse(Path("coverage/.coverage-ready-42").exists())
                 self.assertIn("failing", Path("coverage/test.svg").read_text())
 
+    def test_headless_floor_is_explicit_and_still_enforces_threshold_and_tool_errors(self):
+        for enabled, floor in [("", 75), ("0", 75), ("1", 60)]:
+            with patch.dict(os.environ, {"PDF_PRESENTER_HEADLESS_CI": enabled}):
+                self.assertEqual(ci.coverage_floor(), floor)
+        with patch.dict(os.environ, {"PDF_PRESENTER_HEADLESS_CI": "1"}):
+            for covered, status, expected in [(6521, 0, 0), (6000, 0, 0), (5999, 0, 1), (6521, 7, 7)]:
+                with self.subTest(covered=covered, status=status), contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(ci.measure(self.report(covered), ci.coverage_floor(), status), expected)
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                ci.finalize()
+            self.assertIn("60.00%", output.getvalue())
+
     def test_coverage_from_fresh_checkout_reports_tool_failure_without_traceback(self):
         Path("coverage").rmdir()
 

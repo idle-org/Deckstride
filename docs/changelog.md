@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.27
+
+- Remove Jenkins's Xvfb prerequisite and native-window test wrapper. Keep native
+  smoke available locally and all production code in coverage. Temporarily use a
+  60% headless Jenkins floor; local full-GUI runs retain the 75% floor. Coverage
+  badges still show the actual measurement and tool/test failures remain failures.
+  Headless coverage passes at 65.21%; all 13 Python helper tests pass. Jenkins
+  shell blocks pass syntax checks; the remote job has not been rerun.
+
 ### 0.1.26
 
 - Display transparent slide areas on white by default. Appearance now offers

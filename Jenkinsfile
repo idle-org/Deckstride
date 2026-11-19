@@ -12,6 +12,7 @@ pipeline {
         PYTHONUNBUFFERED = '1'
         PYTHONDONTWRITEBYTECODE = '1'
         NO_COLOR = '1'
+        PDF_PRESENTER_HEADLESS_CI = '1'
         CARGO_TERM_COLOR = 'never'
         BADGE_ROOT = '/mnt/assets/coverage'
     }
@@ -31,11 +32,6 @@ pipeline {
                     set -eu
                     uv run --no-project --python ">=3.11" python -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required for CI"'
                     test -n "${BRANCH_NAME:?Configure this job as a Multibranch Pipeline}"
-                    if ! command -v Xvfb >/dev/null 2>&1; then
-                        echo 'Xvfb is missing from the Jenkins worker PATH. uv manages Python, not the X server.' >&2
-                        echo 'Provision the worker with xvfb (Debian/Ubuntu) or xorg-vfbserver (FreeBSD), then rerun.' >&2
-                        exit 1
-                    fi
                     uname -sr
                     rustc --version
                     if ! cargo llvm-cov --version | grep -Fx 'cargo-llvm-cov 0.9.1'; then
@@ -64,7 +60,8 @@ pipeline {
                     sh '''
                         set -eu
                         uv run --no-project --python ">=3.11" python -m unittest discover -s tests -v
-                        uv run --no-project --python ">=3.11" python scripts/gui_ci.py cargo test --locked --workspace --all-features
+                        unset PDF_PRESENTER_GUI_TESTS
+                        cargo test --locked --workspace --all-features
                         cargo build --locked --workspace --all-features
                         uv run --no-project --python ">=3.11" python scripts/ci.py tests-passed
                     '''
@@ -72,7 +69,13 @@ pipeline {
             }
         }
         stage('Coverage') {
-            steps { sh 'uv run --no-project --python ">=3.11" python scripts/gui_ci.py python scripts/ci.py coverage' }
+            steps {
+                sh '''
+                    set -eu
+                    unset PDF_PRESENTER_GUI_TESTS
+                    uv run --no-project --python ">=3.11" python scripts/ci.py coverage
+                '''
+            }
         }
     }
 

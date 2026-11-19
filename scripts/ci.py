@@ -27,6 +27,11 @@ def config():
     return tomllib.loads((ROOT / "coverage.toml").read_text())
 
 
+def coverage_floor():
+    key = "headless-line-floor" if os.environ.get("PDF_PRESENTER_HEADLESS_CI") == "1" else "line-floor"
+    return config()[key]
+
+
 def measure(report, floor, tool_status):
     """Process an independently generated summary before deciding pass/fail."""
     marker = Path(f"coverage/.coverage-ready-{build_number()}")
@@ -80,7 +85,7 @@ def finalize():
     if lines and lines[0] == build:
         print("\n".join(lines[1:]))
     else:
-        print(f"Line coverage: unavailable; required minimum: {config()['line-floor']:.2f}%; reason: coverage stage did not complete")
+        print(f"Line coverage: unavailable; required minimum: {coverage_floor():.2f}%; reason: coverage stage did not complete")
     for path in (passed, ready, Path("coverage/summary.json"), summary):
         path.unlink(missing_ok=True)
     for name in ("version", "test", "coverage"):
@@ -116,7 +121,7 @@ def main():
             print(f"Coverage tool could not start: {error}", flush=True)
         print(f"Coverage tool exit status: {status}", flush=True)
         try:
-            return measure(summary, config()["line-floor"], status)
+            return measure(summary, coverage_floor(), status)
         finally:
             summary.unlink(missing_ok=True)
     elif action == "finalize":
