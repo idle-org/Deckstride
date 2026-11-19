@@ -1,0 +1,10 @@
+/target/
+/coverage/
+/build/
+/dist/
+/downloads/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+*gitea-token*

@@ -1,0 +1,4 @@
+# Whole application; never exclude future GUI or renderer code to meet this floor.
+line-floor = 75.0
+tool = "cargo-llvm-cov"
+tool-version = "0.9.1"

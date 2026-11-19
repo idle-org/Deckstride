@@ -1,0 +1,2 @@
+[alias]
+coverage = "llvm-cov --locked --workspace --json --summary-only --output-path coverage/summary.json"

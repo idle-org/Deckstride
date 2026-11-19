@@ -1,0 +1,9 @@
+# Agent documentation
+
+- [Working rules](AGENTS.md)
+- [Development](docs/development/README.md)
+- [Implementation and acceptance plan](docs/development/plan.md)
+- [CI and Jenkins setup](docs/development/ci.md)
+- [Interface policy](docs/interfaces/README.md)
+- [Artwork provenance](docs/development/icon-prompts.json)
+- [Changelog](docs/changelog.md)
