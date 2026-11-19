@@ -21,7 +21,7 @@ pipeline {
             steps {
                 deleteDir()
                 checkout scm
-                sh 'python3 scripts/ci.py init'
+                sh 'uv run --no-project --python ">=3.11" python scripts/ci.py init'
             }
         }
 
@@ -29,9 +29,13 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    python3 -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required for CI"'
+                    uv run --no-project --python ">=3.11" python -c 'import sys; assert sys.version_info >= (3, 11), "Python 3.11+ required for CI"'
                     test -n "${BRANCH_NAME:?Configure this job as a Multibranch Pipeline}"
-                    command -v Xvfb
+                    if ! command -v Xvfb >/dev/null 2>&1; then
+                        echo 'Xvfb is missing from the Jenkins worker PATH. uv manages Python, not the X server.' >&2
+                        echo 'Provision the worker with xvfb (Debian/Ubuntu) or xorg-vfbserver (FreeBSD), then rerun.' >&2
+                        exit 1
+                    fi
                     uname -sr
                     rustc --version
                     if ! cargo llvm-cov --version | grep -Fx 'cargo-llvm-cov 0.9.1'; then
@@ -59,23 +63,23 @@ pipeline {
                 catchError(buildResult: 'FAILURE', stageResult: 'FAILURE', catchInterruptions: false) {
                     sh '''
                         set -eu
-                        python3 -m unittest discover -s tests -v
-                        python3 scripts/gui_ci.py cargo test --locked --workspace --all-features
+                        uv run --no-project --python ">=3.11" python -m unittest discover -s tests -v
+                        uv run --no-project --python ">=3.11" python scripts/gui_ci.py cargo test --locked --workspace --all-features
                         cargo build --locked --workspace --all-features
-                        python3 scripts/ci.py tests-passed
+                        uv run --no-project --python ">=3.11" python scripts/ci.py tests-passed
                     '''
                 }
             }
         }
         stage('Coverage') {
-            steps { sh 'python3 scripts/gui_ci.py python3 scripts/ci.py coverage' }
+            steps { sh 'uv run --no-project --python ">=3.11" python scripts/gui_ci.py python scripts/ci.py coverage' }
         }
     }
 
     post {
         cleanup {
             script {
-                sh 'python3 scripts/ci.py finalize'
+                sh 'uv run --no-project --python ">=3.11" python scripts/ci.py finalize'
                 archiveArtifacts artifacts: 'coverage/version.svg,coverage/test.svg,coverage/coverage.svg',
                     fingerprint: true, allowEmptyArchive: false
                 if (env.BRANCH_NAME == 'main' && !env.CHANGE_ID) {

@@ -13,7 +13,7 @@ def run(command):
         raise ValueError("usage: gui_ci.py COMMAND [ARGS...]")
     xvfb = shutil.which("Xvfb")
     if xvfb is None:
-        raise RuntimeError("Xvfb is required for native GUI CI/coverage (install xorg-vfbserver on FreeBSD)")
+        raise RuntimeError("Xvfb is required for native GUI CI/coverage; uv cannot install the X server. Provision the worker with xvfb (Debian/Ubuntu) or xorg-vfbserver (FreeBSD), and put Xvfb on PATH.")
     reader, writer = os.pipe()
     server = None
     with tempfile.TemporaryFile() as log:

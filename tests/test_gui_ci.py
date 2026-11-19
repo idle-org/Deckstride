@@ -17,7 +17,7 @@ class GuiCiTests(unittest.TestCase):
     def test_missing_server_or_command_fails_explicitly(self):
         with self.assertRaises(ValueError):
             gui.run([])
-        with patch.object(gui.shutil, "which", return_value=None), self.assertRaises(RuntimeError):
+        with patch.object(gui.shutil, "which", return_value=None), self.assertRaisesRegex(RuntimeError, "uv cannot install the X server"):
             gui.run([sys.executable, "-c", "pass"])
 
     def test_child_receives_isolated_display_and_exit_status_survives(self):

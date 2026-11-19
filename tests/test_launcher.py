@@ -2,6 +2,7 @@ import importlib.util
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -30,11 +31,11 @@ class LauncherTests(unittest.TestCase):
             (bundle / 'pdf-presenter').touch()
             (bundle / 'pdf-presenter.png').touch()
             env = dict(os.environ, XDG_DATA_HOME=str(root / 'data'))
-            subprocess.run(['python3', str(script)], env=env, check=True, capture_output=True)
+            subprocess.run([sys.executable, str(script)], env=env, check=True, capture_output=True)
             installed = root / 'data/applications/pdf-presenter.desktop'
             self.assertEqual(installed.read_text(), launcher.desktop_entry(
                 bundle / 'pdf-presenter', bundle / 'pdf-presenter.png'))
             (bundle / 'pdf-presenter').unlink()
-            result = subprocess.run(['python3', str(script)], env=env, capture_output=True)
+            result = subprocess.run([sys.executable, str(script)], env=env, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertTrue(installed.is_file())

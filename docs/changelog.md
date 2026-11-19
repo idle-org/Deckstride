@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.18
+
+- Use uv-selected Python 3.11+ throughout Jenkins, including badge initialization,
+  cleanup, helper tests and nested coverage execution. Launcher tests reuse that interpreter.
+- Explain missing Xvfb with worker provisioning instructions; uv manages Python
+  and cannot replace the native X server required by GUI tests. Keep GUI coverage mandatory.
+
 ### 0.1.17
 
 - Embed application icons in all native windows and the Windows executable.
