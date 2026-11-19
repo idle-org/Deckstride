@@ -8,3 +8,6 @@
 - [Interface policy](docs/interfaces/README.md)
 - [Artwork provenance](docs/development/icon-prompts.json)
 - [Changelog](docs/changelog.md)
+
+- [Ordered implementation tasks](docs/development/tasks.md)
+- [Implementation choices and performance budgets](docs/development/implementation.md)

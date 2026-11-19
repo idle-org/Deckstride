@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.2
+
+- Added an ordered implementation task list and concrete runtime choices: isolated
+  PDF workers/audience host, progressive image caches, bounded recovery, native sleep
+  inhibition and measured latency budgets. Dependency/build/package size constraints
+  do not take precedence over fast startup and resilience. Require portable executables
+  with bundled non-system dependencies and offline clean-machine tests. Choices are researched;
+  desktop implementation and physical acceptance remain pending.
+
 ### 0.1.1
 
 - Established selectable dual-screen operation on Windows/macOS/Linux as a hard

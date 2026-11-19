@@ -13,3 +13,10 @@ and measured presentation speed; sharing Canvas Pilot's UI stack is optional.
 
 Run `cargo run --locked -p pdf-presenter` for the bootstrap status executable.
 No PDF opening, GUI, installation bundle or presentation output exists yet.
+
+- [Ordered implementation tasks](tasks.md)
+- [Implementation choices and performance budgets](implementation.md)
+
+Release target: a portable executable for each supported OS/architecture, bundling
+all non-system dependencies. Runtime installation/downloads are not acceptable;
+see implementation choices and task T25 for packaging and clean-machine tests.

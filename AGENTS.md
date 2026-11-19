@@ -14,7 +14,9 @@ The current executable reports bootstrap status; do not describe it as a PDF vie
 - `docs/development/`: architecture decisions, implementation plan and CI setup.
 - `docs/interfaces/`: persistent-format contracts when formats are introduced.
 
-Keep a single-member workspace. Do not depend on sibling repositories. Reliable
+Keep the build standalone; do not depend on sibling repositories. Crate count,
+compilation time and package size are not priorities. Add dependencies or split
+workspace crates where runtime resilience, performance or maintainability benefits. Reliable
 selectable presenter/audience displays on Windows, macOS and Linux are a HARD
 requirement. Prove this first and iterate with the user on physical testing until
 it works. Presentation speed is the primary performance goal: prioritize first-page
@@ -26,6 +28,23 @@ gates. Rust/egui is a candidate, not a constraint: native APIs, renderer process
 another window host are acceptable when they satisfy reliability and speed. Keep PDF
 rendering, document state and display/window management separate without speculative
 abstractions. Do not copy Pympress or PowerPoint code/assets without license review.
+
+Implementation follows `docs/development/tasks.md` and the decisions in
+`docs/development/implementation.md`. Fast startup and responsive controls are hard
+gates. Keep PDF/native blocking work in killable worker processes; never perform
+blocking disk, renderer, portal or IPC waits on UI/input paths. Bound queues, memory,
+retries, cancellation and shutdown. Keep output independent of presenter failures.
+Automatically inhibit idle display/system sleep throughout an armed presentation,
+including blank/paused states; report partial support and release owned leases at end.
+Native APIs and measured OS tweaks are authorized; prefer session-scoped reversible
+changes with recovery tests. Never claim immunity to OS/hardware faults.
+
+Portable distribution is a hard release gate: one launchable executable per target,
+all required non-system dependencies bundled, no runtime downloads/installers or
+user-installed PDF backend/toolchain. Re-exec the same binary for internal process
+roles. Prefer static linkage; embed and automatically extract unavoidable runtime
+assets safely, testing cold startup and read-only executable locations. See the
+implementation choices for target packaging and clean-machine acceptance.
 
 ## Presentation safety
 

@@ -32,6 +32,11 @@ OS, compositor, GPU or disconnected monitor cannot fail. Handle failures explici
 keep presenter content private, and make output recovery possible without restarting
 or losing the selected slide. Do not silently demote an affected OS to unsupported.
 
+Portable distribution is also mandatory: one launchable executable per target with
+all required non-system dependencies bundled. No runtime downloads, dependency
+installation or separately installed PDF backend. See implementation choices for
+static linking, embedded assets and clean-machine acceptance.
+
 ## Completed foundation — 0.1.0
 
 Independent workspace, source license, app/repository icon, agent instructions,
@@ -40,35 +45,16 @@ zero-based navigation and audience blanking, with output initially blanked.
 The executable only identifies the project's current status. No PDF renderer or
 native windows have been implemented; no physical-display acceptance is recorded.
 
-## Implementation order
+## Implementation work
 
-1. Prove two independently assigned windows on Windows, macOS and Linux first.
-   Enumerate displays, identify them visibly, select presenter/audience destinations,
-   swap roles, and enter/leave audience fullscreen. Rust is the foundation; egui is
-   a candidate, not a constraint. Evaluate platform APIs or another host if needed.
-   On Linux, test X11 and Wayland separately: investigate placement/fullscreen
-   constraints and provide an explicit operator placement flow where needed. A
-   limitation must be resolved and tested, not hidden behind automatic placement.
-2. Integrate a real PDF backend into those two windows. Render the requested page
-   first, display it immediately when ready, then prepare next/previous pages ahead
-   of more distant pages. Prioritize interactive jumps over background extraction,
-   cancel obsolete work, and keep UI/input handling independent of rendering.
-   Evaluate backend licensing, packaging, rotation/crop fidelity and all three OSes.
-3. Add reusable extraction and bounded memory/GPU caches. Warm presentation should
-   use prepared images/textures rather than synchronously re-rendering the PDF on
-   each slide change. Avoid decode, disk I/O and texture-upload stalls on the input
-   path. Use bounded parallelism and measured prefetch, not unbounded whole-deck RAM.
-   Start displaying without waiting for the complete deck or its source hash; only
-   reuse persistent extraction after validating its identity and render settings.
-   See [cache design requirements](../interfaces/extraction-cache.md).
-4. Finish presenter controls: current/next slide previews, keyboard navigation,
-   direct selection and blank/unblank. Extract available notes asynchronously; use
-   current/next-only mode if unavailable. Support explicit notes-page layout/cropping
-   when needed; do not assume every PDF carries structured speaker notes.
-5. Iterate on real-machine display and performance failures with the user until the
-   acceptance gates below pass. Package each OS with the chosen renderer dependencies,
-   app artwork, license notices and reproducible build instructions. FreeBSD remains
-   the CI host, not a substitute for Windows/macOS/Linux desktop testing.
+The ordered [task list](tasks.md) owns implementation and completion tracking.
+[Implementation choices](implementation.md) specify the stack, process isolation,
+cache pipeline, keep-awake APIs and initial performance/recovery budgets.
+
+Dependency count, build time and package size are not priorities. Fast startup,
+responsive controls and resilience are. Automatically inhibit idle display/system
+sleep during presentation, including blanked and paused output, to the extent the OS
+allows. Native integration and measured, reversible OS tuning are authorized.
 
 ## Display acceptance gate
 
@@ -98,8 +84,8 @@ Measure time to first visible page, time to presentation-ready dual windows, and
 input-to-visible slide latency (median, p95 and worst case). Include rapid next/back,
 uncached random jumps, notes extraction and background cache work. Record peak RAM,
 GPU memory when measurable, disk-cache size and extraction time. Distinguish actual
-visible-output timing from CPU submission timing. Establish numerical budgets from
-initial measurements and user testing; none have been agreed yet. No claims of
+visible-output timing from CPU submission timing. Use the proposed numerical budgets in the implementation choices as initial
+engineering gates; validate them against reference hardware and user testing. No claims of
 "blazingly fast" acceptance without recorded measurements and user validation.
 
 ## Scope after the core requirements
