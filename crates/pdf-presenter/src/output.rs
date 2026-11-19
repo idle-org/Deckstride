@@ -24,6 +24,8 @@ pub enum DisplayAction {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct HostState {
     #[serde(default)]
+    pub slide_colors: crate::settings::SlideColors,
+    #[serde(default)]
     pub setup_controls: bool,
     #[serde(default)]
     pub route_trial: Option<u64>,

@@ -95,3 +95,10 @@ monotonic deadline and does not persist routes/fullscreen flags until confirmed.
 A late Keep is treated as rollback. Host EOF clears recovery controls so orphan
 Escape/Close remains available. Notes, source paths and operator layout data are
 still absent from this control payload. Private same-build IPC only.
+
+## Slide background colors, 0.1.26
+
+HostState carries `slide_colors` with `page_background` and `fit_padding` RGB byte
+triples (default white/black). Color updates use the existing state sequence and
+repaint existing textures without changing buffer generation or reading slide files.
+Blank output remains black. Same-executable protocol only.

@@ -40,6 +40,11 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
     }
     match text {
         "File chooser already open" => "Sélecteur de fichiers déjà ouvert",
+        "Page background" => "Fond de page",
+        "Fit padding color" => "Couleur des marges",
+        "Page background fills transparency; fit padding fills space around the slide." => {
+            "Le fond de page remplit les zones transparentes ; les marges remplissent l’espace autour de la diapositive."
+        }
         "Appearance" => "Apparence",
         "Preferences" => "Préférences",
         "Storage locations" => "Emplacements de stockage",

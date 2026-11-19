@@ -289,7 +289,11 @@ impl Document {
             }
         };
         let dir = self.cache.join(&self.info.key).join(&identity);
-        let path = dir.join(format!("{page}-{edge}-hayro09.rgba"));
+        let renderer_key = match self.source {
+            Source::Pdf(_) => "hayro09-straight",
+            Source::Images(_) => "hayro09",
+        };
+        let path = dir.join(format!("{page}-{edge}-{renderer_key}.rgba"));
         if let Ok((width, height, rgba)) = read_frame(&path) {
             return Ok(Some(Frame {
                 info: FrameInfo {
@@ -326,7 +330,12 @@ impl Document {
                 );
                 let w = pixmap.width() as u32;
                 let h = pixmap.height() as u32;
-                (w, h, bytemuck::cast_slice(pixmap.data()).to_vec())
+                // Hayro stores premultiplied pixels; our cache/UI contract is straight RGBA.
+                (
+                    w,
+                    h,
+                    pixmap.take_rgba8(hayro::vello_cpu::peniko::ImageAlphaType::Alpha),
+                )
             }
             Source::Images(_) => {
                 let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes.unwrap()))

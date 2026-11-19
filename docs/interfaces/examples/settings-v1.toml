@@ -7,6 +7,10 @@ presentation_fullscreen = true
 thumbnail_size = 220.0
 buffer_mib = 1024
 
+[slide_colors]
+page_background = [255, 255, 255]
+fit_padding = [0, 0, 0]
+
 [routes]
 presenter = ["Primary#1"]
 presentation = ["Projector#1"]

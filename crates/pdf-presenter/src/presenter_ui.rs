@@ -10,6 +10,28 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+/// Composite a fitted slide over independent page and padding colors in every view.
+pub fn paint_slide(
+    painter: &egui::Painter,
+    rect: Rect,
+    texture: egui::TextureId,
+    dimensions: [u32; 2],
+    colors: crate::settings::SlideColors,
+) {
+    let [width, height] = dimensions.map(|v| v as f32);
+    let scale = (rect.width() / width).min(rect.height() / height);
+    let target = Rect::from_center_size(rect.center(), Vec2::new(width * scale, height * scale));
+    let [r, g, b] = colors.fit_padding;
+    painter.rect_filled(rect, 0., Color32::from_rgb(r, g, b));
+    let [r, g, b] = colors.page_background;
+    painter.rect_filled(target, 0., Color32::from_rgb(r, g, b));
+    painter.image(
+        texture,
+        target,
+        Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)),
+        Color32::WHITE,
+    );
+}
 const TEAL: Color32 = Color32::from_rgb(103, 226, 205);
 pub struct UiState {
     pub textures: HashMap<(u64, usize, u32), TextureHandle>,
@@ -44,17 +66,12 @@ impl UiState {
                     TextureOptions::LINEAR,
                 )
             });
-            let scale = (rect.width() / frame.info.width as f32)
-                .min(rect.height() / frame.info.height as f32);
-            let size = Vec2::new(
-                frame.info.width as f32 * scale,
-                frame.info.height as f32 * scale,
-            );
-            ui.painter().image(
+            paint_slide(
+                ui.painter(),
+                rect,
                 tex.id(),
-                Rect::from_center_size(rect.center(), size),
-                Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)),
-                Color32::WHITE,
+                [frame.info.width, frame.info.height],
+                s.settings.slide_colors,
             );
         } else {
             ui.painter().text(
@@ -1043,7 +1060,28 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
                         .changed();
                 }
             });
+            ui.separator();
+            for (label, color) in [
+                (
+                    "Page background",
+                    &mut s.settings.slide_colors.page_background,
+                ),
+                (
+                    "Fit padding color",
+                    &mut s.settings.slide_colors.fit_padding,
+                ),
+            ] {
+                ui.horizontal(|ui| {
+                    ui.label(tr(&locale, label));
+                    changed |= ui.color_edit_button_srgb(color).changed();
+                });
+            }
+            ui.small(tr(
+                &locale,
+                "Page background fills transparency; fit padding fills space around the slide.",
+            ));
             if changed {
+                s.new_output = true;
                 s.save_preferences();
                 ui.ctx().request_repaint();
             }

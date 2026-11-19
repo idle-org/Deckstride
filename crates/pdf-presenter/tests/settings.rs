@@ -123,3 +123,40 @@ fn legacy_layouts_default_timer_positions_and_progress_is_opt_in() {
             .layout
     );
 }
+
+#[test]
+fn slide_colors_migrate_roundtrip_and_reject_invalid_channels() {
+    use settings::SlideColors;
+    let old: Settings = toml::from_str("version = 1").unwrap();
+    assert_eq!(old.slide_colors, SlideColors::default());
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("settings.toml");
+    let mut s = old;
+    s.slide_colors = SlideColors {
+        page_background: [10, 20, 30],
+        fit_padding: [40, 50, 60],
+    };
+    settings::write(&path, &s).unwrap();
+    assert_eq!(settings::read(&path).unwrap().slide_colors, s.slide_colors);
+    let state = pdf_presenter::output::HostState {
+        slide_colors: s.slide_colors,
+        ..Default::default()
+    };
+    let restored: pdf_presenter::output::HostState =
+        serde_json::from_slice(&serde_json::to_vec(&state).unwrap()).unwrap();
+    assert_eq!(restored.slide_colors, s.slide_colors);
+    for value in [
+        "[256, 0, 0]",
+        "[-1, 0, 0]",
+        "[0, 0]",
+        "[0, 0, 0, 0]",
+        "[0.5, 0, 0]",
+    ] {
+        assert!(
+            toml::from_str::<Settings>(&format!(
+                "version=1\n[slide_colors]\npage_background={value}"
+            ))
+            .is_err()
+        );
+    }
+}

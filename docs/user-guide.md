@@ -210,3 +210,12 @@ Enable **Slide progress bar** for a presenter-only current slide / total indicat
 at the bottom of the content area. It starts disabled and tracks requested slide
 navigation, even while output is blank or preparing; it is separate from loading
 progress. Use Save layout · This project or All projects to remember these choices.
+
+## Slide background colors
+
+In **Menu → Appearance**, **Page background** fills transparent areas of PDFs and
+pictures (white by default). **Fit padding color** fills the space above/below or
+beside a slide when its proportions differ from the display (black by default).
+Both controls update the presenter previews, slide browser and audience output,
+and are saved for future sessions. Opaque artwork keeps its original colors.
+Blanking the audience output still shows black. Source documents remain unchanged.

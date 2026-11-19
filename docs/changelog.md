@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.26
+
+- Display transparent slide areas on white by default. Appearance now offers
+  Page background and Fit padding color, shared by previews, browser and audience
+  output and saved globally. Existing cached slides update without rerendering;
+  emergency/manual blanking remains black. Correct PDF alpha conversion and regenerate
+  older PDF artifacts under a new key to avoid dark translucent edges. Linux tests,
+  native X11 smoke, formatting, Clippy/rustdoc and Python checks pass; full local
+  whole-app coverage is 86.40%. Physical multi-monitor and Windows/macOS checks
+  were not run.
+
 ### 0.1.25
 
 - Make the README user-facing with release-first installation, portable download

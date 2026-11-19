@@ -12,6 +12,14 @@ with an error, without rewriting the bad file. Missing files use defaults. Reads
 bounded to 4 MiB. Writes validate then atomically replace using a same-directory
 flushed temporary file. Unknown fields are ignored and not preserved on round trip.
 
+- `slide_colors.page_background` and `slide_colors.fit_padding`: opaque sRGB
+  arrays of exactly three integers, each 0–255, added in 0.1.26. Defaults are
+  `[255, 255, 255]` (white beneath transparent slide pixels) and `[0, 0, 0]`
+  (black around the aspect-fitted slide). Missing tables/fields in older v1 files
+  use these defaults; malformed lengths/out-of-range channels fail deserialization.
+  Both are global, round-trip unchanged, persist asynchronously and apply immediately
+  to all previews and audience windows. They do not alter source or cached pixels,
+  project layouts, or manual/emergency black blanking.
 - `auto_show`: boolean, default true (0.1.14). Enables output on startup and successful
   document open; false starts/opens blanked. Manual navigation preserves blanking.
   Display topology changes, safe fullscreen exit and host recovery still blank output.

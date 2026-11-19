@@ -12,7 +12,12 @@ Each completed artifact has `<zero-based-page>-<requested-edge>-extraction.json`
 `version` 1, `source` canonical source path, `sha256` source content digest,
 `renderer` `hayro-0.9/image-0.25`, `page`, `edge` (maximum pixel dimension), `width`,
 `height` (actual pixels), `artifact` (basename). Example: `examples/extraction-v1.json`.
-The artifact key includes page, requested edge and renderer generation (`hayro09`).
+The artifact key includes page, requested edge and renderer generation. Since
+0.1.26, PDF artifacts use `hayro09-straight`: Hayro premultiplied output is converted
+to straight RGBA before caching. Older `hayro09` PDF artifacts are regenerated to
+correct dark translucent edges; image artifacts retain `hayro09`. The v1 binary
+format is unchanged. Page/padding display colors are composed after loading and
+are neither baked into artifacts nor part of the cache key.
 Changing rendering semantics requires a new cache namespace/key. Notes are omitted.
 PDF page crop/rotation is interpreted by Hayro; no presenter-note-region crop applies.
 

@@ -208,21 +208,12 @@ impl NativeWindow {
                             egui::TextureOptions::LINEAR,
                         )
                     });
-                    let rect = ui.max_rect();
-                    let scale = (rect.width() / frame.info.width as f32)
-                        .min(rect.height() / frame.info.height as f32);
-                    let target = egui::Rect::from_center_size(
-                        rect.center(),
-                        egui::vec2(
-                            frame.info.width as f32 * scale,
-                            frame.info.height as f32 * scale,
-                        ),
-                    );
-                    ui.painter().image(
+                    presenter_ui::paint_slide(
+                        ui.painter(),
+                        ui.max_rect(),
                         tex.id(),
-                        target,
-                        egui::Rect::from_min_max(egui::Pos2::ZERO, egui::pos2(1., 1.)),
-                        egui::Color32::WHITE,
+                        [frame.info.width, frame.info.height],
+                        setup.map(|s| s.slide_colors).unwrap_or_default(),
                     );
                 }
             }
@@ -653,6 +644,7 @@ impl App {
                         setup_controls: !s.presentation_started,
                         route_trial: s.route_trial.as_ref().map(|t| t.id),
                         sequence: s.output_sequence,
+                        slide_colors: s.settings.slide_colors,
                         page: s.requested,
                         frame: if s.routes.presentation.is_empty() {
                             None

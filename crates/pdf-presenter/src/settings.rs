@@ -151,10 +151,34 @@ impl Routes {
         Ok(())
     }
 }
+/// Opaque display colors; cached slide pixels retain their original transparency.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default)]
+pub struct SlideColors {
+    #[serde(deserialize_with = "read_rgb")]
+    pub page_background: [u8; 3],
+    #[serde(deserialize_with = "read_rgb")]
+    pub fit_padding: [u8; 3],
+}
+fn read_rgb<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<[u8; 3], D::Error> {
+    let channels = Vec::<u8>::deserialize(deserializer)?;
+    channels
+        .try_into()
+        .map_err(|_| serde::de::Error::custom("RGB colors require exactly three channels"))
+}
+impl Default for SlideColors {
+    fn default() -> Self {
+        Self {
+            page_background: [255; 3],
+            fit_padding: [0; 3],
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub version: u32,
+    pub slide_colors: SlideColors,
     pub layout: Layout,
     pub projects: BTreeMap<String, Layout>,
     pub routes: Routes,
@@ -171,6 +195,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             version: 1,
+            slide_colors: SlideColors::default(),
             layout: Layout::default(),
             projects: BTreeMap::new(),
             routes: Routes::default(),
