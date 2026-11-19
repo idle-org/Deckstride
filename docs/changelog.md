@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.29
+
+- Draw numbered screen rectangles in Displays using each monitor's pixel aspect
+  ratio, including portrait and ultrawide screens. Keep their slots aligned and
+  scale the screen number to fit. Linux tests, native X11 smoke, formatting,
+  Clippy/rustdoc and Python checks pass; whole-app coverage is 86.72%.
+  Physical multi-monitor and Windows/macOS validation were not run.
+
 ### 0.1.28
 
 - Add Shift+Space to move back one slide from the presenter; Space still advances.

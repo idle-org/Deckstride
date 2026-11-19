@@ -189,6 +189,10 @@ Menu opens a dropdown below its button; click outside or press Escape to dismiss
 Displays uses numbered screen cards with direct Unused / Presenter / Presentation
 choices. Repeat a role to mirror it, then Apply and remember.
 
+The numbered screen rectangles in **Displays** reflect each monitor’s pixel aspect
+ratio, so portrait, standard and ultrawide displays are easier to distinguish.
+They represent proportions, not physical screen size.
+
 Menu → Appearance → Theme offers the same 20 built-in palettes as Canvas Pilot, including light,
 dark and High Contrast. Menu → Appearance → Language offers System, English and Français. System
 uses the native OS locale and falls back to English for other languages. Choices are

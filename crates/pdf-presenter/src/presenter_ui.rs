@@ -773,8 +773,14 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         .show(ui, |ui| {
                             ui.set_min_width(540.);
                             ui.horizontal(|ui| {
-                                let (rect, _) =
-                                    ui.allocate_exact_size(Vec2::new(64., 40.), Sense::hover());
+                                let (slot, _) =
+                                    ui.allocate_exact_size(Vec2::splat(64.), Sense::hover());
+                                let dimensions =
+                                    Vec2::new(m.size.0.max(1) as f32, m.size.1.max(1) as f32);
+                                let scale =
+                                    (slot.width() / dimensions.x).min(slot.height() / dimensions.y);
+                                let rect =
+                                    Rect::from_center_size(slot.center(), dimensions * scale);
                                 ui.painter()
                                     .rect_filled(rect, 4., ui.visuals().extreme_bg_color);
                                 ui.painter().rect_stroke(
@@ -787,7 +793,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                     rect.center(),
                                     egui::Align2::CENTER_CENTER,
                                     (index + 1).to_string(),
-                                    FontId::proportional(22.),
+                                    FontId::proportional(
+                                        22_f32.min(rect.width() * 0.5).min(rect.height() * 0.65),
+                                    ),
                                     ui.visuals().text_color(),
                                 );
                                 ui.vertical(|ui| {
