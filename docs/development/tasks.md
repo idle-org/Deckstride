@@ -15,6 +15,7 @@ that an API was identified. Do not mark physical acceptance from unit tests.
 - [ ] T02: Build a native presenter shell and separate minimal audience process.
   No PDF dependency on shell startup. Implement monitor enumeration/identification,
   explicit presenter and audience selection, swapping, fullscreen and emergency blank.
+  Default both roles to fullscreen; retain explicit windowed rehearsal.
 - [ ] T03: Test both assignments on Windows and macOS, then Linux X11 and Wayland
   (GNOME/KDE). Add native adapters where required. Verify actual output placement;
   an unsupported placement call is a defect, not a completed task.
@@ -44,6 +45,10 @@ Depends on T02; display testing continues in parallel with implementation work.
 - [ ] T08: Render a first PDF page in a worker; display a preview immediately and
   refine to target resolution. Add rotated/cropped/mixed-size synthetic PDF fixtures.
   Confirm source files remain byte-for-byte unchanged and failed loads retain the show.
+- [ ] T08a: Add picture-folder sources with natural filename ordering and progressive
+  worker decoding. Finalize the [folder contract](../interfaces/picture-folders.md)
+  with fixtures for numeric names, ties, unsupported/corrupt images and slow storage.
+  Share the PDF slide pipeline, cancellation, caches and portable codec requirements.
 - [ ] T09: Add foreground/neighbor/background priority queues and bounded worker
   concurrency. Obsolete jobs must not delay the newest request. Isolate slow storage,
   image decoding, notes and cache writes from both native event loops.
@@ -85,7 +90,12 @@ Depends on usable PDF output and acknowledged displayed-slide state.
 - [ ] T16: Show current/next previews, page selection and keyboard controls. Distinguish
   requested/preparing/displayed slides and blank state; keep every dialog on presenter.
 - [ ] T17: Extract available notes asynchronously and support explicit notes-page
-  interpretation/cropping. Validate note-free fallback; never send notes to audience.
+  interpretation/cropping. Load image sidecar `.txt` notes and global `notes.json` or
+  `notes.toml`; test precedence, invalid files and missing notes. Always word-wrap and
+  size the complete notes to fit their pane without clipping or requiring scrolling.
+  Test long notes, long unbroken words, Unicode, resize and mixed DPI; keep layout
+  responsive and bundle required fonts. Validate note-free fallback; never send notes
+  to audience.
 - [ ] T18: Preserve audience output and sleep leases when presenter crashes. Reconnect
   to the actual displayed state. Detect audience event-loop hangs, restart blanked,
   verify destination, then restore prepared content only when safe.

@@ -6,6 +6,22 @@ to validate native window behavior. PDF rendering and the production architectur
 below remain pending. The [task list](tasks.md) owns execution order and evidence. Choices below
 are engineering decisions to validate, not measured claims about an existing app.
 
+## Image folders and presenter notes
+
+Accept picture folders alongside PDFs, feeding the same bounded slide pipeline.
+Enumerate and naturally sort filenames in a worker; decode the first ordered image
+before decoding the rest. Do not progressively reorder a live deck as enumeration
+finishes. Keep folder enumeration, decoding and notes reads off both UI event loops.
+Use bundled codecs; see the [planned input contract](../interfaces/picture-folders.md).
+
+For presenter notes, measure wrapped text in the actual available pane and choose the
+largest font size that fits all content in both dimensions. Break long unbroken words
+when necessary. Recompute on slide/text, pane size, font or DPI changes; cache layouts
+by those inputs. Never truncate, clip or require scrolling to read the complete note.
+Use bounded layout search and asynchronous preparation for large notes so navigation
+stays responsive. A zero-area pane cannot show text: retain notes and recompute as
+soon as space is available. No notes implementation exists in the mock proof yet.
+
 ## Optimization priorities
 
 Correct dual-screen output, fast startup, bounded input latency and resilience are

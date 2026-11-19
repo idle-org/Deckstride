@@ -30,16 +30,15 @@ fn model() -> Model {
 fn defaults_use_primary_and_a_distinct_secondary() {
     let m = model();
     assert_eq!((m.presenter, m.audience), (1, 0));
-    assert!(m.fullscreen);
+    assert!(m.fullscreen && m.presenter_fullscreen);
     assert!(!m.blanked); // Explicit mock-output launch; real PDF activation remains separate.
     let one = Model::new(vec![displays()[0].clone()], 0, None, None, false).unwrap();
-    assert!(!one.fullscreen);
+    assert!(one.fullscreen && one.presenter_fullscreen);
     assert_eq!((one.presenter, one.audience), (0, 0));
-    assert!(
-        !Model::new(displays(), 0, Some(2), Some(1), true)
-            .unwrap()
-            .fullscreen
-    );
+    let windowed = Model::new(displays(), 0, Some(2), Some(1), true).unwrap();
+    assert!(!windowed.fullscreen && !windowed.presenter_fullscreen);
+    let one_windowed = Model::new(vec![displays()[0].clone()], 0, None, None, true).unwrap();
+    assert!(!one_windowed.fullscreen && !one_windowed.presenter_fullscreen);
     assert_eq!(
         Model::new(displays(), 99, None, None, false)
             .unwrap()
@@ -81,6 +80,8 @@ fn controls_bound_navigation_and_keep_display_roles_separate() {
     }
     m.apply(Action::Fullscreen);
     assert!(!m.fullscreen);
+    m.apply(Action::PresenterFullscreen);
+    assert!(!m.presenter_fullscreen);
     m.apply(Action::PresenterFullscreen);
     assert!(m.presenter_fullscreen);
     m.apply(Action::Escape);

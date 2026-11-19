@@ -11,3 +11,5 @@ Source PDFs always remain unchanged.
 
 [Extraction cache requirements](extraction-cache.md) describe the authorized
 pre-rendered image/`extraction.json` direction; its schema is not implemented yet.
+
+- [Picture folders and notes requirements](picture-folders.md) (planned).

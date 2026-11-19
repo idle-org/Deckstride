@@ -8,10 +8,10 @@
   <img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/coverage.svg" alt="Line coverage">
 </p>
 
-**Dual-screen proof of concept:** native presenter controls and fullscreen mock
-slides on the secondary display. With one display it opens two windowed rehearsal
-views. PDF loading, notes, sleep inhibition and production fault isolation are not
-implemented yet.
+**Dual-screen proof of concept:** both windows start fullscreen, with presenter
+controls on the primary display and mock slides on the secondary. Use `--windowed`
+for single-display rehearsal (otherwise the views overlap). PDF/image-folder loading,
+notes, sleep inhibition and production fault isolation are not implemented yet.
 
 ```sh
 cargo run --locked -p pdf-presenter

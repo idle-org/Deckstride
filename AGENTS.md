@@ -27,7 +27,11 @@ it works. Presentation speed is the primary performance goal: prioritize first-p
 display, progressive preparation and measured cold/warm slide latency. Pre-rendered
 images and a source-SHA extraction.json sidecar cache are authorized; define its
 contract before implementation. Presenter mode requires current/next previews and
-notes when extractable, with a current/next-only fallback. Read the plan for acceptance
+notes when extractable, with a current/next-only fallback. Both windows default to
+fullscreen. Also support picture folders in natural filename order, matching `.txt`
+notes or global `notes.json`/`notes.toml`. Always fit the full presenter notes to the
+available pane using wrapping and font sizing; recompute on resize/DPI/content changes.
+These folder/notes requirements remain planned, not implemented in the mock proof. Read the plan for acceptance
 gates. Rust/egui is a candidate, not a constraint: native APIs, renderer processes or
 another window host are acceptable when they satisfy reliability and speed. Keep PDF
 rendering, document state and display/window management separate without speculative

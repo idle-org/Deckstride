@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.5
+
+- Default both presenter and audience windows to fullscreen on every platform;
+  `--windowed` keeps both decorated, including single-display rehearsal.
+- Record planned picture-folder slides in natural filename order, sidecar/global
+  JSON/TOML notes, and complete notes fitted to the available presenter pane.
+  Folder loading and notes layout remain unimplemented in this display proof.
+- Validation: 16 Rust tests including native smoke, formatting, Clippy/rustdoc,
+  10 Python tests, 88.92% whole-application coverage and Linux release build.
+  Physical dual-screen startup verification remains pending.
+
 ### 0.1.4
 
 - Narrow Linux/X11 fix for mock-window swap/fullscreen transitions: stop resetting

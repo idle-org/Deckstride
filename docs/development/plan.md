@@ -9,8 +9,8 @@ these capabilities already exist.
 
 1. **Dual-screen operation is a hard requirement on Windows, macOS and Linux.**
    The operator explicitly selects the display for the presenter view and the display
-   for the audience presentation. Both roles must work together, including fullscreen
-   audience output. This is foundational work, not a later enhancement or an optional
+   for the audience presentation. Both roles start fullscreen by default, with an
+   explicit windowed mode for rehearsal/troubleshooting. This is foundational work, not a later enhancement or an optional
    platform feature. The user will test iteratively until it works. Do not declare
    the application ready with an unresolved display-placement failure on any of the
    three operating systems.
@@ -25,7 +25,13 @@ these capabilities already exist.
 3. **Presenter mode must show the current and next slides.** Include notes when they
    can be extracted reliably; current/next previews are the required fallback when
    notes are absent or unsupported. Notes extraction must not delay presentation or
-   leak notes onto the audience output.
+   leak notes onto the audience output. Always fit all presenter notes to the available
+   notes pane, recalculating wrapping and font size on content, pane and DPI changes.
+4. **Picture folders are also slide sources.** Order images by natural filename
+   ordering (for example, slide_2 before slide_10). Support matching `.txt` notes
+   (such as `slide_01.txt`) and global `notes.json` or `notes.toml`. The planned
+   [folder and notes contract](../interfaces/picture-folders.md) defines the direction;
+   folder loading and notes layout are not implemented in the mock proof.
 
 The hard reliability requirement is an acceptance gate, not an assertion that an
 OS, compositor, GPU or disconnected monitor cannot fail. Handle failures explicitly,

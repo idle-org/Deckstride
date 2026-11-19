@@ -82,7 +82,7 @@ impl Model {
         if displays.len() > 1 && presenter == audience {
             return Err("Choose different presenter and audience displays.".into());
         }
-        let fullscreen = !windowed && displays.len() > 1;
+        let fullscreen = !windowed;
         Ok(Self {
             displays,
             presenter,
@@ -90,7 +90,7 @@ impl Model {
             page: 0,
             blanked: false,
             fullscreen,
-            presenter_fullscreen: false,
+            presenter_fullscreen: fullscreen,
             disconnected: false,
         })
     }
@@ -186,7 +186,7 @@ pub struct Options {
     pub presenter: Option<usize>,
     /// Audience display override.
     pub audience: Option<usize>,
-    /// Keep the audience window decorated instead of fullscreen.
+    /// Keep both windows decorated instead of fullscreen.
     pub windowed: bool,
     /// Exercise the real native windows and exit automatically.
     pub smoke: bool,

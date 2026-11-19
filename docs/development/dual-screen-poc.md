@@ -1,8 +1,8 @@
-# Dual-screen proof of concept — 0.1.3
+# Dual-screen proof of concept — 0.1.5
 
 This is a runnable native-window test with mock slides. It opens the presenter on
-the primary/default display and a borderless fullscreen audience window on a distinct
-secondary display. Nothing is loaded from a PDF. Launching this specific test
+the primary/default display and the audience on a distinct secondary display.
+Both windows start fullscreen by default; `--windowed` disables fullscreen for both. Nothing is loaded from a PDF. Launching this specific test
 explicitly activates mock output; the production document model still starts blanked.
 
 ## Run and test
@@ -23,7 +23,8 @@ cargo run --locked -p pdf-presenter -- --presenter 1 --audience 2
 cargo run --locked -p pdf-presenter -- --windowed
 ```
 
-With one detected display, both views open side-by-side in windowed rehearsal mode.
+With one detected display, fullscreen views overlap. Use `--windowed` to open
+both views side-by-side for rehearsal, or Escape to leave fullscreen and blank output.
 That is not a successful two-display acceptance test. With multiple displays, choosing
 the same one for both roles is rejected. When the backend has no primary-display
 concept (notably Wayland), the first enumerated display is the default; use explicit
@@ -52,7 +53,7 @@ position or resolution suspends/hides output until refresh. Polling happens ever
 ## Physical acceptance to perform
 
 On Windows, macOS and Linux, connect two displays in extended-desktop mode. Confirm
-the presenter appears on primary and the audience fullscreen on secondary. Advance,
+both views start fullscreen, presenter on primary and audience on secondary. Advance,
 blank/unblank, swap roles, then explicitly select each destination. Verify focus,
 Escape, return to fullscreen, and exit. Repeat with mixed DPI and portrait/negative
 coordinates. Unplug/replug the secondary display and test R to recover. Record OS,

@@ -225,7 +225,7 @@ pub fn draw(
     let message = if model.disconnected {
         "DISPLAY CHANGE: OUTPUT HIDDEN. R TO REFRESH."
     } else if model.displays.len() == 1 {
-        "ONE DISPLAY: WINDOWED REHEARSAL ONLY"
+        "ONE DISPLAY: BOTH VIEWS SHARE THIS DISPLAY"
     } else if model.blanked {
         "AUDIENCE BLANKED - B TO SHOW MOCK SLIDE"
     } else {
