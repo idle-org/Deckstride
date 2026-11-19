@@ -8,3 +8,6 @@ __pycache__/
 .DS_Store
 .env
 *gitea-token*
+
+# Private local presentation fixtures, never release inputs.
+/test_pdf/

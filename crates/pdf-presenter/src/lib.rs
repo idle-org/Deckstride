@@ -82,3 +82,5 @@ pub mod studio;
 pub mod localization;
 /// Standalone presenter palettes.
 pub mod theme;
+
+mod artwork;

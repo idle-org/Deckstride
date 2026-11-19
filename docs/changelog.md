@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.17
+
+- Embed application icons in all native windows and the Windows executable.
+  Set Linux X11/Wayland identity and provide optional per-user desktop integration.
+- Prepare rust_realease configuration for Linux/Windows executables, binstall
+  archives and portable bundles, with checksums and preview release instructions.
+  No tag, push or remote release is performed by this preparation.
+
 ### 0.1.16
 
 - Ensure presenter shutdown can terminate/reap its output process even when the

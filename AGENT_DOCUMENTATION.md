@@ -24,3 +24,5 @@
 - [Native user guide](docs/user-guide.md).
 - [Native settings v1](docs/interfaces/settings.md).
 - [Private process protocol](docs/interfaces/process-protocol.md).
+
+- [Manual release preparation](docs/development/releases.md).

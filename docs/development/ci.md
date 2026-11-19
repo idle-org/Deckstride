@@ -32,7 +32,8 @@ Cleanup archives exactly `coverage/version.svg`, `coverage/test.svg` and
 `coverage/coverage.svg`. Only main builds without CHANGE_ID publish badges under
 `/mnt/assets/coverage/idle-org/pdf-presenter/main/`, including honest failed-test
 or unavailable-coverage status. No shared asset root is synchronized or deleted.
-There is no manual publisher, release job or binary upload in this pipeline.
+There is no release job or binary upload in this pipeline.
+Separate local packaging uses [rust_realease](releases.md).
 The Jenkinsfile still requires a real Jenkins run; local tests cannot validate
 worker configuration or prove the remote pipeline has run.
 

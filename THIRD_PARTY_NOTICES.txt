@@ -1792,6 +1792,12 @@ License expression: MIT
 Source: https://github.com/tokio-rs/tokio
   LICENSE: text 253cd04c6714889d
 
+toml 0.7.8
+License expression: MIT OR Apache-2.0
+Source: https://github.com/toml-rs/toml
+  LICENSE-APACHE: text c6596eb7be8581c1
+  LICENSE-MIT: text 6efb0476a1cc0850
+
 toml 0.8.23
 License expression: MIT OR Apache-2.0
 Source: https://github.com/toml-rs/toml
@@ -1808,6 +1814,12 @@ toml_datetime 1.1.3+spec-1.1.0
 License expression: MIT OR Apache-2.0
 Source: https://github.com/toml-rs/toml
   LICENSE-APACHE: text 249fdb6694467dd6
+  LICENSE-MIT: text 6efb0476a1cc0850
+
+toml_edit 0.19.15
+License expression: MIT OR Apache-2.0
+Source: https://github.com/toml-rs/toml
+  LICENSE-APACHE: text c6596eb7be8581c1
   LICENSE-MIT: text 6efb0476a1cc0850
 
 toml_edit 0.22.27
@@ -2200,6 +2212,11 @@ License expression: Apache-2.0
 Source: https://github.com/rust-windowing/winit
   LICENSE: text 6dc0e068dcf3a5bc
 
+winnow 0.5.40
+License expression: MIT
+Source: https://github.com/winnow-rs/winnow
+  LICENSE-MIT: text cb5aedb296c5246d
+
 winnow 0.7.15
 License expression: MIT
 Source: https://github.com/winnow-rs/winnow
@@ -2209,6 +2226,11 @@ winnow 1.0.5
 License expression: MIT
 Source: https://github.com/winnow-rs/winnow
   LICENSE-MIT: text cb5aedb296c5246d
+
+winresource 0.1.17
+License expression: MIT
+Source: https://github.com/BenjaminRi/winresource
+  LICENSE: text 3564da09711c4756
 
 wit-bindgen 0.57.1
 License expression: Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
@@ -5432,6 +5454,34 @@ TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
    of your accepting any such warranty or additional liability.
 
 END OF TERMS AND CONDITIONS
+
+
+=== 3564da09711c4756 ===
+Copyright 2016 Max Resch
+
+Permission is hereby granted, free of charge, to any
+person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the
+Software without restriction, including without
+limitation the rights to use, copy, modify, merge,
+publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice
+shall be included in all copies or substantial portions
+of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
 
 
 === 378f5840b258e277 ===

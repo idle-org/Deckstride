@@ -33,3 +33,11 @@ libc = "0.2"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 x11-dl = "=2.21.0"
+
+[build-dependencies]
+winresource = "=0.1.17"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }-v{ version }.tgz"
+pkg-fmt = "tgz"
+bin-dir = "{ name }-{ target }-v{ version }/{ bin }{ binary-ext }"

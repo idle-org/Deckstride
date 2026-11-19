@@ -232,6 +232,35 @@ fn orphaned_output_holds_until_closed_then_exits_on_close_or_escape() {
         }
     }
     let _display = DisplayGuard(&x, display);
+    // Other desktop clients can destroy windows between enumeration and property
+    // lookup. BadWindow is an expected race; other protocol errors still fail.
+    static X_ERROR: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+    unsafe extern "C" fn on_x_error(
+        _: *mut xlib::Display,
+        event: *mut xlib::XErrorEvent,
+    ) -> std::os::raw::c_int {
+        let code = unsafe { (*event).error_code };
+        if code != xlib::BadWindow {
+            X_ERROR.store(code, std::sync::atomic::Ordering::Relaxed);
+        }
+        0
+    }
+    let previous_handler = unsafe { (x.XSetErrorHandler)(Some(on_x_error)) };
+    struct ErrorGuard<'a>(
+        &'a xlib::Xlib,
+        Option<
+            unsafe extern "C" fn(*mut xlib::Display, *mut xlib::XErrorEvent) -> std::os::raw::c_int,
+        >,
+    );
+    impl Drop for ErrorGuard<'_> {
+        fn drop(&mut self) {
+            unsafe {
+                (self.0.XSetErrorHandler)(self.1);
+            }
+        }
+    }
+    let _errors = ErrorGuard(&x, previous_handler);
+
     let root = unsafe { (x.XDefaultRootWindow)(display) };
     let pid_atom = unsafe { (x.XInternAtom)(display, c"_NET_WM_PID".as_ptr(), 0) };
     fn find(
@@ -338,6 +367,35 @@ fn orphaned_output_holds_until_closed_then_exits_on_close_or_escape() {
             assert!(Instant::now() < deadline, "output window not created");
             std::thread::sleep(Duration::from_millis(10));
         };
+        // Verify the icon actually reached X11, not just WindowAttributes.
+        unsafe {
+            let icon_atom = (x.XInternAtom)(display, c"_NET_WM_ICON".as_ptr(), 0);
+            let (mut kind, mut format, mut count, mut after) = (0, 0, 0, 0);
+            let mut data = std::ptr::null_mut();
+            (x.XGetWindowProperty)(
+                display,
+                window,
+                icon_atom,
+                0,
+                2,
+                0,
+                xlib::XA_CARDINAL,
+                &mut kind,
+                &mut format,
+                &mut count,
+                &mut after,
+                &mut data,
+            );
+            assert!(!data.is_null());
+            let dimensions =
+                std::slice::from_raw_parts(data.cast::<std::os::raw::c_ulong>(), count as usize)
+                    .to_vec();
+            (x.XFree)(data.cast());
+            assert_eq!(format, 32);
+            assert_eq!(dimensions, [256, 256]);
+            assert_eq!(after, 256 * 256 * 4);
+        }
+        assert_eq!(X_ERROR.load(std::sync::atomic::Ordering::Relaxed), 0);
         // EOF models a vanished presenter. Keep the output alive until the operator closes it.
         drop(input);
         std::thread::sleep(Duration::from_millis(300));

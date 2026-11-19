@@ -55,7 +55,7 @@ impl NativeWindow {
         };
         let window = Rc::new(
             el.create_window(
-                Window::default_attributes()
+                crate::artwork::window_attributes()
                     .with_title(title)
                     .with_window_level(if role == Role::Browser {
                         winit::window::WindowLevel::AlwaysOnTop

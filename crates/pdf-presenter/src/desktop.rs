@@ -78,7 +78,7 @@ impl NativeWindow {
     fn create(event_loop: &ActiveEventLoop, title: &str) -> Result<Self, Failure> {
         let window = Rc::new(
             event_loop.create_window(
-                Window::default_attributes()
+                crate::artwork::window_attributes()
                     .with_title(title)
                     .with_visible(false)
                     .with_inner_size(PhysicalSize::new(960, 640)),
