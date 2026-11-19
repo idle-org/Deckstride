@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.21
+
+- Preview display routing/fullscreen changes for 15 seconds before saving. Keep
+  confirms; Revert, Escape, timeout or hotplug restores the prior setup.
+- Provide confirmation on both presenter/output screens and startup right-click
+  swap on either role, disabled after explicit slide navigation/show.
+- Keep output blank during recovery, reject stale confirmations, and leave
+  unconfirmed assignments out of preference saves. Test rollback and pointer controls.
+
 ### 0.1.20
 
 - Restrict routine agent validation to Linux. Windows/macOS builds and cross-target

@@ -1,7 +1,7 @@
 //! Native multiwindow host using winit, egui and cached software composition.
 use crate::{
     document::Frame,
-    output::{Ack, HostState, OutputLink, SleepLease},
+    output::{Ack, DisplayAction, HostState, OutputLink, SleepLease},
     presenter_ui::{self, UiState},
     studio::{Action, Monitor, Studio},
     worker::{self, Bridge, Request},
@@ -45,6 +45,7 @@ struct NativeWindow {
     target: Option<(String, bool)>,
     transition: Option<(Instant, bool)>,
     frames: usize,
+    display_action: Option<DisplayAction>,
 }
 impl NativeWindow {
     fn create(el: &ActiveEventLoop, role: Role, monitor: String) -> Result<Self, Failure> {
@@ -90,6 +91,7 @@ impl NativeWindow {
             target: None,
             transition: None,
             frames: 0,
+            display_action: None,
         })
     }
     fn place(&mut self, handle: &MonitorHandle, id: &str, fullscreen: bool, x11: bool) {
@@ -154,6 +156,7 @@ impl NativeWindow {
         mut studio: Option<&mut Studio>,
         frame: Option<&Arc<Frame>>,
         blank: bool,
+        setup: Option<&HostState>,
     ) -> Result<(), Failure> {
         let size = self.window.inner_size();
         if size.width == 0 || size.height == 0 {
@@ -170,6 +173,7 @@ impl NativeWindow {
         let role = self.role;
         let ui_state = &mut self.ui;
         let ctx = self.ctx.clone();
+        let display_action = &mut self.display_action;
         let output = ctx.run_ui(input, |ui| match role {
             Role::Presenter => {
                 presenter_ui::presenter(ui, studio.as_deref_mut().unwrap(), ui_state)
@@ -178,6 +182,13 @@ impl NativeWindow {
             Role::Presentation => {
                 ui.painter()
                     .rect_filled(ui.max_rect(), 0., egui::Color32::BLACK);
+                if let Some(setup) = setup {
+                    *display_action = presenter_ui::output_display_recovery(
+                        ui,
+                        setup.setup_controls,
+                        setup.route_trial.is_some(),
+                    );
+                }
                 if !blank && let Some(frame) = frame {
                     use std::hash::{Hash, Hasher};
                     let mut hash = std::hash::DefaultHasher::new();
@@ -419,7 +430,7 @@ impl App {
         let mut desired = vec![];
         if let Some(s) = &self.studio {
             for id in &s.routes.presenter {
-                desired.push((Role::Presenter, id.clone(), s.settings.presenter_fullscreen));
+                desired.push((Role::Presenter, id.clone(), s.presenter_fullscreen()));
             }
             if s.browser_open {
                 let id = s
@@ -471,6 +482,17 @@ impl App {
     fn key(&mut self, role: Role, key: Key, consumed: bool, modifiers: bool) {
         if role == Role::Presentation {
             if matches!(key, Key::Named(NamedKey::Escape))
+                && let Some(host) = &self.host
+                && host.state.route_trial.is_some()
+            {
+                let _ = host.acks.try_send(Ack {
+                    display_action: Some(DisplayAction::Revert),
+                    route_trial: host.state.route_trial,
+                    ..Default::default()
+                });
+                return;
+            }
+            if matches!(key, Key::Named(NamedKey::Escape))
                 || matches!(&key,Key::Character(c) if c.eq_ignore_ascii_case("b"))
             {
                 if let Some(h) = &mut self.host {
@@ -488,6 +510,10 @@ impl App {
         let Some(s) = &mut self.studio else {
             return;
         };
+        if matches!(key, Key::Named(NamedKey::Escape)) && s.route_trial.is_some() {
+            s.execute(Action::RevertRoutes);
+            return;
+        }
         if modifiers || consumed {
             return;
         }
@@ -602,6 +628,9 @@ impl App {
             }
             if let Some(output) = &self.output {
                 while let Ok(ack) = output.rx.try_recv() {
+                    if let Some(action) = ack.display_action {
+                        s.display_control(action, ack.route_trial);
+                    }
                     if ack.generation == s.buffer_generation() {
                         s.output_buffered = ack.buffered;
                     }
@@ -621,6 +650,8 @@ impl App {
                 if s.new_output {
                     s.output_sequence += 1;
                     let state = HostState {
+                        setup_controls: !s.presentation_started,
+                        route_trial: s.route_trial.as_ref().map(|t| t.id),
                         sequence: s.output_sequence,
                         page: s.requested,
                         frame: if s.routes.presentation.is_empty() {
@@ -640,7 +671,7 @@ impl App {
                                 .collect()
                         },
                         monitors: s.routes.presentation.clone(),
-                        fullscreen: s.settings.presentation_fullscreen,
+                        fullscreen: s.presentation_fullscreen(),
                         blanked: s.blanked,
                         ..Default::default()
                     };
@@ -672,6 +703,8 @@ impl App {
                     Err(mpsc::TryRecvError::Empty) => break,
                     Err(mpsc::TryRecvError::Disconnected) => {
                         host.parent_connected = false;
+                        host.state.route_trial = None;
+                        host.state.setup_controls = false;
                         break;
                     }
                 };
@@ -897,8 +930,21 @@ impl ApplicationHandler for App {
             WindowEvent::RedrawRequested => {
                 let frame = self.host.as_ref().and_then(|h| h.frame.clone());
                 let blank = self.host.as_ref().is_none_or(|h| h.state.blanked);
-                let result =
-                    self.windows[index].render(self.studio.as_mut(), frame.as_ref(), blank);
+                let result = self.windows[index].render(
+                    self.studio.as_mut(),
+                    frame.as_ref(),
+                    blank,
+                    self.host.as_ref().map(|h| &h.state),
+                );
+                if let Some(action) = self.windows[index].display_action.take()
+                    && let Some(host) = &self.host
+                {
+                    let _ = host.acks.try_send(Ack {
+                        display_action: Some(action),
+                        route_trial: host.state.route_trial,
+                        ..Default::default()
+                    });
+                }
                 if let Err(e) = result {
                     self.error = Some(e.to_string());
                     el.exit();

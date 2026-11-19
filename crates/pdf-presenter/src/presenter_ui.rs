@@ -132,6 +132,23 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let footer = s.layout.footer || native.footer_until > now;
     let background = ui.interact(screen, ui.id().with("context"), Sense::click());
     background.context_menu(|ui| {
+        if !s.presentation_started
+            && s.route_trial.is_none()
+            && ui
+                .button(if s.settings.language.french() {
+                    "Inverser les écrans…"
+                } else {
+                    "Swap displays…"
+                })
+                .clicked()
+        {
+            s.actions.push(Action::SwapRoutes);
+            ui.close();
+        }
+        if s.route_trial.is_some() && ui.button("Revert display change").clicked() {
+            s.actions.push(Action::RevertRoutes);
+            ui.close();
+        }
         ui.checkbox(&mut s.layout.header, tr(&locale, "Keep header visible"));
         ui.checkbox(&mut s.layout.footer, tr(&locale, "Keep footer visible"));
         if ui.button(tr(&locale, "Show both")).clicked() {
@@ -328,8 +345,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         .map_or("PDF Presenter", |d| d.title.as_str()),
                 );
                 if ui.button(tr(&locale, "Displays")).clicked() {
-                    s.draft_routes = s.routes.clone();
-                    s.displays_open = true;
+                    s.begin_display_edit();
                 }
                 button(
                     ui,
@@ -500,6 +516,47 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 });
             });
     }
+    if let Some(trial) = &s.route_trial {
+        let seconds = trial
+            .deadline
+            .saturating_duration_since(Instant::now())
+            .as_secs()
+            + 1;
+        egui::Modal::new(egui::Id::new("confirm-displays")).show(&ctx, |ui| {
+            ui.heading(if s.settings.language.french() {
+                "Conserver ces écrans ?"
+            } else {
+                "Keep these display settings?"
+            });
+            ui.label(if s.settings.language.french() {
+                format!("Retour automatique dans {seconds} s. Échap pour annuler.")
+            } else {
+                format!("Automatically reverts in {seconds} seconds. Escape to revert.")
+            });
+            ui.horizontal(|ui| {
+                button(
+                    ui,
+                    if s.settings.language.french() {
+                        "Conserver"
+                    } else {
+                        "Keep changes"
+                    },
+                    Action::KeepRoutes,
+                    &mut s.actions,
+                );
+                button(
+                    ui,
+                    if s.settings.language.french() {
+                        "Annuler"
+                    } else {
+                        "Revert now"
+                    },
+                    Action::RevertRoutes,
+                    &mut s.actions,
+                );
+            });
+        });
+    }
     if s.layout_open {
         let mut open = true;
         egui::Window::new(tr(&locale, "Your presenter view"))
@@ -665,16 +722,20 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     );
                 }
                 ui.checkbox(
-                    &mut s.settings.presenter_fullscreen,
+                    &mut s.draft_presenter_fullscreen,
                     tr(&locale, "Presenter fullscreen"),
                 );
                 ui.checkbox(
-                    &mut s.settings.presentation_fullscreen,
+                    &mut s.draft_presentation_fullscreen,
                     tr(&locale, "Presentation fullscreen"),
                 );
                 button(
                     ui,
-                    tr(&locale, "Apply and remember"),
+                    if s.settings.language.french() {
+                        "Tester les écrans (15 s)"
+                    } else {
+                        "Try displays (15 seconds)"
+                    },
                     Action::ApplyRoutes,
                     &mut s.actions,
                 );
@@ -857,8 +918,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         &mut s.actions,
     );
     if ui.button(tr(&locale, "Displays")).clicked() {
-        s.draft_routes = s.routes.clone();
-        s.displays_open = true;
+        s.begin_display_edit();
         ui.close();
     }
     if ui.button(tr(&locale, "Layout")).clicked() {
@@ -927,4 +987,48 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     if s.actions.len() != actions_before {
         ui.close();
     }
+}
+
+/// Minimal setup controls permitted on output windows, without any presenter data.
+pub fn output_display_recovery(
+    ui: &mut egui::Ui,
+    startup: bool,
+    trial: bool,
+) -> Option<crate::output::DisplayAction> {
+    use crate::output::DisplayAction;
+    let mut action = None;
+    if startup && !trial {
+        ui.interact(
+            ui.max_rect(),
+            ui.id().with("startup-display-menu"),
+            egui::Sense::click(),
+        )
+        .context_menu(|ui| {
+            if ui
+                .button("Swap presenter and presentation displays…")
+                .clicked()
+            {
+                action = Some(DisplayAction::Swap);
+                ui.close();
+            }
+        });
+    }
+    if trial {
+        egui::Window::new("Keep these display settings?")
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .collapsible(false)
+            .resizable(false)
+            .show(ui.ctx(), |ui| {
+                ui.label("Automatically reverts after 15 seconds. Escape to revert.");
+                ui.horizontal(|ui| {
+                    if ui.button("Keep changes").clicked() {
+                        action = Some(DisplayAction::Keep);
+                    }
+                    if ui.button("Revert now").clicked() {
+                        action = Some(DisplayAction::Revert);
+                    }
+                });
+            });
+    }
+    action
 }

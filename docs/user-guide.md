@@ -14,7 +14,21 @@ fullscreen for the session. `--list-monitors` lists CLI display numbers.
 
 Both roles default to fullscreen. Displays lists connected screens: assign each
 Unused, Presenter or Presentation, including several screens per role. Swap groups
-exchanges the roles. Apply and remember saves the preferred assignments globally.
+exchanges the draft roles. **Try displays (15 seconds)** previews the assignments
+and fullscreen choices with output blanked. **Keep changes** confirms and saves;
+**Revert now**, Escape, or doing nothing for 15 seconds restores the previous setup.
+Confirmation controls appear on presenter and output windows so either screen can
+recover the change. Unconfirmed choices are never saved, and a disconnect cancels
+the trial. Navigation/show controls are held until the trial is resolved.
+
+Before the first explicit slide navigation or Show presentation action, right-click
+either screen for **Swap displays…** (on output: **Swap presenter and presentation
+displays…**). This uses the same timed trial. Merely opening a PDF and automatically
+showing its first slide does not disable startup recovery. Once you start navigating
+or explicitly showing slides, the output startup menu disappears; use Displays on
+the presenter for later changes. Startup swap exchanges whole role groups, including
+mirrors. Trial output controls contain no notes, paths or presenter content.
+Output remains blank after either confirmation or rollback until explicitly shown.
 Unavailable screens fall back to surviving assignments and available distinct screens;
 the preferred saved setup remains available for reconnection. Review the setup after
 connecting/disconnecting displays: output is blanked until you explicitly show it.

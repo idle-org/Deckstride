@@ -266,3 +266,188 @@ fn header_click_opens_slide_browser_and_menu_dropdown() {
         }
     }
 }
+
+#[test]
+fn display_changes_require_confirmation_and_timeout_restores_previous_setup() {
+    let mut s = studio();
+    s.settings.routes = s.routes.clone();
+    let original = s.routes.clone();
+    s.begin_display_edit();
+    s.draft_presenter_fullscreen = false;
+    s.draft_presentation_fullscreen = false;
+    std::mem::swap(
+        &mut s.draft_routes.presenter,
+        &mut s.draft_routes.presentation,
+    );
+    s.execute(Action::ApplyRoutes);
+    assert_ne!(s.routes, original);
+    assert_eq!(s.settings.routes, original);
+    assert!(s.settings.presenter_fullscreen);
+    assert!(!s.presenter_fullscreen());
+    assert!(s.blanked);
+    s.execute(Action::Blank);
+    s.execute(Action::Go(5));
+    assert!(s.blanked);
+    assert_eq!(s.requested, 0);
+    // Render the modal even with the ordinary bars hidden.
+    s.layout.header = false;
+    s.layout.footer = false;
+    let ctx = Context::default();
+    let _ = ctx.run_ui(input(Vec2::new(1280., 720.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut UiState::default())
+    });
+    s.route_trial.as_mut().unwrap().deadline = std::time::Instant::now();
+    s.poll();
+    assert!(s.route_trial.is_none());
+    assert_eq!(s.routes, original);
+    assert_eq!(s.settings.routes, original);
+    assert!(s.presenter_fullscreen());
+    assert!(s.blanked);
+    s.execute(Action::RevertRoutes); // Idempotent recovery.
+    assert_eq!(s.routes, original);
+    s.begin_display_edit();
+    s.draft_presenter_fullscreen = false;
+    s.draft_presentation_fullscreen = false;
+    s.execute(Action::ApplyRoutes);
+    s.execute(Action::KeepRoutes);
+    assert!(!s.settings.presenter_fullscreen);
+    assert!(!s.settings.presentation_fullscreen);
+}
+
+#[test]
+fn recovery_commands_are_scoped_to_the_current_trial_and_startup() {
+    use pdf_presenter::output::DisplayAction;
+    let mut s = studio();
+    s.settings.routes = s.routes.clone();
+    let original = s.routes.clone();
+    s.display_control(DisplayAction::Swap, None);
+    let old_id = s.route_trial.as_ref().unwrap().id;
+    s.display_control(DisplayAction::Keep, Some(old_id + 1));
+    assert!(s.route_trial.is_some());
+    assert_eq!(s.settings.routes, original);
+    s.display_control(DisplayAction::Revert, Some(old_id));
+    assert_eq!(s.routes, original);
+    s.display_control(DisplayAction::Swap, None);
+    let new_id = s.route_trial.as_ref().unwrap().id;
+    assert_ne!(new_id, old_id);
+    s.display_control(DisplayAction::Keep, Some(old_id));
+    assert!(s.route_trial.is_some());
+    s.display_control(DisplayAction::Keep, Some(new_id));
+    assert!(s.route_trial.is_none());
+    assert_eq!(s.settings.routes, s.routes);
+    assert_ne!(s.routes, original);
+    s.execute(Action::Go(0));
+    let confirmed = s.routes.clone();
+    s.display_control(DisplayAction::Swap, None);
+    assert!(s.route_trial.is_none());
+    assert_eq!(s.routes, confirmed);
+    // Explicit display editing remains available after startup.
+    s.begin_display_edit();
+    s.draft_routes = original;
+    s.execute(Action::ApplyRoutes);
+    s.route_trial.as_mut().unwrap().deadline = std::time::Instant::now();
+    s.execute(Action::KeepRoutes); // A late click must revert, never save.
+    assert!(s.route_trial.is_none());
+    assert_eq!(s.settings.routes, confirmed);
+    assert_eq!(s.routes, confirmed);
+}
+
+#[test]
+fn hotplug_cancels_a_display_trial_without_saving_the_proposal() {
+    let mut s = studio();
+    s.settings.routes = s.routes.clone();
+    let saved = s.settings.routes.clone();
+    s.execute(Action::SwapRoutes);
+    assert!(s.route_trial.is_some());
+    s.set_monitors(vec![s.monitors[0].clone()], 0);
+    assert!(s.route_trial.is_none());
+    assert_eq!(s.settings.routes, saved);
+    assert!(s.blanked);
+    assert!(!s.routes.presentation.contains(&"two".to_owned()));
+}
+
+#[test]
+fn output_recovery_buttons_dispatch_without_presenter_data() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    for (label, trial) in [
+        ("Keep changes", true),
+        ("Revert now", true),
+        ("Swap presenter and presentation displays…", false),
+    ] {
+        let ctx = Context::default();
+        let size = Vec2::new(1280., 720.);
+        let mut action = None;
+        let mut output = ctx.run_ui(input(size), |ui| {
+            action = presenter_ui::output_display_recovery(ui, true, trial);
+        });
+        if !trial {
+            for pressed in [true, false] {
+                let pos = Pos2::new(300., 300.);
+                let mut raw = input(size);
+                raw.events = vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Secondary,
+                        pressed,
+                        modifiers: Default::default(),
+                    },
+                ];
+                output = ctx.run_ui(raw, |ui| {
+                    action = presenter_ui::output_display_recovery(ui, true, false);
+                });
+            }
+        }
+        for _ in 0..3 {
+            output = ctx.run_ui(input(size), |ui| {
+                action = presenter_ui::output_display_recovery(ui, true, trial);
+            });
+        }
+        let pos = output
+            .shapes
+            .iter()
+            .find_map(|s| find(&s.shape, label))
+            .expect(label);
+        for pressed in [true, false] {
+            let mut raw = input(size);
+            raw.events = vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ];
+            let _ = ctx.run_ui(raw, |ui| {
+                action = presenter_ui::output_display_recovery(ui, true, trial);
+            });
+        }
+        use pdf_presenter::output::DisplayAction;
+        assert!(matches!(
+            (label, action),
+            ("Keep changes", Some(DisplayAction::Keep))
+                | ("Revert now", Some(DisplayAction::Revert))
+                | (
+                    "Swap presenter and presentation displays…",
+                    Some(DisplayAction::Swap)
+                )
+        ));
+        let output = ctx.run_ui(input(size), |ui| {
+            action = presenter_ui::output_display_recovery(ui, false, false);
+        });
+        assert!(action.is_none());
+        assert!(
+            output
+                .shapes
+                .iter()
+                .all(|s| find(&s.shape, label).is_none())
+        );
+    }
+}

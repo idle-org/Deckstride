@@ -81,3 +81,17 @@ Event-loop errors and OutputLink destruction use this cleanup path as well. OS p
 termination/reaping still relies on OS responsiveness; these bounds are not a promise
 against kernel/driver failure. Unexpected presenter death deliberately does not use
 parent-death termination for the audience, to preserve the last usable frame.
+
+
+## Display setup recovery, 0.1.21
+
+HostState adds default-false `setup_controls` and optional `route_trial` (u64 trial
+identifier). Startup controls allow an output-side right-click swap only before the
+first explicit navigation/show action; a pending trial always exposes minimal
+Keep/Revert controls. Output ACKs can carry `display_action` (`Swap`, `Keep`, `Revert`)
+and `route_trial`. The parent validates startup eligibility and trial identity;
+stale confirmations cannot commit a later trial. The parent owns the 15-second
+monotonic deadline and does not persist routes/fullscreen flags until confirmed.
+A late Keep is treated as rollback. Host EOF clears recovery controls so orphan
+Escape/Close remains available. Notes, source paths and operator layout data are
+still absent from this control payload. Private same-build IPC only.

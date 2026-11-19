@@ -15,8 +15,18 @@ use std::{
     },
     time::{Duration, Instant},
 };
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub enum DisplayAction {
+    Swap,
+    Keep,
+    Revert,
+}
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct HostState {
+    #[serde(default)]
+    pub setup_controls: bool,
+    #[serde(default)]
+    pub route_trial: Option<u64>,
     pub sequence: u64,
     #[serde(default)]
     pub generation: u64,
@@ -32,6 +42,10 @@ pub struct HostState {
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Ack {
+    #[serde(default)]
+    pub display_action: Option<DisplayAction>,
+    #[serde(default)]
+    pub route_trial: Option<u64>,
     pub sequence: u64,
     pub page: Option<usize>,
     pub status: String,

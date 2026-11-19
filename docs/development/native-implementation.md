@@ -233,3 +233,27 @@ PDF_PRESENTER_STRESS_PDF=/path/to/Ravenous.pdf cargo test --locked --release \
 Linux and Windows x86_64 release builds both succeed.
 The test uses temporary processed files and cleans them up. Real Windows/macOS
 multiscreen/runtime acceptance remains separate from these regression checks.
+
+
+## 0.1.21 reversible display setup
+
+Display edits now stage both routes and fullscreen choices in a 15-second trial.
+The presenter owns a monotonic deadline and restores the prior setup on timeout,
+Revert, Escape or hotplug. Only Keep updates saved preferences; unrelated saves
+cannot persist candidate display values. Output remains blank through the trial
+and afterward until explicitly shown. Navigation/show actions are held during trials.
+
+Startup right-click swap is available from either role until explicit navigation
+or Show presentation. Opening a source alone does not end startup recovery. Pending
+trials expose minimal Keep/Revert on outputs even after startup, without transferring
+notes or operator controls. Output commands carry the current trial ID; stale and
+late confirmations cannot commit another trial. Orphan outputs clear setup controls
+and retain ordinary Close/Escape behavior.
+
+Validation: 53 Rust tests and 12 Python tests pass, including actual egui pointer
+clicks for the output context menu and Keep/Revert, hidden-bar modal rendering,
+timeout/late confirmation, stale tokens, confirmed fullscreen settings and hotplug
+rollback. The Linux release build succeeds. Linux native window/output smoke, formatting and warnings-denied
+Clippy/rustdoc pass. Whole-app line coverage is 84.57%. These tests do not establish
+physical dual-monitor acceptance; the user should retest swapping/recovery on their
+setup. Windows/macOS builds and checks were not run, per the platform-build policy.

@@ -27,11 +27,21 @@ pub enum Action {
     SaveGlobal,
     UseGlobal,
     ApplyRoutes,
+    SwapRoutes,
+    KeepRoutes,
+    RevertRoutes,
     OpenBrowser,
     CloseBrowser,
     Refresh,
     Exit,
     Windowed,
+}
+pub struct RouteTrial {
+    pub id: u64,
+    pub deadline: Instant,
+    previous: Routes,
+    presenter_fullscreen: bool,
+    presentation_fullscreen: bool,
 }
 pub struct Studio {
     pub settings: Settings,
@@ -39,6 +49,11 @@ pub struct Studio {
     pub monitors: Vec<Monitor>,
     pub routes: Routes,
     pub draft_routes: Routes,
+    pub draft_presenter_fullscreen: bool,
+    pub draft_presentation_fullscreen: bool,
+    pub route_trial: Option<RouteTrial>,
+    pub presentation_started: bool,
+    next_route_trial: u64,
     pub deck: Option<DeckInfo>,
     pub requested: usize,
     pub displayed: Option<usize>,
@@ -126,6 +141,11 @@ impl Studio {
             monitors: vec![],
             routes: Routes::default(),
             draft_routes: Routes::default(),
+            draft_presenter_fullscreen: true,
+            draft_presentation_fullscreen: true,
+            route_trial: None,
+            presentation_started: false,
+            next_route_trial: 0,
             deck: None,
             requested: 0,
             displayed: None,
@@ -218,6 +238,7 @@ impl Studio {
         let recovering = !self.monitors.is_empty();
         self.monitors = monitors;
         if changed {
+            self.execute(Action::RevertRoutes);
             self.routes = self.settings.routes.resolve(&ids, primary);
             // A lost operator screen must not turn a previously public output into a notes window.
             if recovering {
@@ -276,6 +297,9 @@ impl Studio {
                 }
             }
             Action::Go(page) => {
+                if self.route_trial.is_some() {
+                    return;
+                }
                 if page < self.count() {
                     if page != self.requested && self.fg_busy && !self.loading {
                         self.fg = Bridge::with_program(
@@ -285,13 +309,20 @@ impl Studio {
                         self.fg_busy = false;
                         self.fg_job = None;
                     }
+                    self.presentation_started = true;
                     self.requested = page;
                     self.jump.clear();
                     self.new_output = true;
                 }
             }
             Action::Blank => {
+                if self.route_trial.is_some() {
+                    return;
+                }
                 self.blanked = !self.blanked;
+                if !self.blanked {
+                    self.presentation_started = true;
+                }
                 self.new_output = true;
             }
             Action::SaveProject => {
@@ -308,19 +339,80 @@ impl Studio {
                 self.layout = self.settings.layout.clone();
                 self.pending_save = true;
             }
+            Action::SwapRoutes => {
+                if self.route_trial.is_none()
+                    && !self.presentation_started
+                    && !self.routes.presentation.is_empty()
+                {
+                    self.begin_display_edit();
+                    std::mem::swap(
+                        &mut self.draft_routes.presenter,
+                        &mut self.draft_routes.presentation,
+                    );
+                    self.execute(Action::ApplyRoutes);
+                }
+            }
             Action::ApplyRoutes => {
+                if !self.initialized {
+                    return;
+                }
+                if self.route_trial.is_some() {
+                    return;
+                }
                 if self.draft_routes.presenter.is_empty() {
                     self.status = "Choose at least one presenter screen.".into();
                 } else if let Err(e) = self.draft_routes.validate() {
                     self.status = e;
+                } else if self
+                    .draft_routes
+                    .presenter
+                    .iter()
+                    .chain(&self.draft_routes.presentation)
+                    .any(|id| !self.monitors.iter().any(|m| &m.id == id))
+                {
+                    self.status = "A selected display is no longer connected.".into();
                 } else {
+                    self.next_route_trial += 1;
+                    self.route_trial = Some(RouteTrial {
+                        id: self.next_route_trial,
+                        deadline: Instant::now() + Duration::from_secs(15),
+                        previous: self.routes.clone(),
+                        presenter_fullscreen: self.draft_presenter_fullscreen,
+                        presentation_fullscreen: self.draft_presentation_fullscreen,
+                    });
                     self.routes = self.draft_routes.clone();
-                    self.settings.routes = self.routes.clone();
                     self.dirty_routes = true;
                     self.displays_open = false;
                     self.blanked = true;
                     self.new_output = true;
+                }
+            }
+            Action::KeepRoutes => {
+                if let Some(trial) = self.route_trial.take() {
+                    if Instant::now() >= trial.deadline {
+                        self.route_trial = Some(trial);
+                        self.execute(Action::RevertRoutes);
+                        return;
+                    }
+                    self.settings.routes = self.routes.clone();
+                    self.settings.presenter_fullscreen = trial.presenter_fullscreen;
+                    self.settings.presentation_fullscreen = trial.presentation_fullscreen;
                     self.pending_save = true;
+                    self.new_output = true;
+                    self.status =
+                        "Display setup confirmed. Output remains blank until shown.".into();
+                }
+            }
+            Action::RevertRoutes => {
+                if let Some(trial) = self.route_trial.take() {
+                    self.routes = trial.previous;
+                    self.begin_display_edit();
+                    self.displays_open = false;
+                    self.dirty_routes = true;
+                    self.blanked = true;
+                    self.new_output = true;
+                    self.status =
+                        "Display change reverted. Output remains blank until shown.".into();
                 }
             }
             Action::OpenBrowser => {
@@ -335,6 +427,7 @@ impl Studio {
             Action::Refresh => self.dirty_routes = true,
             Action::Exit => self.close_requested = true,
             Action::Windowed => {
+                self.execute(Action::RevertRoutes);
                 self.settings.presenter_fullscreen = false;
                 self.settings.presentation_fullscreen = false;
                 self.blanked = true;
@@ -343,7 +436,54 @@ impl Studio {
             }
         }
     }
+    pub fn display_control(&mut self, action: crate::output::DisplayAction, trial: Option<u64>) {
+        use crate::output::DisplayAction;
+        match action {
+            DisplayAction::Swap
+                if trial.is_none() && self.route_trial.is_none() && !self.presentation_started =>
+            {
+                self.execute(Action::SwapRoutes)
+            }
+            DisplayAction::Keep | DisplayAction::Revert
+                if trial.is_some() && trial == self.route_trial.as_ref().map(|t| t.id) =>
+            {
+                self.execute(if matches!(action, DisplayAction::Keep) {
+                    Action::KeepRoutes
+                } else {
+                    Action::RevertRoutes
+                });
+            }
+            _ => {}
+        }
+    }
+    pub fn begin_display_edit(&mut self) {
+        self.draft_routes = self.routes.clone();
+        self.draft_presenter_fullscreen = self.settings.presenter_fullscreen;
+        self.draft_presentation_fullscreen = self.settings.presentation_fullscreen;
+        self.displays_open = true;
+    }
+    pub fn presenter_fullscreen(&self) -> bool {
+        self.route_trial
+            .as_ref()
+            .map_or(self.settings.presenter_fullscreen, |t| {
+                t.presenter_fullscreen
+            })
+    }
+    pub fn presentation_fullscreen(&self) -> bool {
+        self.route_trial
+            .as_ref()
+            .map_or(self.settings.presentation_fullscreen, |t| {
+                t.presentation_fullscreen
+            })
+    }
     pub fn poll(&mut self) {
+        if self
+            .route_trial
+            .as_ref()
+            .is_some_and(|t| Instant::now() >= t.deadline)
+        {
+            self.execute(Action::RevertRoutes);
+        }
         while let Ok(c) = self.io.rx.try_recv() {
             match c.result {
                 Ok(packet) => {
@@ -461,6 +601,7 @@ impl Studio {
                             self.ram_blocked = false;
                             self.failed.clear();
                             self.requested = 0;
+                            self.presentation_started = false;
                             self.displayed = None;
                             self.layout = self.settings.for_project(&info.key);
                             self.status = info.warnings.first().cloned().unwrap_or_else(|| {

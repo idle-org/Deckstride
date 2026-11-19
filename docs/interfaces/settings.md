@@ -43,7 +43,12 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   persists changes asynchronously. Since 0.1.19, lowering evicts non-active frames
   while reserving room for outstanding renders; increasing allows RAM refill.
 
-Transient reveals, blank/current/selected slides, elapsed time, loaded document,
+Display assignments and fullscreen choices are previewed in a 15-second transient
+trial before persistence. Only Keep changes updates their saved values. Timeout,
+Escape, Revert now and hotplug discard the trial. Unrelated preference saves during
+a trial serialize the previously confirmed display values. No v1 schema change.
+
+Transient display trials/startup recovery eligibility, reveals, blank/current/selected slides, elapsed time, loaded document,
 Change on click and worker state are not persisted. HTML prototype localStorage is
 separate and is not automatically imported. See `examples/settings-v1.toml` and
 round-trip/invalid-version tests in `tests/settings.rs`.
