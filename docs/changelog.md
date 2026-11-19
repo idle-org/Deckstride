@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.31
+
+- Rename the display setup button to “Apply changes” (French: “Appliquer les
+  modifications”). Preserve the 15-second confirmation, automatic revert and
+  blanked-output behavior; update the user guide to match. Linux checks and native
+  X11 smoke pass; whole-app coverage is 86.78%. Windows/macOS were not tested.
+
 ### 0.1.30
 
 - Show “End of slides” in the presenter's Next preview at the last real slide.

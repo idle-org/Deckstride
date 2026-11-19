@@ -870,9 +870,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 button(
                     ui,
                     if s.settings.language.french() {
-                        "Tester les écrans (15 s)"
+                        "Appliquer les modifications"
                     } else {
-                        "Try displays (15 seconds)"
+                        "Apply changes"
                     },
                     Action::ApplyRoutes,
                     &mut s.actions,

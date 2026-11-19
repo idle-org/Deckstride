@@ -40,7 +40,7 @@ fullscreen for the session. `--list-monitors` lists CLI display numbers.
 
 Both roles default to fullscreen. Displays lists connected screens: assign each
 Unused, Presenter or Presentation, including several screens per role. Swap groups
-exchanges the draft roles. **Try displays (15 seconds)** previews the assignments
+exchanges the draft roles. **Apply changes** previews the assignments
 and fullscreen choices with output blanked. **Keep changes** confirms and saves;
 **Revert now**, Escape, or doing nothing for 15 seconds restores the previous setup.
 Confirmation controls appear on presenter and output windows so either screen can
@@ -187,7 +187,8 @@ dependency/font notices without launching a window.
 
 Menu opens a dropdown below its button; click outside or press Escape to dismiss it.
 Displays uses numbered screen cards with direct Unused / Presenter / Presentation
-choices. Repeat a role to mirror it, then Apply and remember.
+choices. Repeat a role to mirror it, then choose **Apply changes** and confirm with
+**Keep changes**.
 
 The numbered screen rectangles in **Displays** reflect each monitor’s pixel aspect
 ratio, so portrait, standard and ultrawide displays are easier to distinguish.
