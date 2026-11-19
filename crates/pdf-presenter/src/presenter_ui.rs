@@ -324,7 +324,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         let count = items.iter().filter(|(_, _, w)| w.show).count();
         let width = preview.width() - 14. * count.saturating_sub(1) as f32;
         let mut x = preview.left();
-        for (label, page, w) in items {
+        for (index, (label, page, w)) in items.into_iter().enumerate() {
             if !w.show {
                 continue;
             }
@@ -348,6 +348,22 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     s,
                     page,
                     Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max),
+                );
+            } else if index == 2 && s.count() > 0 && s.requested == s.count() - 1 {
+                // Presenter-only decoration: never create a page, frame or navigation target.
+                let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
+                let painter = ui.painter().with_clip_rect(area);
+                painter.rect_filled(area, 6., ui.visuals().extreme_bg_color);
+                let text = painter.layout(
+                    tr(&locale, "End of slides").into(),
+                    FontId::proportional(24_f32.min(area.width() / 8.).max(1.)),
+                    ui.visuals().text_color(),
+                    (area.width() - 24.).max(1.),
+                );
+                painter.galley(
+                    area.center() - text.size() / 2.,
+                    text,
+                    ui.visuals().text_color(),
                 );
             }
             x = rect.right() + 14.;

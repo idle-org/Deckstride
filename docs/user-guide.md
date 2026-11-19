@@ -224,3 +224,11 @@ beside a slide when its proportions differ from the display (black by default).
 Both controls update the presenter previews, slide browser and audience output,
 and are saved for future sessions. Opaque artwork keeps its original colors.
 Blanking the audience output still shows black. Source documents remain unchanged.
+
+## End of the deck
+
+At the last slide, the presenter’s **Next** preview shows **End of slides**.
+This placeholder is not a real slide: it cannot be selected or shown to the
+audience, does not appear in All slides, and does not change the slide count.
+Advancing at the end keeps the last real slide selected. Hiding the Next preview
+also hides the placeholder.

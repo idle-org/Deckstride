@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.30
+
+- Show “End of slides” in the presenter's Next preview at the last real slide.
+  This is a non-interactive placeholder, never a deck page, browser entry or
+  audience frame. Navigation still stops at the last real slide. Linux tests,
+  native X11 smoke, formatting, Clippy/rustdoc and Python checks pass; whole-app
+  coverage is 86.82%. Windows/macOS runtime checks were not run.
+
 ### 0.1.29
 
 - Draw numbered screen rectangles in Displays using each monitor's pixel aspect

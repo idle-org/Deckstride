@@ -50,6 +50,7 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Storage locations" => "Emplacements de stockage",
         "Preparing slide…" => "Préparation de la diapositive…",
         "No slide" => "Aucune diapositive",
+        "End of slides" => "Fin des diapositives",
         "Size" => "Taille",
         "Keep header visible" => "Garder l’en-tête visible",
         "Keep footer visible" => "Garder le pied de page visible",

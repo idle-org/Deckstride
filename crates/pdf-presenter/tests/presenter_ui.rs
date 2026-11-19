@@ -602,3 +602,58 @@ fn timer_presets_reserve_space_and_progress_tracks_navigation() {
     assert!(text_rect(&output.shapes, "Elapsed time").is_none());
     assert!(text_rect(&output.shapes, "Time · HH:MM").is_none());
 }
+
+#[test]
+fn end_of_slides_is_only_a_presenter_next_preview_not_a_page() {
+    fn count_text(shape: &egui::Shape, label: &str) -> usize {
+        match shape {
+            egui::Shape::Text(t) => usize::from(t.galley.text() == label),
+            egui::Shape::Vec(shapes) => shapes.iter().map(|s| count_text(s, label)).sum(),
+            _ => 0,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    let mut native = UiState::default();
+    for (total, requested, next_visible, expected) in [
+        (3, 0, true, 0),
+        (3, 1, true, 0),
+        (3, 2, true, 1),
+        (3, 2, false, 0),
+        (1, 0, true, 1),
+        (0, 0, true, 0),
+    ] {
+        s.deck.as_mut().unwrap().names = (0..total).map(|i| i.to_string()).collect();
+        s.requested = requested;
+        s.layout.next.show = next_visible;
+        let output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+            presenter_ui::presenter(ui, &mut s, &mut native);
+        });
+        assert_eq!(
+            output
+                .shapes
+                .iter()
+                .map(|s| count_text(&s.shape, "End of slides"))
+                .sum::<usize>(),
+            expected
+        );
+        assert_eq!(s.count(), total);
+        s.execute(Action::Go(total));
+        assert_eq!(
+            s.requested, requested,
+            "The placeholder cannot be navigated to"
+        );
+        let output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+            presenter_ui::browser(ui, &mut s, &mut native);
+        });
+        assert_eq!(
+            output
+                .shapes
+                .iter()
+                .map(|s| count_text(&s.shape, "End of slides"))
+                .sum::<usize>(),
+            0
+        );
+    }
+}
