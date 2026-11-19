@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.20
+
+- Restrict routine agent validation to Linux. Windows/macOS builds and cross-target
+  checks run only on explicit request or during requested release preparation.
+
 ### 0.1.19
 
 - Continue preparing oversized decks by evicting distant frames, protecting active

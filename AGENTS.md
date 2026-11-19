@@ -72,6 +72,13 @@ warnings denied, workspace tests, Python helper tests, and whole-application cov
 with a 75% floor. Include future GUI/renderer code; do not hide production files from
 coverage. Exercise physical displays separately on each claimed platform.
 
+Routine development validation targets Linux only. Do not build, cross-compile,
+package, or run cross-target cargo checks for Windows or macOS after each change.
+Run those platform checks/builds only when explicitly requested by the user or as
+part of an explicitly requested release/release-preparation task. Earlier requests
+for Windows/macOS artifacts do not authorize rebuilding them on every later task.
+Report platform validation that was not run accurately; do not imply it passed.
+
 CI uses `rust_no_docker`; it archives exactly three badge SVGs and only main/non-PR
 builds publish to `/mnt/assets/coverage/idle-org/pdf-presenter/main/`. No automatic
 releases, binaries or manual publication. Jenkins job creation is external setup.
