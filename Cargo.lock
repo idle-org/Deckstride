@@ -921,7 +921,7 @@ dependencies = [
 
 [[package]]
 name = "pdf-presenter"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "font8x8",
  "softbuffer",

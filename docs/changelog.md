@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.8
+
+- Add explicit project/all-project layout saves to the HTML concept using browser
+  storage. Project overrides take precedence; a reset-to-default action removes only
+  the current override. Two demo projects allow reviewing scope and reload behavior.
+  Invalid/unavailable storage reports a failure without interrupting layout editing.
+  Native settings remain unimplemented. Validation: JavaScript syntax, Firefox
+  visual inspection and 17 browser checks for scope, restoration and storage errors.
+
 ### 0.1.7
 
 - Extend the HTML presenter concept with a live layout panel: independently hide/show

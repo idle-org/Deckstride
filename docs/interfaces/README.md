@@ -1,6 +1,6 @@
 # Persistent interfaces
 
-The foundation writes no user settings, project files or exports. Presentation state
+The native foundation writes no user settings, project files or exports. Presentation state
 is in memory only: page indices are zero-based and blanking retains the selected
 page. No file compatibility promise exists yet.
 
@@ -13,3 +13,5 @@ Source PDFs always remain unchanged.
 pre-rendered image/`extraction.json` direction; its schema is not implemented yet.
 
 - [Picture folders and notes requirements](picture-folders.md) (planned).
+
+- [HTML concept layout storage](html-layout-storage.md) documents browser-only saved layouts.
