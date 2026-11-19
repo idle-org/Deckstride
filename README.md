@@ -8,9 +8,10 @@
   <img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/coverage.svg" alt="Line coverage">
 </p>
 
-**Repository foundation — not yet a usable PDF presenter.** The intended application
-pairs an operator view with fullscreen audience outputs, inspired by Pympress and
-PowerPoint workflows. It is independent of those projects.
+**Repository foundation — not yet a usable PDF presenter.** The goal is a blazingly fast Pympress-style PDF presenter: selectable presenter
+and audience displays on Windows, macOS and Linux, progressive rendering with
+reusable image caches, and current/next previews with notes when extractable.
+Reliable dual-screen operation on all three OSes is a hard requirement. It is independent of those projects.
 
 The initial Rust core tests page navigation and audience blanking. PDF loading,
 rendering, presenter UI and display selection are planned. Build status badges

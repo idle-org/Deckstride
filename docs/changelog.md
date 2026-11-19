@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.1
+
+- Established selectable dual-screen operation on Windows/macOS/Linux as a hard
+  acceptance gate and presentation speed as the primary performance goal. Prioritized
+  progressive rendering, reusable source-SHA image caches and current/next previews
+  with extractable notes. Added physical-display and speed validation requirements;
+  cache schema and application behavior remain unimplemented.
+
 ### 0.1.0
 
 - Prepared the standalone PDF Presenter repository with a tested navigation/blanking

@@ -14,9 +14,16 @@ The current executable reports bootstrap status; do not describe it as a PDF vie
 - `docs/development/`: architecture decisions, implementation plan and CI setup.
 - `docs/interfaces/`: persistent-format contracts when formats are introduced.
 
-Keep a single-member workspace. Do not depend on sibling repositories. Rust/egui
-is the starting desktop direction, following Canvas Pilot; validate multiwindow
-behavior and renderer/platform support before choosing dependencies. Keep PDF
+Keep a single-member workspace. Do not depend on sibling repositories. Reliable
+selectable presenter/audience displays on Windows, macOS and Linux are a HARD
+requirement. Prove this first and iterate with the user on physical testing until
+it works. Presentation speed is the primary performance goal: prioritize first-page
+display, progressive preparation and measured cold/warm slide latency. Pre-rendered
+images and a source-SHA extraction.json sidecar cache are authorized; define its
+contract before implementation. Presenter mode requires current/next previews and
+notes when extractable, with a current/next-only fallback. Read the plan for acceptance
+gates. Rust/egui is a candidate, not a constraint: native APIs, renderer processes or
+another window host are acceptable when they satisfy reliability and speed. Keep PDF
 rendering, document state and display/window management separate without speculative
 abstractions. Do not copy Pympress or PowerPoint code/assets without license review.
 
