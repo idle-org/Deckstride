@@ -14,7 +14,7 @@ CROSS_CONTAINER_ENGINE=podman ../rust_realease/target/release/rust_realease . \
 ```
 
 Use the installed `rust_realease` command instead if preferred. Cross must have
-access to its configured images. Outputs live under `dist/release-*/`, including
+access to its configured images. Outputs live under `dist/` (the tool prints the final release directory), including
 raw executables, binstall `.tgz` archives, a Linux portable `.tgz`, a Windows
 portable `.zip`, and `SHA256SUMS`. The binaries themselves need no companion assets.
 Portable bundles add the license, quickstart and optional Python Linux launcher.
@@ -53,3 +53,13 @@ The native test now tolerates BadWindow when unrelated desktop windows disappear
 during enumeration; other X11 errors still fail. No production code is excluded.
 Windows Explorer/taskbar appearance and Linux Wayland shell integration still
 need native user confirmation.
+
+`rust_realease --compile-only` successfully built and packaged both targets from
+commit `5d12b85`. All seven checksummed files (six packages/binaries plus the
+artifact manifest) verify. Inspection confirms seven Windows ICON resources plus
+the GROUP_ICON and version resources, and only system DLL imports. Linux ELF imports
+are libc/libm/libgcc_s/the loader. The extracted Linux portable bundle passed its
+native presenter/browser smoke test and optional launcher installation in temporary
+XDG directories; the resulting desktop entry passed desktop-file-validate.
+No tag, push or Gitea release was created. Windows native appearance still needs user
+testing; import inspection alone does not establish clean-machine acceptance.
