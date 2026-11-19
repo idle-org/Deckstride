@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.7
+
+- Extend the HTML presenter concept with a live layout panel: independently hide/show
+  and resize previous/next previews, notes, elapsed time and a local HH:MM clock.
+  Current-slide size is adjustable; hidden widgets reclaim space. Include balanced,
+  slide-focus and notes-first presets, with complete notes automatically fitted.
+  Native layout and global persistence remain planned; this is a session-only mockup.
+  Validation: JavaScript syntax, Firefox visual inspection and 20 browser checks
+  covering widget sizing/visibility, recovered space, presets and long-note fitting.
+
 ### 0.1.6
 
 - Add a standalone interactive HTML presenter-menu concept for review: current/next
