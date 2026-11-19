@@ -315,7 +315,11 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(10.)), |ui| {
             ui.horizontal(|ui| {
                 if ui
-                    .button(if s.layout.header {
+                    .add(
+                        egui::Button::new(if s.layout.header { "↑" } else { "↓" })
+                            .min_size(Vec2::splat(24.)),
+                    )
+                    .on_hover_text(if s.layout.header {
                         tr(&locale, "Hide")
                     } else {
                         tr(&locale, "Pin")
@@ -407,6 +411,21 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(8.)), |ui| {
             ui.horizontal(|ui| {
+                if ui
+                    .add(
+                        egui::Button::new(if s.layout.footer { "↓" } else { "↑" })
+                            .min_size(Vec2::splat(24.)),
+                    )
+                    .on_hover_text(if s.layout.footer {
+                        tr(&locale, "Hide")
+                    } else {
+                        tr(&locale, "Pin")
+                    })
+                    .clicked()
+                {
+                    s.layout.footer = !s.layout.footer;
+                    native.footer_until = now;
+                }
                 button(
                     ui,
                     tr(&locale, "Previous"),
@@ -439,17 +458,6 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         tr(&locale, "PREPARING OUTPUT")
                     },
                 );
-                if ui
-                    .button(if s.layout.footer {
-                        tr(&locale, "Hide")
-                    } else {
-                        tr(&locale, "Pin")
-                    })
-                    .clicked()
-                {
-                    s.layout.footer = !s.layout.footer;
-                    native.footer_until = now;
-                }
                 ui.small(&s.awake_status);
             });
             ui.label(s.preparation_status());

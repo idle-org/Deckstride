@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.23
+
+- Put compact arrow icons at the far left of both header and footer to hide or pin
+  each bar, retaining localized tooltips and existing edge/right-click reveal.
+
 ### 0.1.22
 
 - Keep settings menus open while selecting themes/languages or adjusting Preferences.
