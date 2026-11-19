@@ -2212,7 +2212,7 @@ dependencies = [
 
 [[package]]
 name = "pdf-presenter"
-version = "0.1.32"
+version = "0.1.33"
 dependencies = [
  "bytemuck",
  "chrono",
@@ -2233,6 +2233,8 @@ dependencies = [
  "sys-locale",
  "tempfile",
  "toml 0.8.23",
+ "wayland-client",
+ "wayland-protocols",
  "winit",
  "winresource",
  "x11-dl",

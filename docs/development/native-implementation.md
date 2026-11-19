@@ -266,3 +266,27 @@ remains part of the parent menu tree. Commands still explicitly close the menu;
 Escape dismisses it. Pointer regression coverage exercises both choice menus,
 Preferences controls and the three dismissal paths. Physical desktop acceptance
 remains separate from these egui input tests.
+
+## Linux browser window hints — 0.1.33
+
+All slides is a non-modal, resizable auxiliary toplevel. Before its first rendered
+buffer it sends `xdg_toplevel.set_parent` on Wayland, or `WM_TRANSIENT_FOR` plus
+`_NET_WM_WINDOW_TYPE_DIALOG` on X11. A presenter on the browser's selected monitor
+is preferred, otherwise the first presenter; an audience window is never the parent.
+The association is refreshed if presenter windows are recreated or reassigned.
+Winit 0.30.13 exposes the Wayland toplevel but not a portable transient-parent API;
+short-lived typed Wayland wrappers borrow Winit's live handles without event dispatch,
+roundtrips, proxy destruction or display ownership. Existing transitive Wayland crates
+are direct Linux-only dependencies for this operation. Parent hints do not guarantee
+compositor placement. Niri-specific runtime acceptance remains a separate check.
+
+Validation for 0.1.33: a native Wayland smoke run on the available KWin session
+passed. The protocol regression verifies that All slides sends `set_parent` to
+the presenter's toplevel before attaching its first buffer, retains unlimited
+maximum size, and does not parent the presenter. X11 smoke passed; external
+`xprop` inspection of the owned test windows confirmed the browser's dialog type
+and transient owner pointing to the same process's presenter. Full Linux tests,
+formatting, warnings-denied Clippy/rustdoc and 13 Python tests pass; whole-app
+X11 coverage is 86.38%. Niri is unavailable here, so this verifies hint delivery,
+not Niri placement or physical multi-monitor acceptance. Windows/macOS were not
+built or runtime-tested for this Linux-only change.

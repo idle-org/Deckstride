@@ -478,3 +478,87 @@ fn orphaned_output_holds_until_closed_then_exits_on_close_or_escape() {
         );
     }
 }
+
+#[cfg(target_os = "linux")]
+#[test]
+fn wayland_browser_parents_to_presenter_before_first_buffer() {
+    if std::env::var_os("PDF_PRESENTER_GUI_TESTS").is_none()
+        || std::env::var_os("WAYLAND_DISPLAY").is_none()
+    {
+        return;
+    }
+    let trace = tempfile::NamedTempFile::new().unwrap();
+    let mut child = Command::new(env!("CARGO_BIN_EXE_pdf-presenter"))
+        .arg("--smoke-test")
+        .env("WAYLAND_DEBUG", "client")
+        .stdout(Stdio::null())
+        .stderr(trace.reopen().unwrap())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            assert!(
+                status.success(),
+                "{}",
+                std::fs::read_to_string(trace.path()).unwrap()
+            );
+            break;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("Wayland browser smoke timed out");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let log = std::fs::read_to_string(trace.path()).unwrap();
+    let top = |title: &str| {
+        log.lines()
+            .find(|line| line.contains(&format!(".set_title(\"{title}\")")))
+            .unwrap()
+            .split(" -> ")
+            .nth(1)
+            .unwrap()
+            .split('.')
+            .next()
+            .unwrap()
+    };
+    let presenter = top("PDF Presenter — Presenter");
+    let browser = top("PDF Presenter — All slides");
+    assert_ne!(browser, presenter);
+    let parent_at = log
+        .find(&format!("{browser}.set_parent({presenter})"))
+        .unwrap();
+    let xdg = log
+        .lines()
+        .find(|l| l.contains(&format!(".get_toplevel(new id {browser})")))
+        .unwrap()
+        .split(" -> ")
+        .nth(1)
+        .unwrap()
+        .split('.')
+        .next()
+        .unwrap();
+    let surface = log
+        .lines()
+        .find(|l| l.contains(&format!(".get_xdg_surface(new id {xdg},")))
+        .unwrap()
+        .split(", ")
+        .last()
+        .unwrap()
+        .trim_end_matches(')');
+    let buffer_at = log.find(&format!("{surface}.attach(wl_buffer")).unwrap();
+    assert!(
+        parent_at < buffer_at,
+        "The parent hint must precede mapping"
+    );
+    assert!(
+        log.contains(&format!("{browser}.set_max_size(0, 0)")),
+        "Browser must remain resizable"
+    );
+    assert!(
+        !log.contains(&format!("{presenter}.set_parent(")),
+        "Only the browser is parented"
+    );
+}

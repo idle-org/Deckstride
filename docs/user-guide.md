@@ -237,3 +237,24 @@ This placeholder is not a real slide: it cannot be selected or shown to the
 audience, does not appear in All slides, and does not change the slide count.
 Advancing at the end keeps the last real slide selected. Hiding the Next preview
 also hides the placeholder.
+
+## All slides on tiling Linux desktops
+
+All slides remains a separate, resizable window. On Linux it identifies a presenter
+window as its parent (Wayland) or transient owner (X11), and requests the X11 dialog
+window type. These hints let compositors treat it as a floating auxiliary window.
+[Niri automatically floats parented windows](https://github.com/niri-wm/niri/wiki/Floating-Windows),
+unless a window rule overrides that behavior. No desktop configuration is changed.
+The compositor can still override placement, including the selected browser monitor.
+
+If your Niri rules still tile it, you can add this optional rule to your own config:
+
+```kdl
+window-rule {
+    match app-id="^pdf-presenter$" title="^PDF Presenter — All slides$"
+    open-floating true
+}
+```
+
+See [Niri window rules](https://github.com/niri-wm/niri/wiki/Configuration%3A-Window-Rules).
+The rule targets only All slides, not presenter or audience windows.

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.33
+
+- Associate All slides with a presenter window on Linux: send Wayland's toplevel
+  parent hint and X11's transient/dialog hints so tiling desktops can float it.
+  Keep the browser separate, resizable and non-modal; refresh its parent after
+  presenter recreation. Compositor policies still control placement. Linux tests,
+  Clippy/rustdoc, Python checks and X11 native smoke pass; coverage is 86.38%.
+  Verified the Wayland parent request before first buffer and actual X11 dialog/
+  transient properties. Niri and Windows/macOS runtime testing were not available.
+
 ### 0.1.32
 
 - Show a warning beneath the display setup notice whenever either fullscreen

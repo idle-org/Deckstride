@@ -46,6 +46,8 @@ struct NativeWindow {
     transition: Option<(Instant, bool)>,
     frames: usize,
     display_action: Option<DisplayAction>,
+    #[cfg(target_os = "linux")]
+    browser_parent: Option<WindowId>,
 }
 impl NativeWindow {
     fn create(el: &ActiveEventLoop, role: Role, monitor: String) -> Result<Self, Failure> {
@@ -54,19 +56,23 @@ impl NativeWindow {
             Role::Browser => "PDF Presenter — All slides",
             Role::Presentation => "PDF Presenter — Presentation",
         };
-        let window = Rc::new(
-            el.create_window(
-                crate::artwork::window_attributes()
-                    .with_title(title)
-                    .with_window_level(if role == Role::Browser {
-                        winit::window::WindowLevel::AlwaysOnTop
-                    } else {
-                        winit::window::WindowLevel::Normal
-                    })
-                    .with_visible(false)
-                    .with_inner_size(PhysicalSize::new(1100, 750)),
-            )?,
-        );
+        let attributes = crate::artwork::window_attributes()
+            .with_title(title)
+            .with_window_level(if role == Role::Browser {
+                winit::window::WindowLevel::AlwaysOnTop
+            } else {
+                winit::window::WindowLevel::Normal
+            })
+            .with_visible(false)
+            .with_inner_size(PhysicalSize::new(1100, 750));
+        #[cfg(target_os = "linux")]
+        let attributes = if role == Role::Browser {
+            use winit::platform::x11::{WindowAttributesExtX11, WindowType};
+            attributes.with_x11_window_type(vec![WindowType::Dialog])
+        } else {
+            attributes
+        };
+        let window = Rc::new(el.create_window(attributes)?);
         let surface =
             softbuffer::Surface::new(&softbuffer::Context::new(window.clone())?, window.clone())?;
         let ctx = egui::Context::default();
@@ -92,6 +98,8 @@ impl NativeWindow {
             transition: None,
             frames: 0,
             display_action: None,
+            #[cfg(target_os = "linux")]
+            browser_parent: None,
         })
     }
     fn place(&mut self, handle: &MonitorHandle, id: &str, fullscreen: bool, x11: bool) {
@@ -243,6 +251,66 @@ impl NativeWindow {
         Ok(())
     }
 }
+/// Associate a separate, resizable browser with its presenter before first mapping.
+/// No modal/child-window style: the operator can still use both windows.
+#[cfg(target_os = "linux")]
+fn linux_browser_parent(browser: &Window, parent: &Window) -> Result<(), Failure> {
+    use winit::raw_window_handle::{
+        HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
+    };
+    match browser.display_handle()?.as_raw() {
+        RawDisplayHandle::Wayland(display) => {
+            use wayland_client::{
+                Connection, Proxy,
+                backend::{Backend, ObjectId},
+            };
+            use wayland_protocols::xdg::shell::client::xdg_toplevel::XdgToplevel;
+            use winit::platform::wayland::WindowExtWayland;
+            let child = browser
+                .xdg_toplevel()
+                .ok_or("Missing browser Wayland toplevel")?;
+            let owner = parent
+                .xdg_toplevel()
+                .ok_or("Missing presenter Wayland toplevel")?;
+            // SAFETY: both live Winit windows belong to this event loop/display. These
+            // temporary wrappers borrow its handles; they never destroy proxies, dispatch
+            // events, disconnect the display, or outlive either Window. Winit flushes the
+            // queued request with its next surface commit; there is no roundtrip here.
+            unsafe {
+                let connection = Connection::from_backend(Backend::from_foreign_display(
+                    display.display.as_ptr().cast(),
+                ));
+                let child = XdgToplevel::from_id(
+                    &connection,
+                    ObjectId::from_ptr(XdgToplevel::interface(), child.as_ptr().cast())?,
+                )?;
+                let owner = XdgToplevel::from_id(
+                    &connection,
+                    ObjectId::from_ptr(XdgToplevel::interface(), owner.as_ptr().cast())?,
+                )?;
+                child.set_parent(Some(&owner));
+            }
+        }
+        RawDisplayHandle::Xlib(display) => {
+            let (RawWindowHandle::Xlib(child), RawWindowHandle::Xlib(owner)) = (
+                browser.window_handle()?.as_raw(),
+                parent.window_handle()?.as_raw(),
+            ) else {
+                return Err("Mismatched browser/presenter window backends".into());
+            };
+            let display = display.display.ok_or("Missing X11 display")?;
+            let xlib = x11_dl::xlib::Xlib::open()?;
+            // SAFETY: borrowed Xlib connection and live window IDs from this event loop.
+            // This sets a WM hint only; it neither reparents nor destroys either window.
+            unsafe {
+                (xlib.XSetTransientForHint)(display.as_ptr().cast(), child.window, owner.window);
+            }
+        }
+        _ => return Err("Unsupported Linux window backend".into()),
+    }
+    Ok(())
+}
+
 fn monitors(el: &ActiveEventLoop) -> (Vec<(Monitor, MonitorHandle)>, usize) {
     let primary = el.primary_monitor();
     let mut names = HashMap::new();
@@ -463,6 +531,29 @@ impl App {
                     .push(NativeWindow::create(el, role, id.clone())?);
                 self.windows.len() - 1
             };
+            #[cfg(target_os = "linux")]
+            if role == Role::Browser {
+                // Prefer the presenter on the chosen monitor, never an audience window.
+                let parent = self
+                    .windows
+                    .iter()
+                    .filter(|w| w.role == Role::Presenter)
+                    .min_by_key(|w| w.monitor != id)
+                    .map(|w| w.window.clone());
+                if let Some(parent) = parent {
+                    let browser = &mut self.windows[index];
+                    if browser.browser_parent != Some(parent.id()) {
+                        if let Err(error) = linux_browser_parent(&browser.window, &parent)
+                            && let Some(s) = &mut self.studio
+                        {
+                            s.status = format!(
+                                "Could not associate All slides with the presenter: {error}"
+                            );
+                        }
+                        browser.browser_parent = Some(parent.id());
+                    }
+                }
+            }
             self.windows[index].place(handle, &id, full, self.x11);
         }
         if let Some(s) = &mut self.studio {
