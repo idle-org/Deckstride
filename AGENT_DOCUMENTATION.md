@@ -17,3 +17,5 @@
 - [Picture folders and notes requirements](docs/interfaces/picture-folders.md) (planned).
 
 - [Interactive presenter menu concept](docs/design/presenter-menu.html) (browser mockup, not native UI).
+
+- [Slide browser and mirrored display concept](docs/design/slide-browser.md).

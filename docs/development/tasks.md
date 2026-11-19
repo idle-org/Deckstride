@@ -16,6 +16,9 @@ that an API was identified. Do not mark physical acceptance from unit tests.
   No PDF dependency on shell startup. Implement monitor enumeration/identification,
   explicit presenter and audience selection, swapping, fullscreen and emergency blank.
   Default both roles to fullscreen; retain explicit windowed rehearsal.
+  Support several monitors per role (e.g. presenter 1+2, presentation 3, or vice versa).
+  One role per monitor; shared slide/blank/navigation state across mirrored views.
+  Preserve surviving assignments and isolate each output's rendering/backpressure.
 - [ ] T03: Test both assignments on Windows and macOS, then Linux X11 and Wayland
   (GNOME/KDE). Add native adapters where required. Verify actual output placement;
   an unsupported placement call is a defect, not a completed task.
@@ -95,6 +98,12 @@ Depends on usable PDF output and acknowledged displayed-slide state.
   default, with an action to remove the current project override. Keep complete
   notes fitted, and persist layout visibility/sizes in the global settings contract.
   Review the [interactive layout concept](../design/presenter-menu.html) before implementation.
+  Add digit-buffer + Enter direct slide navigation (1-based), with visible pending
+  number, Backspace editing, Escape cancellation and range checks; preserve blanking.
+  Add a separate windowed all-slides browser with adjustable thumbnail size and
+  Change on click disabled by default. Selection and live slide are separate; provide
+  explicit Show selected. Place it on a chosen monitor or presenter by default,
+  falling back to presenter if missing. Bound/virtualize thumbnail loading.
 - [ ] T17: Extract available notes asynchronously and support explicit notes-page
   interpretation/cropping. Load image sidecar `.txt` notes and global `notes.json` or
   `notes.toml`; test precedence, invalid files and missing notes. Always word-wrap and

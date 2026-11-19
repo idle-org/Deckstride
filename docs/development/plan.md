@@ -104,8 +104,8 @@ engineering gates; validate them against reference hardware and user testing. No
 
 ## Scope after the core requirements
 
-Multiple audience outputs beyond the required pair of presenter/audience roles,
-independent decks per display, remote control, annotations, embedded media and
+Mirroring either role onto several monitors and a windowed slide browser are now
+required presenter workflow (see the task list). Independent decks per display, remote control, annotations, embedded media and
 transitions are later scope. Native PPTX playback is not implied. No network service
 or presentation-switcher integration is required. Preserve source PDFs and never
 show a wrong or stale slide to achieve a lower latency measurement.

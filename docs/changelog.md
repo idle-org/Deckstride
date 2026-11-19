@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.10
+
+- Add number + Enter slide jumps and a separate windowed thumbnail browser to the
+  HTML concept. Preview size is adjustable; clicks select without changing output
+  unless Change on click is enabled. Explicit Show selected changes the slide.
+- Allow several simulated monitors per presenter/presentation role, with group swap
+  and missing-monitor fallback. The slide browser has a simulated monitor preference,
+  defaulting to presenter; actual monitor routing and native implementation are pending.
+  Validation: JavaScript syntax, real Firefox popup inspection, 24 navigation/popup/
+  mirrored-display checks and 24 existing layout/persistence regression checks.
+
 ### 0.1.9
 
 - Allow hiding the current-slide preview in the HTML concept and saved layouts.
