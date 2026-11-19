@@ -73,7 +73,8 @@ Escape cancels a pending slide number/menu, closes the browser, or safely leaves
 fullscreen and blanks output. While the presenter is connected, closing a presentation window blanks it; close a
 presenter or choose Menu → Quit to end the application.
 
-Arrow keys, Page Up/Down and Space navigate from the presenter. Type a 1-based slide
+Arrow keys and Page Up/Down navigate from the presenter. Space moves forward;
+Shift+Space moves back. Type a 1-based slide
 number then Enter to jump; Backspace edits and Escape cancels. Out-of-range numbers
 do not navigate. Output windows accept B/Escape for emergency blanking.
 

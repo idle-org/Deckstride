@@ -470,7 +470,7 @@ impl App {
         }
         Ok(())
     }
-    fn key(&mut self, role: Role, key: Key, consumed: bool, modifiers: bool) {
+    fn key(&mut self, role: Role, key: Key, consumed: bool, modifiers: egui::Modifiers) {
         if role == Role::Presentation {
             if matches!(key, Key::Named(NamedKey::Escape))
                 && let Some(host) = &self.host
@@ -505,7 +505,7 @@ impl App {
             s.execute(Action::RevertRoutes);
             return;
         }
-        if modifiers || consumed {
+        if modifiers.ctrl || modifiers.alt || modifiers.command || consumed {
             return;
         }
         match key {
@@ -539,6 +539,9 @@ impl App {
                 } else {
                     s.execute(Action::Windowed);
                 }
+            }
+            Key::Named(NamedKey::Space) if role == Role::Presenter && modifiers.shift => {
+                s.execute(Action::Go(s.requested.saturating_sub(1)))
             }
             Key::Named(NamedKey::ArrowRight | NamedKey::PageDown | NamedKey::Space)
                 if role == Role::Presenter =>
@@ -911,9 +914,7 @@ impl ApplicationHandler for App {
                     role,
                     event.logical_key,
                     native.ctx.egui_wants_keyboard_input(),
-                    native
-                        .ctx
-                        .input(|i| i.modifiers.ctrl || i.modifiers.alt || i.modifiers.command),
+                    native.input.egui_input().modifiers,
                 );
             }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
@@ -1130,6 +1131,67 @@ pub fn run_output() -> Result<(), Failure> {
 #[cfg(test)]
 mod buffer_tests {
     use super::*;
+    #[test]
+    fn space_navigation_respects_shift_focus_roles_and_blanking() {
+        let now = Instant::now();
+        let mut studio = Studio::new(true, None);
+        studio.deck = Some(crate::document::DeckInfo {
+            path: "test.pdf".into(),
+            key: "test".into(),
+            title: "Test".into(),
+            names: vec!["1".into(), "2".into(), "3".into()],
+            notes: vec![],
+            warnings: vec![],
+            sha256: String::new(),
+        });
+        studio.blanked = true;
+        let mut app = App {
+            studio: Some(studio),
+            host: None,
+            output: None,
+            lease: None,
+            windows: vec![],
+            handles: vec![],
+            next_poll: now,
+            next_clock: now,
+            next_monitors: now,
+            x11: false,
+            error: None,
+            smoke: false,
+            smoke_stage: 0,
+            started: now,
+            windowed: true,
+            override_presenter: None,
+            override_output: None,
+        };
+        for (role, consumed, modifiers, expected) in [
+            (Role::Presenter, false, egui::Modifiers::NONE, 1),
+            (Role::Presenter, false, egui::Modifiers::SHIFT, 0),
+            (Role::Presenter, false, egui::Modifiers::SHIFT, 0),
+            (Role::Presenter, false, egui::Modifiers::NONE, 1),
+            (Role::Presenter, true, egui::Modifiers::SHIFT, 1),
+            (
+                Role::Presenter,
+                false,
+                egui::Modifiers::SHIFT | egui::Modifiers::CTRL,
+                1,
+            ),
+            (
+                Role::Presenter,
+                false,
+                egui::Modifiers::SHIFT | egui::Modifiers::ALT,
+                1,
+            ),
+            (Role::Browser, false, egui::Modifiers::SHIFT, 1),
+            (Role::Presentation, false, egui::Modifiers::SHIFT, 1),
+            (Role::Presenter, false, egui::Modifiers::NONE, 2),
+            (Role::Presenter, false, egui::Modifiers::NONE, 2),
+        ] {
+            app.key(role, Key::Named(NamedKey::Space), consumed, modifiers);
+            assert_eq!(app.studio.as_ref().unwrap().requested, expected);
+            assert!(app.studio.as_ref().unwrap().blanked);
+        }
+    }
     fn frame(page: usize) -> Arc<Frame> {
         Arc::new(Frame {
             info: crate::document::FrameInfo {

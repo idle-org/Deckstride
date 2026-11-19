@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.28
+
+- Add Shift+Space to move back one slide from the presenter; Space still advances.
+  Read current input modifiers so Shift works even before the next repaint.
+  Preserve text-input focus, slide boundaries and manual blanking. Linux tests,
+  native X11 smoke, formatting, Clippy/rustdoc and Python checks pass; whole-app
+  coverage is 86.70%. Windows/macOS runtime checks were not run.
+
 ### 0.1.27
 
 - Remove Jenkins's Xvfb prerequisite and native-window test wrapper. Keep native
