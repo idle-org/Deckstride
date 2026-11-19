@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.11
+
+- Add independently hideable presenter header/footer to the HTML concept, with
+  edge-hover reveal and right-click controls to restore/pin either bar. Hidden bars
+  release space; transient reveals overlay the content and remain usable on hover.
+- Save pinned bar visibility per project/globally. Older layouts default to both
+  visible; temporary reveals never change saved preferences. Native UI remains pending.
+  Validation: JavaScript syntax and 67 Firefox checks (19 bar-visibility/recovery,
+  24 layout/persistence and 24 slide-browser/display-group regressions).
+
 ### 0.1.10
 
 - Add number + Enter slide jumps and a separate windowed thumbnail browser to the

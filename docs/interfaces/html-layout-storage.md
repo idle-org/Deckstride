@@ -11,6 +11,12 @@ Each layout contains `previous`, `current`, `next`, `notes`, `elapsed` and `cloc
 Each widget has a boolean `show` and an integer `size`. Every widget, including current, can be hidden.
 Preview sizes are relative width weights: previous/next 30–160, current 60–200.
 Notes size is a height percentage 12–65; elapsed/clock sizes are CSS pixels 16–72.
+Layouts also carry `chrome: {"header": true, "footer": true}` with boolean pinned
+visibility. Old version-1 records omitting `chrome` load with both visible; explicit
+invalid types are rejected. Temporary edge reveals are never saved. Hidden bars
+reveal as overlays near the corresponding edge, and can be pinned from the right-click
+menu or their own button. Hiding them releases layout space; clocks inside a hidden
+header are hidden with it, without losing their individual visibility preferences.
 No document contents, notes, screen assignments or elapsed time are persisted.
 
 Load precedence: project override, global default, built-in balanced layout.
@@ -24,7 +30,7 @@ it does not erase saved layouts.
 Example (a complete all-project default without overrides):
 
 ```json
-{"version":1,"global":{"previous":{"show":true,"size":60},"current":{"show":true,"size":130},"next":{"show":true,"size":75},"notes":{"show":true,"size":28},"elapsed":{"show":true,"size":28},"clock":{"show":true,"size":28}},"projects":{}}
+{"version":1,"global":{"previous":{"show":true,"size":60},"current":{"show":true,"size":130},"next":{"show":true,"size":75},"notes":{"show":true,"size":28},"elapsed":{"show":true,"size":28},"clock":{"show":true,"size":28},"chrome":{"header":true,"footer":true}},"projects":{}}
 ```
 
 Reject unsupported versions, malformed envelopes, missing widgets, wrong types,
@@ -49,3 +55,7 @@ It is not a native-application or physical-display acceptance test.
 
 Version 1 now accepts `current.show: false`; previously saved layouts remain valid.
 With all slide previews hidden, visible notes expand into the released space.
+
+`tests/browser/chrome-visibility.js` additionally checks saved bar visibility, legacy
+record defaults, edge reveal, pointer/focus retention and right-click recovery. Append
+it to a temporary HTML copy and wait for its asynchronous PASS/FAIL report.
