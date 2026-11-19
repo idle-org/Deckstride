@@ -881,6 +881,12 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     &locale,
                     "Applying a setup blanks output. Show when destinations are verified.",
                 ));
+                if !s.draft_presenter_fullscreen || !s.draft_presentation_fullscreen {
+                    ui.colored_label(
+                        ui.visuals().warn_fg_color,
+                        tr(&locale, "Window positioning can be unreliable in windowed mode, especially on Linux. Switch back to fullscreen if you experience positioning issues."),
+                    );
+                }
             });
         s.displays_open &= open;
     }

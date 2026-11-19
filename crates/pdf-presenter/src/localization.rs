@@ -107,6 +107,9 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Presenter" => "Présentateur",
         "Presentation" => "Présentation",
         "Swap groups" => "Inverser les groupes",
+        "Window positioning can be unreliable in windowed mode, especially on Linux. Switch back to fullscreen if you experience positioning issues." => {
+            "Le positionnement des fenêtres peut être peu fiable en mode fenêtré, surtout sous Linux. Revenez au plein écran si vous rencontrez des problèmes de positionnement."
+        }
         "Presenter fullscreen" => "Présentateur en plein écran",
         "Presentation fullscreen" => "Présentation en plein écran",
         "Apply and remember" => "Appliquer et mémoriser",

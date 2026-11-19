@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.32
+
+- Show a warning beneath the display setup notice whenever either fullscreen
+  option is disabled: window positioning can be unreliable, especially on Linux;
+  return to fullscreen if affected. Include French text and user-guide guidance.
+  Linux checks and native X11 smoke pass; whole-app coverage is 86.70%.
+  Windows/macOS runtime checks were not run.
+
 ### 0.1.31
 
 - Rename the display setup button to “Apply changes” (French: “Appliquer les

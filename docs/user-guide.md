@@ -47,6 +47,10 @@ Confirmation controls appear on presenter and output windows so either screen ca
 recover the change. Unconfirmed choices are never saved, and a disconnect cancels
 the trial. Navigation/show controls are held until the trial is resolved.
 
+Disabling either fullscreen option shows a positioning warning. Window placement
+can be unreliable in windowed mode, especially on Linux; switch back to fullscreen
+if you experience positioning issues.
+
 Before the first explicit slide navigation or Show presentation action, right-click
 either screen for **Swap displays…** (on output: **Swap presenter and presentation
 displays…**). This uses the same timed trial. Merely opening a PDF and automatically
