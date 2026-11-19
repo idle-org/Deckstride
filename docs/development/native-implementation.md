@@ -257,3 +257,12 @@ rollback. The Linux release build succeeds. Linux native window/output smoke, fo
 Clippy/rustdoc pass. Whole-app line coverage is 84.57%. These tests do not establish
 physical dual-monitor acceptance; the user should retest swapping/recovery on their
 setup. Windows/macOS builds and checks were not run, per the platform-build policy.
+
+## Settings menu interaction — 0.1.22
+
+Settings menus close on outside clicks rather than every click. Theme and language
+choices use nested menus instead of independent ComboBox popups, so their input
+remains part of the parent menu tree. Commands still explicitly close the menu;
+Escape dismisses it. Pointer regression coverage exercises both choice menus,
+Preferences controls and the three dismissal paths. Physical desktop acceptance
+remains separate from these egui input tests.

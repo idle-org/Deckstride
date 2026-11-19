@@ -451,3 +451,96 @@ fn output_recovery_buttons_dispatch_without_presenter_data() {
         );
     }
 }
+
+#[test]
+fn nested_settings_remain_interactive_and_menu_still_dismisses() {
+    fn position(shapes: &[egui::epaint::ClippedShape], label: &str) -> Pos2 {
+        fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+            match shape {
+                egui::Shape::Text(t) if t.galley.text() == label => {
+                    Some(t.pos + t.galley.size() * 0.5)
+                }
+                egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+                _ => None,
+            }
+        }
+        shapes
+            .iter()
+            .find_map(|s| find(&s.shape, label))
+            .unwrap_or_else(|| panic!("Missing menu entry: {label}"))
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    let mut native = UiState::default();
+    let mut frame = |s: &mut Studio, events| {
+        let mut raw = input(Vec2::new(1920., 1080.));
+        raw.events = events;
+        ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, s, &mut native))
+    };
+    let mut click = |s: &mut Studio, label: &str| {
+        let mut output = frame(s, vec![]);
+        for _ in 0..3 {
+            output = frame(s, vec![]);
+        }
+        let pos = position(&output.shapes, label);
+        for pressed in [true, false] {
+            frame(
+                s,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: Default::default(),
+                    },
+                ],
+            );
+        }
+    };
+    click(&mut s, "Menu");
+    click(&mut s, "Appearance");
+    click(&mut s, "Midra Dark");
+    assert!(
+        s.menu_open,
+        "Opening a theme selector must keep its parents open"
+    );
+    click(&mut s, "High Contrast");
+    assert_eq!(s.settings.theme, pdf_presenter::theme::Theme::HighContrast);
+    assert!(s.menu_open);
+    click(&mut s, "English");
+    click(&mut s, "System / Système");
+    assert_eq!(
+        s.settings.language,
+        pdf_presenter::localization::Language::System
+    );
+    assert!(s.menu_open);
+    click(&mut s, "Preferences");
+    let auto_show = s.settings.auto_show;
+    click(
+        &mut s,
+        "Show presentation automatically when opening a document",
+    );
+    assert_eq!(s.settings.auto_show, !auto_show);
+    assert!(s.menu_open);
+    click(&mut s, "Storage locations");
+    assert!(s.menu_open);
+    click(&mut s, "Reset timer");
+    assert!(!s.menu_open, "Commands should dismiss the dropdown");
+    click(&mut s, "Menu");
+    click(&mut s, "Demo");
+    assert!(!s.menu_open, "Outside click should dismiss the dropdown");
+    click(&mut s, "Menu");
+    frame(
+        &mut s,
+        vec![egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: Default::default(),
+        }],
+    );
+    assert!(!s.menu_open, "Escape should dismiss the dropdown");
+}

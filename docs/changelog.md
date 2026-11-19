@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.22
+
+- Keep settings menus open while selecting themes/languages or adjusting Preferences.
+  Use nested menus for appearance choices so selections stay inside the menu tree.
+- Cover theme/language selection, preference toggles, storage expansion and command,
+  outside-click and Escape dismissal with pointer interaction regression tests.
+
 ### 0.1.21
 
 - Preview display routing/fullscreen changes for 15 seconds before saving. Keep

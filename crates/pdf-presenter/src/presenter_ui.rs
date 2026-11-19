@@ -331,7 +331,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 } else {
                     s.menu_open
                 };
+                // Settings controls and nested selectors must not dismiss their parent menu.
                 egui::Popup::menu(&trigger)
+                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
                     .open_bool(&mut menu_open)
                     .show(|ui| {
                         egui::ScrollArea::vertical()
@@ -930,26 +932,22 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             ui.set_min_width(250.);
             let mut changed = false;
             ui.label(tr(&locale, "Theme"));
-            egui::ComboBox::from_id_salt("theme")
-                .selected_text(s.settings.theme.name())
-                .show_ui(ui, |ui| {
-                    for theme in crate::theme::Theme::ALL {
-                        let name = theme.name();
-                        changed |= ui
-                            .selectable_value(&mut s.settings.theme, theme.clone(), name)
-                            .changed();
-                    }
-                });
+            ui.menu_button(s.settings.theme.name().to_owned(), |ui| {
+                for theme in crate::theme::Theme::ALL {
+                    let name = theme.name();
+                    changed |= ui
+                        .selectable_value(&mut s.settings.theme, theme.clone(), name)
+                        .changed();
+                }
+            });
             ui.label(tr(&locale, "Language"));
-            egui::ComboBox::from_id_salt("language")
-                .selected_text(s.settings.language.name())
-                .show_ui(ui, |ui| {
-                    for language in crate::localization::Language::ALL {
-                        changed |= ui
-                            .selectable_value(&mut s.settings.language, language, language.name())
-                            .changed();
-                    }
-                });
+            ui.menu_button(s.settings.language.name(), |ui| {
+                for language in crate::localization::Language::ALL {
+                    changed |= ui
+                        .selectable_value(&mut s.settings.language, language, language.name())
+                        .changed();
+                }
+            });
             if changed {
                 s.save_preferences();
                 ui.ctx().request_repaint();
