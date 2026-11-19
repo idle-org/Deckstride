@@ -1,4 +1,4 @@
-PDF Presenter 0.1.17 — preview release
+PDF Presenter — preview release
 
 Windows: extract the ZIP and run pdf-presenter.exe. Its icon is embedded.
 Linux: extract the tarball and run ./pdf-presenter. Optional menu/taskbar

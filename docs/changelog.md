@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.25
+
+- Make the README user-facing with release-first installation, portable download
+  choices and a short presentation workflow. Document updates and optional Linux
+  launcher integration in the user guide; remove the stale quickstart version.
+
 ### 0.1.24
 
 - Separate elapsed time and clock into labeled boxes with independent Header,

@@ -1,5 +1,31 @@
 # Using PDF Presenter
 
+## Install and update
+
+Download a preview from the [releases page](https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases).
+Choose the portable ZIP for Windows x86_64 or portable `.tgz` for Linux x86_64,
+extract the whole archive, and run `pdf-presenter.exe` or `./pdf-presenter`.
+No Rust toolchain, Python or separate PDF renderer is needed to run the application.
+Linux uses the system desktop services and X11/Wayland libraries. Windows binaries
+are unsigned; macOS packages are not currently provided. Release assets include
+`SHA256SUMS` for checking downloads.
+
+For optional Linux application-menu and Wayland icon integration, keep the extracted
+folder in a permanent location and run `python3 install-linux-launcher.py` there.
+Python is only needed for this optional installer; no administrator privileges
+are required.
+
+To update, close PDF Presenter, download and extract the new portable release,
+and run its executable. Settings and saved layouts live in your user configuration
+directory, outside the extracted folder. If you installed the Linux launcher, rerun
+its installer from the new location so it points to the updated binary.
+
+These are preview releases: physical display routing, sleep prevention and
+clean-machine compatibility still need acceptance testing. Rehearse on the displays
+you plan to use before a live event.
+
+## Open your slides
+
 Run the portable executable and choose Menu → Open PDF or Open picture folder.
 You can also drop a file/folder on the presenter, pass its path on the command line,
 or use `--open PATH`. The source is read-only. A failed load keeps the previous show.
