@@ -8,7 +8,7 @@ It is not the native global configuration or a file saved alongside a PDF.
 The JSON envelope contains `version: 1`, `global` (null or a layout) and `projects`
 (an object mapping the fixed mock project IDs `ideas` and `workshop` to layouts).
 Each layout contains `previous`, `current`, `next`, `notes`, `elapsed` and `clock`.
-Each widget has a boolean `show` and an integer `size`. Current is always visible.
+Each widget has a boolean `show` and an integer `size`. Every widget, including current, can be hidden.
 Preview sizes are relative width weights: previous/next 30–160, current 60–200.
 Notes size is a height percentage 12–65; elapsed/clock sizes are CSS pixels 16–72.
 No document contents, notes, screen assignments or elapsed time are persisted.
@@ -28,7 +28,7 @@ Example (a complete all-project default without overrides):
 ```
 
 Reject unsupported versions, malformed envelopes, missing widgets, wrong types,
-non-integer/out-of-range sizes and a hidden current slide. Limit input to 20,000
+non-integer/out-of-range sizes. Limit input to 20,000
 JavaScript string code units. Ignore unknown fields/project IDs when normalizing.
 Failed reads load built-in defaults with a visible status. Failed saves/removals
 leave the current view and existing storage untouched; do not report success.
@@ -46,3 +46,6 @@ open that copy in an isolated Firefox profile. It displays a PASS/FAIL report an
 restores the original storage record. Covers round trips, project/global precedence,
 override removal, unsaved changes, unsupported/corrupt records and failed storage.
 It is not a native-application or physical-display acceptance test.
+
+Version 1 now accepts `current.show: false`; previously saved layouts remain valid.
+With all slide previews hidden, visible notes expand into the released space.

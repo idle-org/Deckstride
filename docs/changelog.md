@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.9
+
+- Allow hiding the current-slide preview in the HTML concept and saved layouts.
+  Hiding all previews expands visible notes; presentation status remains visible
+  in the footer regardless of preview visibility. Existing saved layouts still load.
+  Validation: JavaScript syntax and 24 Firefox browser checks, including hidden-current
+  persistence, all-preview space recovery and continued navigation/output status.
+
 ### 0.1.8
 
 - Add explicit project/all-project layout saves to the HTML concept using browser

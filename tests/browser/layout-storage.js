@@ -36,6 +36,28 @@ window.addEventListener('load', () => {
         layout.notes.size = 55;
         restoreLayout();
         check(layout.notes.size === 35, 'Unsaved edits are not persisted');
+        const presentationBefore = JSON.stringify(active);
+        const nextWidth = $('nextPreview').getBoundingClientRect().width;
+        $('show-current').checked = false;
+        $('show-current').dispatchEvent(new Event('change'));
+        check($('currentPreview').hidden && $('nextPreview').getBoundingClientRect().width > nextWidth, 'Hide current releases space to other previews');
+        saveLayout('project');
+        layout = structuredClone(layoutDefaults);
+        restoreLayout();
+        check(!layout.current.show && $('currentPreview').hidden, 'Hidden current round-trips in project layout');
+        saveLayout('global');
+        check(!readLayouts().global.current.show, 'Hidden current saved in global default');
+        const noteHeight = $('noteBox').clientHeight;
+        for (const key of ['previous', 'next']) { layout[key].show = false; }
+        applyLayout();
+        check($('previews').hidden && $('noteBox').clientHeight > noteHeight, 'All previews hidden gives space to notes');
+        check($('outputBadge').getBoundingClientRect().width > 0 && JSON.stringify(active) === presentationBefore, 'Presentation and its status survive hidden previews');
+        layout.notes.show = false;
+        applyLayout();
+        check($('next').getBoundingClientRect().width > 0, 'Navigation remains available with all content hidden');
+        $('show-current').checked = true;
+        $('show-current').dispatchEvent(new Event('change'));
+        check(!$('currentPreview').hidden && !$('previews').hidden, 'Current preview can be restored');
         const saved = localStorage.getItem(layoutStorageKey);
         Storage.prototype.setItem = () => { throw Error('Quota exceeded'); };
         saveLayout('project');

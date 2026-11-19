@@ -89,7 +89,7 @@ Depends on usable PDF output and acknowledged displayed-slide state.
 
 - [ ] T16: Show current/next previews, page selection and keyboard controls. Distinguish
   requested/preparing/displayed slides and blank state; keep every dialog on presenter.
-  Let the speaker independently show/hide and resize previous/next previews, notes,
+  Let the speaker independently show/hide and resize previous/current/next previews, notes,
   elapsed time and local HH:MM time. Hidden widgets reclaim space.
   Provide explicit project and all-project saves; project layouts override the global
   default, with an action to remove the current project override. Keep complete
