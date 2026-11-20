@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.38
+
+- Keep the All slides scrollbar at the right edge with a stable gutter. Fit
+  thumbnail columns to the available window width, using Preview size as the
+  preferred density while retaining slide aspect ratios and virtualized rows.
+
 ### 0.1.37
 
 - Double-click a thumbnail in All slides to open a resizable preview without

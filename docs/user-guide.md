@@ -264,3 +264,7 @@ The rule targets only All slides, not presenter or audience windows.
 In All slides, double-click a thumbnail to open a larger, resizable preview inside
 the browser. It does not change the presentation. Close it with its X or Escape.
 When Change on click is enabled, clicks switch the live slide and do not open previews.
+
+The All slides grid fills the browser width and adapts as you resize it. Preview
+size sets the preferred thumbnail density; tiles share the available row width,
+with slides fitted without distortion. The scrollbar stays at the right edge.

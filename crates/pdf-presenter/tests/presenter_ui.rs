@@ -723,3 +723,47 @@ fn browser_double_click_previews_without_live_navigation() {
         }
     }
 }
+
+#[test]
+fn browser_thumbnails_fill_resized_window_without_stretching_tiles() {
+    fn collect(shape: &egui::Shape, rects: &mut Vec<Rect>) {
+        match shape {
+            egui::Shape::Rect(r) if r.fill == egui::Color32::from_rgb(18, 28, 31) => {
+                rects.push(r.rect)
+            }
+            egui::Shape::Vec(shapes) => shapes.iter().for_each(|s| collect(s, rects)),
+            _ => {}
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.deck.as_mut().unwrap().names = (0..1000).map(|i| format!("Slide {i}")).collect();
+    let mut native = UiState::default();
+    for width in [500., 900., 1600.] {
+        let mut right = 0.;
+        let mut output = ctx.run_ui(input(Vec2::new(width, 900.)), |ui| {
+            right = ui.max_rect().right();
+            presenter_ui::browser(ui, &mut s, &mut native);
+        });
+        for _ in 0..3 {
+            output = ctx.run_ui(input(Vec2::new(width, 900.)), |ui| {
+                right = ui.max_rect().right();
+                presenter_ui::browser(ui, &mut s, &mut native);
+            });
+        }
+        let mut rects = vec![];
+        for shape in &output.shapes {
+            collect(&shape.shape, &mut rects);
+        }
+        assert!(!rects.is_empty());
+        let max_right = rects.iter().map(Rect::right).fold(0., f32::max);
+        assert!(
+            (max_right + egui::style::ScrollStyle::solid().allocated_width() - right).abs() < 1.
+        );
+        for rect in &rects {
+            assert!((rect.height() / rect.width() - 0.5625).abs() < 0.001);
+            assert!(rect.right() <= right);
+        }
+        assert!(s.visible_thumbs.len() < s.count());
+    }
+}

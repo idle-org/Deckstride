@@ -892,6 +892,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
 }
 pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
+    let browser_width = ui.available_width();
     let locale = ui.ctx().clone();
     ui.painter()
         .rect_filled(ui.max_rect(), 0., ui.visuals().panel_fill);
@@ -1002,61 +1003,75 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             }
         ));
     }
-    let size = s.settings.thumbnail_size;
-    let cols = (ui.available_width() / (size + 16.)).floor().max(1.) as usize;
+    // Reserve a stable gutter, so neither thumbnail sizing nor scrollbar placement
+    // depends on how much of the last row is populated.
+    ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
+    let width = (browser_width - ui.spacing().scroll.allocated_width()).max(1.);
+    let gap = 16.;
+    let cols = ((width + gap) / (s.settings.thumbnail_size + gap))
+        .floor()
+        .max(1.) as usize;
+    let size = ((width - gap * (cols - 1) as f32) / cols as f32).max(1.);
     let rows = s.count().div_ceil(cols);
     s.visible_thumbs.clear();
-    egui::ScrollArea::vertical().show_rows(ui, size * 0.5625 + 50., rows, |ui, range| {
-        for row in range {
-            ui.horizontal(|ui| {
-                for col in 0..cols {
-                    let page = row * cols + col;
-                    if page >= s.count() {
-                        break;
-                    }
-                    s.visible_thumbs.insert(page);
-                    ui.vertical(|ui| {
-                        let (rect, response) =
-                            ui.allocate_exact_size(Vec2::new(size, size * 0.5625), Sense::click());
-                        native.image(ui, s, page, rect);
-                        if s.browser_selected == page || s.requested == page {
-                            ui.painter().rect_stroke(
-                                rect,
-                                4.,
-                                egui::Stroke::new(
-                                    2_f32,
-                                    if s.requested == page {
-                                        ui.visuals().hyperlink_color
-                                    } else {
-                                        Color32::GOLD
-                                    },
-                                ),
-                                egui::StrokeKind::Inside,
+    egui::ScrollArea::vertical()
+        .max_width(browser_width)
+        .auto_shrink([false, false])
+        .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
+        .show_rows(ui, size * 0.5625 + 50., rows, |ui, range| {
+            ui.spacing_mut().item_spacing.x = gap;
+            for row in range {
+                ui.horizontal(|ui| {
+                    for col in 0..cols {
+                        let page = row * cols + col;
+                        if page >= s.count() {
+                            break;
+                        }
+                        s.visible_thumbs.insert(page);
+                        ui.vertical(|ui| {
+                            let (rect, response) = ui.allocate_exact_size(
+                                Vec2::new(size, size * 0.5625),
+                                Sense::click(),
                             );
-                        }
-                        if response.double_clicked() && !s.change_on_click {
-                            s.browser_preview = Some((s.generation, page));
-                        }
-                        if response.clicked() {
-                            s.browser_selected = page;
-                            if s.change_on_click {
-                                s.actions.push(Action::Go(page));
+                            native.image(ui, s, page, rect);
+                            if s.browser_selected == page || s.requested == page {
+                                ui.painter().rect_stroke(
+                                    rect,
+                                    4.,
+                                    egui::Stroke::new(
+                                        2_f32,
+                                        if s.requested == page {
+                                            ui.visuals().hyperlink_color
+                                        } else {
+                                            Color32::GOLD
+                                        },
+                                    ),
+                                    egui::StrokeKind::Inside,
+                                );
                             }
-                        }
-                        ui.label(format!(
-                            "{}{}",
-                            page + 1,
-                            if s.requested == page {
-                                tr(&locale, " · CURRENT")
-                            } else {
-                                ""
+                            if response.double_clicked() && !s.change_on_click {
+                                s.browser_preview = Some((s.generation, page));
                             }
-                        ));
-                    });
-                }
-            });
-        }
-    });
+                            if response.clicked() {
+                                s.browser_selected = page;
+                                if s.change_on_click {
+                                    s.actions.push(Action::Go(page));
+                                }
+                            }
+                            ui.label(format!(
+                                "{}{}",
+                                page + 1,
+                                if s.requested == page {
+                                    tr(&locale, " · CURRENT")
+                                } else {
+                                    ""
+                                }
+                            ));
+                        });
+                    }
+                });
+            }
+        });
     if let Some((_, page)) = s.browser_preview {
         // Keep preview requests in the browser's bounded asynchronous loading path.
         s.visible_thumbs.insert(page);
