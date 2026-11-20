@@ -92,12 +92,14 @@ pub struct RouteTrial {
 pub struct PresenterView {
     pub layout: Layout,
     pub layout_open: bool,
+    pub layout_target: Option<String>,
     pub menu_open: bool,
 }
 pub struct Studio {
     pub settings: Settings,
     pub layout: Layout,
     pub presenter_views: HashMap<String, PresenterView>,
+    pub presenter_views_dirty: bool,
     pub monitors: Vec<Monitor>,
     pub routes: Routes,
     pub draft_routes: Routes,
@@ -211,6 +213,7 @@ impl Studio {
             settings: Settings::default(),
             layout: Layout::default(),
             presenter_views: HashMap::new(),
+            presenter_views_dirty: false,
             monitors: vec![],
             routes: Routes::default(),
             draft_routes: Routes::default(),
@@ -459,7 +462,7 @@ impl Studio {
                 self.settings.blank_picture = false;
                 self.new_output = true;
                 self.pending_save = true;
-                self.status = "Blank presentation uses solid black.".into();
+                self.status = "Blank slides use solid black.".into();
             }
             #[cfg(target_os = "windows")]
             Action::RegisterPdfAssociation => {
@@ -966,7 +969,7 @@ impl Studio {
                     self.settings.blank_picture = true;
                     self.pending_save |= c.tag == 1;
                     self.new_output = true;
-                    self.status = "Blank presentation picture ready.".into();
+                    self.status = "Blank slides picture ready.".into();
                 }
                 Err(error) => self.status = format!("Blank picture: {error}"),
             }

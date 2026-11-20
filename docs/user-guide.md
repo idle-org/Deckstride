@@ -45,7 +45,7 @@ fullscreen for the session. `--list-monitors` lists CLI display numbers.
 ## Screens and presentation safety
 
 Both roles default to fullscreen. Displays lists connected screens: assign each
-Unused, Presenter or Presentation, including several screens per role. Swap groups
+Unused, Presenter or Slides, including several screens per role. Swap groups
 exchanges the draft roles. **Apply changes** previews the assignments
 and fullscreen choices while preserving the current output visibility. **Keep changes** confirms and saves;
 **Revert now**, Escape, or doing nothing for 15 seconds restores the previous setup.
@@ -57,9 +57,9 @@ Disabling either fullscreen option shows a positioning warning. Window placement
 can be unreliable in windowed mode, especially on Linux; switch back to fullscreen
 if you experience positioning issues.
 
-Before the first explicit slide navigation or Show presentation action, right-click
-either screen for **Swap displays…** (on output: **Swap presenter and presentation
-displays…**). This uses the same timed trial. Merely opening a PDF and automatically
+Before the first explicit slide navigation or Show slides action, right-click
+either screen for **Swap displays…** (on output: **Swap Presenter and Slides
+screens…**). This uses the same timed trial. Merely opening a PDF and automatically
 showing its first slide does not disable startup recovery. Once you start navigating
 or explicitly showing slides, the output startup menu disappears; use Displays on
 the presenter for later changes. Startup swap exchanges whole role groups, including
@@ -68,22 +68,23 @@ Confirmation and rollback preserve output visibility, including an explicit manu
 Unavailable screens fall back to surviving assignments and available distinct screens;
 the preferred saved setup remains available for reconnection. Review the setup after
 connecting/disconnecting displays: output visibility is preserved on available outputs.
-If the operator screen disappears and only previous presentation screens remain, the
+If the Presenter screen disappears and only previous Slides screens remain, the
 presenter is withheld to protect notes. Reconnect an operator screen, or restart in
 windowed rehearsal after verifying privacy. Duplicate monitor names are distinguished
 by enumeration order; verify identical models.
 
-Output is enabled by default when opening a document. Menu → Preferences → Show presentation
-automatically lets you save an opt-out. **Show presentation** restores blanked output; **Blank presentation** or B hides it. Navigation
+Output is enabled by default when opening a document. Menu → Preferences → Show slides
+automatically lets you save an opt-out. **Show slides** restores blanked output; **Blank slides** or B hides it. Navigation
 preserves blanking. Until an uncached requested slide is ready, output holds the last
 usable frame. The footer distinguishes requested and acknowledged displayed slides. A red
 **NO OUTPUT DISPLAYED** warning marks blanking, no assigned output or no document;
 it remains visible when the footer is hidden. Preparing output has a separate status.
 Escape cancels a pending slide number/menu or closes the browser; it does not
-leave presenter fullscreen or blank the presentation. Use **Enter fullscreen /
+leave Presenter fullscreen or blank Slides. Use **Enter fullscreen /
 Exit fullscreen** in the header to toggle both display roles. Like other
-display changes, this previews the change with Keep/Revert confirmation. While the presenter is connected, closing a presentation window blanks it; close a
-presenter or choose Menu → Quit to end the application.
+display changes, this previews the change with Keep/Revert confirmation. While a
+Presenter is connected, closing a Slides window blanks it; close a Presenter or
+choose Menu → Quit to end the application.
 
 Arrow keys and Page Up/Down navigate from the presenter or All slides, including
 while a presenter menu is open. Space moves forward; Shift+Space moves back. Notes
@@ -119,9 +120,10 @@ navigation or zoom.
 
 ## Layout and notes
 
-Each presenter display has its own Layout controls and saved layout. Open Layout
-on the display you want to customize; the panel identifies that display. Presets,
-widget visibility/sizes/positions and header/footer settings affect only that screen.
+Each Presenter screen has its own Layout controls and saved layout. Open Layout on
+any Presenter, then use **Edit layout for** to choose the Presenter screen you want
+to customize. Changes appear on that screen immediately. Presets, widget
+visibility/sizes/positions and header/footer settings affect only the selected screen.
 
 Layout independently enables and sizes previous/current/next slides, notes, elapsed
 time and the local HH:MM clock. Hidden widgets release their space. Notes wrap and
@@ -240,7 +242,7 @@ dependency/font notices without launching a window.
 ## Appearance and language
 
 Menu opens a dropdown below its button; click outside or press Escape to dismiss it.
-Displays uses numbered screen cards with direct Unused / Presenter / Presentation
+Displays uses numbered screen cards with direct Unused / Presenter / Slides
 choices. Repeat a role to mirror it, then choose **Apply changes** and confirm with
 **Keep changes**.
 
@@ -275,7 +277,7 @@ Timers and progress, choose **Elapsed time** or **Countdown** and set a countdow
 in minutes and seconds (up to 24 hours). **Start on first action** is enabled by
 default: timing begins on the first presentation action after opening or resetting.
 Automatic output after opening a document does not count. Turn it off for manual start.
-Rehearsal without an output screen starts on explicit navigation or Show presentation.
+Rehearsal without a Slides screen starts on explicit navigation or Show slides.
 Merely displaying the initial slide does not start it. Loading a new source resets the
 timer; pausing is never undone by slide navigation.
 Countdown stops at zero. Changing mode, duration or autostart resets the timer.
@@ -323,7 +325,7 @@ window-rule {
 ```
 
 See [Niri window rules](https://github.com/niri-wm/niri/wiki/Configuration%3A-Window-Rules).
-The rule targets only All slides, not presenter or audience windows.
+The rule targets only All slides, not Presenter or Slides windows.
 
 In All slides, double-click a thumbnail to open a larger, resizable preview inside
 the browser. It does not change the presentation. Close it with its X or Escape.
@@ -377,11 +379,11 @@ the original page-shaped area and its margins, enable **Menu → Preferences →
 Keep fitted page area when zooming**. This choice is saved globally. It changes
 the visible area, not the cached image resolution.
 
-- On the **current slide preview** or any **presentation screen**, scroll up/down
+- On the **current slide preview** or any **Slides screen**, scroll up/down
   to zoom in/out (1×–8×). The point under the mouse stays anchored when possible.
 - Hold the left mouse button and drag to move the enlarged image. Movement stops
   at the page edges. When viewing the whole page, **double-click to fit its width**
-  to the presentation screen (up to 8×) and aim the crop near the point clicked.
+  to the Slides screen (up to 8×) and aim the crop near the point clicked.
   Near page edges, the crop stops at the edge as closely as possible. Double-click again
   while zoomed to reset to the complete fitted page. Pages already filling the
   width stay unchanged. The optional fixed page area still applies if enabled.
@@ -420,10 +422,10 @@ background. Active decks are protected and may temporarily exceed either limit.
 The cleanup report shows removed and remaining data; deleted slides regenerate
 when reopened. Source documents and presenter notes are preserved.
 
-Choose **Preferences → Blank presentation → Choose picture…** to replace the
-black blanking screen with your own picture on every audience display. The app
+Choose **Preferences → Blank slides → Choose picture…** to replace the
+black blanking screen with your own picture on every Slides screen. The app
 saves a copy, fits the whole image against black, and remembers it across restarts.
 The original may then be moved or removed. Use **Use solid black** to reset.
 Pictures are resized to at most 2048 pixels per edge; animated images use a still
 frame. Slide zoom, annotations and slide background colors do not affect it.
-The existing Blank presentation button and B shortcut still hide/show slides.
+The existing Blank slides button and B shortcut still hide/show slides.

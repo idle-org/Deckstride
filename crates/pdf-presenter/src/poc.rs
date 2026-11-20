@@ -27,7 +27,7 @@ pub enum Action {
     Swap,
     /// Cycle the presenter display, keeping roles separate when possible.
     PresenterDisplay,
-    /// Cycle the audience display, keeping roles separate when possible.
+    /// Cycle the Slides screen, keeping roles separate when possible.
     AudienceDisplay,
     /// Toggle audience fullscreen.
     Fullscreen,
@@ -80,7 +80,7 @@ impl Model {
             return Err("Display index is out of range; use --list-monitors.".into());
         }
         if displays.len() > 1 && presenter == audience {
-            return Err("Choose different presenter and audience displays.".into());
+            return Err("Choose different Presenter and Slides screens.".into());
         }
         let fullscreen = !windowed;
         Ok(Self {

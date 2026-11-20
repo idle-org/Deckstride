@@ -61,7 +61,7 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Scroll to zoom · drag to pan · double-click to fit width / reset" => {
             "Molette pour zoomer · glisser pour déplacer · double-clic pour ajuster à la largeur / réinitialiser"
         }
-        "Use the current slide preview or a presentation screen. Changing slides resets zoom." => {
+        "Use the current slide preview or a Slides screen. Changing slides resets zoom." => {
             "Utilisez l’aperçu actuel ou un écran de présentation. Changer de diapositive réinitialise le zoom."
         }
         "Zoom reuses buffered images: no extra PDF rendering or image memory. Enlarged slides may look softer. Software drawing can slow down on large or multiple displays." => {
@@ -140,14 +140,14 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Displays" => "Écrans",
         "All slides" => "Toutes les diapositives",
         "Layout" => "Disposition",
-        "Show presentation" => "Afficher la présentation",
-        "Blank presentation" => "Masquer la présentation",
+        "Show slides" => "Afficher les diapositives",
+        "Blank slides" => "Masquer les diapositives",
         "Previous" => "Précédente",
         "Next" => "Suivante",
         "NO OUTPUT DISPLAYED" => "AUCUNE SORTIE AFFICHÉE",
         "PRESENTING" => "EN DIFFUSION",
         "PREPARING OUTPUT" => "PRÉPARATION DE LA SORTIE",
-        "Your presenter view" => "Votre vue présentateur",
+        "Presenter layout" => "Disposition du présentateur",
         "Balanced" => "Équilibrée",
         "Slide focus" => "Diapositive seule",
         "Notes first" => "Priorité aux notes",
@@ -187,13 +187,13 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         }
         "Unused" => "Inutilisé",
         "Presenter" => "Présentateur",
-        "Presentation" => "Présentation",
+        "Slides" => "Diapositives",
         "Swap groups" => "Inverser les groupes",
         "Window positioning can be unreliable in windowed mode, especially on Linux. Switch back to fullscreen if you experience positioning issues." => {
             "Le positionnement des fenêtres peut être peu fiable en mode fenêtré, surtout sous Linux. Revenez au plein écran si vous rencontrez des problèmes de positionnement."
         }
         "Presenter fullscreen" => "Présentateur en plein écran",
-        "Presentation fullscreen" => "Présentation en plein écran",
+        "Slides fullscreen" => "Diapositives en plein écran",
         "Apply and remember" => "Appliquer et mémoriser",
         "Output visibility is preserved while previewing display changes." => {
             "La visibilité de la sortie est conservée pendant l’aperçu des changements."
@@ -261,8 +261,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px." => {
             "Restez dans la RAM disponible : la mémoire virtuelle peut ralentir l’affichage. Rendu limité à 4096 px."
         }
-        "Show presentation automatically when opening a document" => {
-            "Afficher automatiquement la présentation à l’ouverture d’un document"
+        "Show slides automatically when opening a document" => {
+            "Afficher automatiquement les diapositives à l’ouverture d’un document"
         }
         "Quit" => "Quitter",
         "Theme" => "Thème",

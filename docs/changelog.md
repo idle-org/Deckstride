@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.79
+
+- Name the two display roles **Presenter** and **Slides** throughout the user-facing
+  interface and guide, while preserving existing settings and command-line fields.
+- Add an **Edit layout for** selector to every Presenter layout window. Any Presenter
+  can edit another connected Presenter screen live, and project/global save or reset
+  actions remain scoped to the selected screen.
+- Validation: formatting, Clippy, workspace tests, build, rustdoc and Python helper
+  tests pass. Headless line coverage is 68.66%; physical multi-screen behavior still
+  requires desktop validation.
+
 ### 0.1.78
 
 - Reuse one bounded base framebuffer per presentation window for pointer and

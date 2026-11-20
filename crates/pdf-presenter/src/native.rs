@@ -105,7 +105,7 @@ impl NativeWindow {
         let title = match role {
             Role::Presenter => "PDF Presenter — Presenter",
             Role::Browser => "PDF Presenter — All slides",
-            Role::Presentation => "PDF Presenter — Presentation",
+            Role::Presentation => "PDF Presenter — Slides",
         };
         let attributes = crate::artwork::window_attributes()
             .with_title(title)
@@ -307,10 +307,7 @@ impl NativeWindow {
                         );
                         if setup.setup_controls {
                             response.context_menu(|ui| {
-                                if ui
-                                    .button("Swap presenter and presentation displays…")
-                                    .clicked()
-                                {
+                                if ui.button("Swap Presenter and Slides screens…").clicked() {
                                     *display_action = Some(DisplayAction::Swap);
                                     ui.close();
                                 }
@@ -643,8 +640,7 @@ impl App {
             || (self.override_presenter.is_some()
                 && self.override_presenter == self.override_output)
         {
-            self.error =
-                Some("Choose distinct, connected presenter and presentation monitors".into());
+            self.error = Some("Choose distinct, connected Presenter and Slides screens".into());
             el.exit();
             return;
         }
@@ -682,9 +678,8 @@ impl App {
                         {
                             s.routes.presenter.push(presenter.id.clone());
                         } else {
-                            self.error = Some(
-                                "Presentation output requires a separate presenter monitor".into(),
-                            );
+                            self.error =
+                                Some("Slides output requires a separate Presenter screen".into());
                             el.exit();
                             return;
                         }
@@ -757,7 +752,7 @@ impl App {
             };
             #[cfg(target_os = "linux")]
             if role == Role::Browser {
-                // Prefer the presenter on the chosen monitor, never an audience window.
+                // Prefer the Presenter on the chosen monitor, never a Slides window.
                 let parent = self
                     .windows
                     .iter()
@@ -809,7 +804,7 @@ impl App {
                     h.state.blanked = true;
                     let _ = h.acks.try_send(Ack {
                         request_blank: true,
-                        status: "Presentation blanked from output keyboard.".into(),
+                        status: "Slides blanked from output keyboard.".into(),
                         ..Default::default()
                     });
                 }
@@ -954,7 +949,7 @@ impl App {
     fn poll(&mut self, el: &ActiveEventLoop) {
         let mut repaint = false;
         if let Some(s) = &mut self.studio {
-            repaint |= s.new_zoom || s.new_overlay;
+            repaint |= s.new_zoom || s.new_overlay || std::mem::take(&mut s.presenter_views_dirty);
             let before = (
                 s.generation,
                 s.frames.len(),
@@ -1277,7 +1272,8 @@ impl App {
                             );
                         } else {
                             let _ = host.acks.try_send(Ack {
-                                status: "Presentation RAM cannot fit active frames; increase the budget.".into(),
+                                status: "Slides RAM cannot fit active frames; increase the budget."
+                                    .into(),
                                 ..Default::default()
                             });
                         }
@@ -1416,7 +1412,7 @@ impl ApplicationHandler for App {
                     h.state.blanked = true;
                     let _ = h.acks.try_send(Ack {
                         request_blank: true,
-                        status: "Presentation blanked from output window.".into(),
+                        status: "Slides blanked from output window.".into(),
                         ..Default::default()
                     });
                     self.redraw();

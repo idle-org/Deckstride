@@ -829,6 +829,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let mut view = crate::studio::PresenterView {
         layout: s.layout.clone(),
         layout_open: s.layout_open,
+        layout_target: None,
         menu_open: s.menu_open,
     };
     presenter_view(ui, s, native, &mut view, None);
@@ -1274,9 +1275,9 @@ fn presenter_view(
                     if ui
                         .button(
                             egui::RichText::new(if s.blanked {
-                                tr(&locale, "Show presentation")
+                                tr(&locale, "Show slides")
                             } else {
-                                tr(&locale, "Blank presentation")
+                                tr(&locale, "Blank slides")
                             })
                             .color(if s.blanked {
                                 ui.visuals().error_fg_color
@@ -1459,8 +1460,40 @@ fn presenter_view(
         });
     }
     if view.layout_open {
+        let layout_choices = display.map_or_else(Vec::new, |_| {
+            s.routes
+                .presenter
+                .iter()
+                .filter_map(|id| {
+                    s.monitors
+                        .iter()
+                        .position(|monitor| &monitor.id == id)
+                        .map(|index| {
+                            (
+                                id.clone(),
+                                format!("Display {} · {}", index + 1, s.monitors[index].name),
+                            )
+                        })
+                })
+                .collect::<Vec<_>>()
+        });
+        let owner_display = display.map(str::to_owned);
+        let mut selected_layout_display = view
+            .layout_target
+            .clone()
+            .filter(|selected| layout_choices.iter().any(|(id, _)| id == selected))
+            .or_else(|| owner_display.clone());
+        let rendered_layout_display = selected_layout_display.clone();
+        let editing_remote = rendered_layout_display.is_some()
+            && rendered_layout_display.as_deref() != owner_display.as_deref();
+        let mut remote_view = editing_remote
+            .then(|| s.take_presenter_view(rendered_layout_display.as_deref().unwrap()));
+        let remote_layout_before = remote_view.as_ref().map(|remote| remote.layout.clone());
+        let layout = remote_view
+            .as_mut()
+            .map_or(&mut view.layout, |remote| &mut remote.layout);
         let mut open = true;
-        egui::Window::new(tr(&locale, "Your presenter view"))
+        egui::Window::new(tr(&locale, "Presenter layout"))
             .id(egui::Id::new("layout-window"))
             .open(&mut open)
             .default_size(Vec2::new(560., 680.).min(ctx.content_rect().size() - Vec2::splat(48.)))
@@ -1472,10 +1505,34 @@ fn presenter_view(
                 ui.spacing_mut().button_padding = Vec2::new(12., 7.);
                 ui.spacing_mut().interact_size.y = 30.;
                 ui.visuals_mut().slider_trailing_fill = true;
-                if let Some(display) = display {
-                    if let Some((index, monitor)) = s.monitors.iter().enumerate().find(|(_, m)| m.id == display) {
-                        ui.strong(format!("{} {} · {}", if s.settings.language.french() { "Écran" } else { "Display" }, index + 1, monitor.name));
-                    }
+                if display.is_some() {
+                    ui.horizontal(|ui| {
+                        ui.strong(if s.settings.language.french() {
+                            "Modifier la disposition de"
+                        } else {
+                            "Edit layout for"
+                        });
+                        let selected = selected_layout_display
+                            .as_ref()
+                            .and_then(|selected| {
+                                layout_choices
+                                    .iter()
+                                    .find(|(id, _)| id == selected)
+                                    .map(|(_, label)| label.as_str())
+                            })
+                            .unwrap_or("Presenter");
+                        egui::ComboBox::from_id_salt("layout-presenter-display")
+                            .selected_text(selected)
+                            .show_ui(ui, |ui| {
+                                for (id, label) in &layout_choices {
+                                    ui.selectable_value(
+                                        &mut selected_layout_display,
+                                        Some(id.clone()),
+                                        label,
+                                    );
+                                }
+                            });
+                    });
                     ui.label(if s.settings.language.french() {
                         "Disposition et sauvegardes propres à cet écran. Le fonctionnement du minuteur reste partagé."
                     } else {
@@ -1502,20 +1559,20 @@ fn presenter_view(
                         layout_section(ui, tr(&locale, "Start with a preset"), |ui| {
                             ui.horizontal_wrapped(|ui| {
                                 if ui.button(tr(&locale, "Balanced")).clicked() {
-                                    view.layout = Layout::default();
+                                    *layout = Layout::default();
                                 }
                                 if ui.button(tr(&locale, "Slide focus")).clicked() {
-                                    view.layout = Layout::default();
-                                    view.layout.previous.show = false;
-                                    view.layout.next.show = false;
-                                    view.layout.notes.show = false;
-                                    view.layout.elapsed.show = false;
-                                    view.layout.clock.show = false;
+                                    *layout = Layout::default();
+                                    layout.previous.show = false;
+                                    layout.next.show = false;
+                                    layout.notes.show = false;
+                                    layout.elapsed.show = false;
+                                    layout.clock.show = false;
                                 }
                                 if ui.button(tr(&locale, "Notes first")).clicked() {
-                                    view.layout.notes.show = true;
-                                    view.layout.notes.size = 60.;
-                                    view.layout.previous.show = false;
+                                    layout.notes.show = true;
+                                    layout.notes.size = 60.;
+                                    layout.previous.show = false;
                                 }
                             });
                         });
@@ -1527,7 +1584,7 @@ fn presenter_view(
                             widget(
                                 ui,
                                 tr(&locale, "Previous slide"),
-                                &mut view.layout.previous,
+                                &mut layout.previous,
                                 30.,
                                 160.,
                                 "Relative size",
@@ -1535,7 +1592,7 @@ fn presenter_view(
                             widget(
                                 ui,
                                 tr(&locale, "Current slide"),
-                                &mut view.layout.current,
+                                &mut layout.current,
                                 60.,
                                 200.,
                                 "Relative size",
@@ -1543,7 +1600,7 @@ fn presenter_view(
                             widget(
                                 ui,
                                 tr(&locale, "Next slide"),
-                                &mut view.layout.next,
+                                &mut layout.next,
                                 30.,
                                 160.,
                                 "Relative size",
@@ -1552,7 +1609,7 @@ fn presenter_view(
                             widget(
                                 ui,
                                 tr(&locale, "Notes"),
-                                &mut view.layout.notes,
+                                &mut layout.notes,
                                 12.,
                                 65.,
                                 "Space (%)",
@@ -1564,18 +1621,18 @@ fn presenter_view(
                             widget(
                                 ui,
                                 tr(&locale, "Elapsed time"),
-                                &mut view.layout.elapsed,
+                                &mut layout.elapsed,
                                 16.,
                                 320.,
                                 "Text size",
                             );
-                            ui.add_enabled_ui(view.layout.elapsed.show, |ui| {
+                            ui.add_enabled_ui(layout.elapsed.show, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(tr(&locale, "Elapsed time position"));
                                     timer_position(
                                         ui,
                                         "elapsed-position",
-                                        &mut view.layout.elapsed_position,
+                                        &mut layout.elapsed_position,
                                     );
                                 });
                             });
@@ -1583,40 +1640,40 @@ fn presenter_view(
                             widget(
                                 ui,
                                 tr(&locale, "Time · HH:MM"),
-                                &mut view.layout.clock,
+                                &mut layout.clock,
                                 16.,
                                 320.,
                                 "Text size",
                             );
-                            ui.add_enabled_ui(view.layout.clock.show, |ui| {
+                            ui.add_enabled_ui(layout.clock.show, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(tr(&locale, "Clock position"));
                                     timer_position(
                                         ui,
                                         "clock-position",
-                                        &mut view.layout.clock_position,
+                                        &mut layout.clock_position,
                                     );
                                 });
                             });
                             ui.separator();
                             ui.checkbox(
-                                &mut view.layout.slide_progress,
+                                &mut layout.slide_progress,
                                 tr(&locale, "Slide progress bar"),
                             );
                             ui.add_enabled(
-                                view.layout.slide_progress,
-                                egui::Slider::new(&mut view.layout.slide_progress_height, 8. ..=120.)
+                                layout.slide_progress,
+                                egui::Slider::new(&mut layout.slide_progress_height, 8. ..=120.)
                                     .text(tr(&locale, "Bar height")),
                             );
                         });
                         layout_section(ui, tr(&locale, "Header and footer"), |ui| {
                             ui.horizontal_wrapped(|ui| {
                                 ui.checkbox(
-                                    &mut view.layout.header,
+                                    &mut layout.header,
                                     tr(&locale, "Keep header visible"),
                                 );
                                 ui.checkbox(
-                                    &mut view.layout.footer,
+                                    &mut layout.footer,
                                     tr(&locale, "Keep footer visible"),
                                 );
                             });
@@ -1633,14 +1690,14 @@ fn presenter_view(
                         button(
                             ui,
                             tr(&locale, "Save layout · This project"),
-                            display.map_or(Action::SaveProject, |display| Action::SaveDisplayLayout { display: display.into(), project: true, layout: view.layout.clone() }),
+                            rendered_layout_display.as_deref().map_or(Action::SaveProject, |display| Action::SaveDisplayLayout { display: display.into(), project: true, layout: layout.clone() }),
                             &mut s.actions,
                         );
                     });
                     button(
                         ui,
                         tr(&locale, "Save layout · All projects"),
-                        display.map_or(Action::SaveGlobal, |display| Action::SaveDisplayLayout { display: display.into(), project: false, layout: view.layout.clone() }),
+                        rendered_layout_display.as_deref().map_or(Action::SaveGlobal, |display| Action::SaveDisplayLayout { display: display.into(), project: false, layout: layout.clone() }),
                         &mut s.actions,
                     );
                 });
@@ -1649,7 +1706,7 @@ fn presenter_view(
                         button(
                             ui,
                             tr(&locale, "Use all-projects default"),
-                            display.map_or(Action::UseGlobal, |display| Action::UseDisplayDefault(display.into())),
+                            rendered_layout_display.as_deref().map_or(Action::UseGlobal, |display| Action::UseDisplayDefault(display.into())),
                             &mut s.actions,
                         );
                     });
@@ -1657,6 +1714,14 @@ fn presenter_view(
                 });
             });
         view.layout_open = open;
+        view.layout_target = selected_layout_display;
+        if let Some(remote_view) = remote_view {
+            if remote_layout_before.as_ref() != Some(&remote_view.layout) {
+                s.presenter_views_dirty = true;
+            }
+            s.presenter_views
+                .insert(rendered_layout_display.unwrap(), remote_view);
+        }
     }
     if s.displays_open {
         let mut open = true;
@@ -1722,7 +1787,7 @@ fn presenter_view(
                                     for (i, name) in [
                                         tr(&locale, "Unused"),
                                         tr(&locale, "Presenter"),
-                                        tr(&locale, "Presentation"),
+                                        tr(&locale, "Slides"),
                                     ]
                                     .iter()
                                     .enumerate()
@@ -1755,7 +1820,7 @@ fn presenter_view(
                 );
                 ui.checkbox(
                     &mut s.draft_presentation_fullscreen,
-                    tr(&locale, "Presentation fullscreen"),
+                    tr(&locale, "Slides fullscreen"),
                 );
                 button(
                     ui,
@@ -2409,7 +2474,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     ui.menu_button(tr(&locale,"Preferences"), |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_width(370.);
-            ui.collapsing(if s.settings.language.french() { "Image de présentation masquée" } else { "Blank presentation" }, |ui| {
+            ui.collapsing(if s.settings.language.french() { "Image des diapositives masquées" } else { "Blank slides" }, |ui| {
                 ui.label(if s.settings.blank_picture {
                     if s.settings.language.french() { "Image personnalisée sélectionnée" } else { "Custom picture selected" }
                 } else if s.settings.language.french() { "Écran noir" } else { "Solid black" });
@@ -2419,7 +2484,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
                 if ui.add_enabled(s.initialized && !s.dialog_busy && (s.settings.blank_picture || s.blank_busy), egui::Button::new(if s.settings.language.french() { "Utiliser un écran noir" } else { "Use solid black" })).clicked() {
                     s.actions.push(Action::ClearBlankPicture);
                 }
-                ui.small(if s.settings.language.french() { "Une copie est conservée et ajustée à tous les écrans de présentation, sur fond noir." } else { "A copy is saved and fitted to all presentation displays against a black background." });
+                ui.small(if s.settings.language.french() { "Une copie est conservée et ajustée à tous les écrans Diapositives, sur fond noir." } else { "A copy is saved and fitted to all Slides screens against a black background." });
                 if s.blank_busy { ui.spinner(); }
             });
             ui.separator();
@@ -2442,7 +2507,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             ui.small(tr(&locale, "By default, zoom expands the page to fill the screen without stretching. Enable this option to keep the original page-shaped area."));
             ui.small(tr(&locale, "Zoom reuses buffered images: no extra PDF rendering or image memory. Enlarged slides may look softer. Software drawing can slow down on large or multiple displays."));
             ui.separator();
-            if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show presentation automatically when opening a document")).changed() {s.save_preferences();}
+            if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show slides automatically when opening a document")).changed() {s.save_preferences();}
             ui.separator();
             ui.label(tr(&locale,"RAM budget per process (presenter + output each use this allowance):"));
             if ui.add(egui::Slider::new(&mut s.settings.buffer_mib,64..=16384).text("MiB")).changed() {s.remember_buffer_budget();}
@@ -2469,12 +2534,23 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     if s.settings.zoom_enabled {
         ui.menu_button(tr(&locale, "Page zoom"), |ui| {
             let mut scale = s.zoom.view.scale;
-            if ui.add(egui::Slider::new(&mut scale, 1.0..=8.0).text("×")).changed() {
+            if ui
+                .add(egui::Slider::new(&mut scale, 1.0..=8.0).text("×"))
+                .changed()
+            {
                 s.set_zoom_from_action(s.zoom.view.zoom_at(scale, [0.5; 2]));
             }
-            if ui.button(tr(&locale, "Reset zoom")).clicked() { s.set_zoom_from_action(Default::default()); }
-            ui.small(tr(&locale, "Scroll to zoom · drag to pan · double-click to fit width / reset"));
-            ui.small(tr(&locale, "Use the current slide preview or a presentation screen. Changing slides resets zoom."));
+            if ui.button(tr(&locale, "Reset zoom")).clicked() {
+                s.set_zoom_from_action(Default::default());
+            }
+            ui.small(tr(
+                &locale,
+                "Scroll to zoom · drag to pan · double-click to fit width / reset",
+            ));
+            ui.small(tr(
+                &locale,
+                "Use the current slide preview or a Slides screen. Changing slides resets zoom.",
+            ));
         });
     }
     ui.separator();
@@ -2499,10 +2575,7 @@ pub fn output_display_recovery(
             egui::Sense::click(),
         )
         .context_menu(|ui| {
-            if ui
-                .button("Swap presenter and presentation displays…")
-                .clicked()
-            {
+            if ui.button("Swap Presenter and Slides screens…").clicked() {
                 action = Some(DisplayAction::Swap);
                 ui.close();
             }

@@ -18,8 +18,8 @@
 </p>
 
 PDF Presenter is a desktop presenter for **PDFs and picture folders**. Show slides
-fullscreen on your presentation screens while keeping previews, notes, timers and
-navigation on your presenter screen. Rehearse on one monitor, or mirror either view
+fullscreen on your Slides screens while keeping previews, notes, timers and
+navigation on your Presenter screens. Rehearse on one monitor, or mirror either view
 across several displays.
 
 ## Download, extract, present
@@ -41,7 +41,7 @@ are not yet available. Test your display setup before using it for a live event.
 
 1. **Open your slides.** Choose Menu → Open PDF or Open picture folder, or drop your
    file/folder onto the presenter. Pictures follow natural filename order.
-2. **Choose your screens.** In Displays, assign Presenter or Presentation to each
+2. **Choose your screens.** In Displays, assign Presenter or Slides to each
    monitor. Try the arrangement, then keep it or let it revert automatically.
 3. **Make room for what matters.** In Layout, resize or hide previews and notes,
    place the timers, and optionally enable slide progress. Save for this project
@@ -58,7 +58,7 @@ and an ETA when available; decks larger than the RAM budget use a rolling buffer
 Notes can come from the PDF or picture-folder sidecars. Themes and English/French
 controls are available in Menu. Optional shared slide zoom is available under
 **Menu → Preferences → Enable page zoom**; scroll to zoom, drag to pan, double-click
-to reset on the current preview or presentation screen.
+to reset on the current preview or Slides screen.
 
 ## Import your notes
 

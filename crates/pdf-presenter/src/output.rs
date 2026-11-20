@@ -52,7 +52,7 @@ pub struct HostState {
     pub blank_picture: Option<FrameInfo>,
     pub quit: bool,
 }
-/// Actual size of the reference presentation window, never presenter content.
+/// Actual size of the reference Slides window, never Presenter content.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct OutputViewport {
     pub monitor: String,
@@ -199,7 +199,7 @@ impl OutputLink {
                 terminate_output(&managed_child);
                 let _ = results.try_send(Ack {
                     status:
-                        "Presentation host stopped. Restarting with the current output visibility."
+                        "Slides process stopped. Restarting with the current output visibility."
                             .into(),
                     ..Default::default()
                 });

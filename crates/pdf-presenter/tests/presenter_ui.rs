@@ -380,7 +380,7 @@ fn output_recovery_buttons_dispatch_without_presenter_data() {
     for (label, trial) in [
         ("Keep changes", true),
         ("Revert now", true),
-        ("Swap presenter and presentation displays…", false),
+        ("Swap Presenter and Slides screens…", false),
     ] {
         let ctx = Context::default();
         let size = Vec2::new(1280., 720.);
@@ -437,7 +437,7 @@ fn output_recovery_buttons_dispatch_without_presenter_data() {
             ("Keep changes", Some(DisplayAction::Keep))
                 | ("Revert now", Some(DisplayAction::Revert))
                 | (
-                    "Swap presenter and presentation displays…",
+                    "Swap Presenter and Slides screens…",
                     Some(DisplayAction::Swap)
                 )
         ));
@@ -520,10 +520,7 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
     assert!(s.menu_open);
     click(&mut s, "Preferences");
     let auto_show = s.settings.auto_show;
-    click(
-        &mut s,
-        "Show presentation automatically when opening a document",
-    );
+    click(&mut s, "Show slides automatically when opening a document");
     assert_eq!(s.settings.auto_show, !auto_show);
     assert!(s.menu_open);
     click(&mut s, "Disk cache");
@@ -1699,4 +1696,90 @@ fn presenter_layouts_are_display_scoped_and_save_actions_keep_the_origin() {
     let restored = s.settings.for_display("two", "demo");
     s.presenter_views.clear();
     assert_eq!(s.take_presenter_view("two").layout, restored);
+}
+
+#[test]
+fn any_presenter_can_edit_and_save_another_presenter_layout() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(text) if text.galley.text() == label => {
+                Some(text.pos + text.galley.size() * 0.5)
+            }
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|shape| find(shape, label)),
+            _ => None,
+        }
+    }
+    let mut s = studio();
+    s.routes.presenter = vec!["one".into(), "two".into()];
+    s.routes.presentation.clear();
+    let mut first = s.take_presenter_view("one");
+    let first_layout = first.layout.clone();
+    first.layout_open = true;
+    first.layout_target = Some("two".into());
+    s.presenter_views.insert("one".into(), first);
+    let second = s.take_presenter_view("two");
+    assert!(second.layout.notes.show);
+    s.presenter_views.insert("two".into(), second);
+
+    let ctx = Context::default();
+    let mut native = UiState::default();
+    let size = Vec2::new(1400., 1000.);
+    let mut initial = ctx.run_ui(input(size), |ui| {
+        presenter_ui::presenter_on_display(ui, &mut s, &mut native, "one")
+    });
+    for _ in 0..2 {
+        initial = ctx.run_ui(input(size), |ui| {
+            presenter_ui::presenter_on_display(ui, &mut s, &mut native, "one")
+        });
+    }
+    for label in ["Edit layout for", "Display 2 · Secondary", "Slide focus"] {
+        assert!(
+            initial
+                .shapes
+                .iter()
+                .any(|shape| find(&shape.shape, label).is_some()),
+            "missing layout target control: {label}"
+        );
+    }
+
+    let mut click = |label: &str| {
+        let mut output = ctx.run_ui(input(size), |ui| {
+            presenter_ui::presenter_on_display(ui, &mut s, &mut native, "one")
+        });
+        for _ in 0..2 {
+            output = ctx.run_ui(input(size), |ui| {
+                presenter_ui::presenter_on_display(ui, &mut s, &mut native, "one")
+            });
+        }
+        let position = output
+            .shapes
+            .iter()
+            .find_map(|shape| find(&shape.shape, label))
+            .unwrap();
+        for pressed in [true, false] {
+            let mut raw = input(size);
+            raw.events = vec![
+                egui::Event::PointerMoved(position),
+                egui::Event::PointerButton {
+                    pos: position,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ];
+            let _ = ctx.run_ui(raw, |ui| {
+                presenter_ui::presenter_on_display(ui, &mut s, &mut native, "one")
+            });
+        }
+    };
+    click("Slide focus");
+    click("Save layout · All projects");
+    drop(click);
+
+    assert_eq!(s.presenter_views["one"].layout, first_layout);
+    assert!(!s.presenter_views["two"].layout.notes.show);
+    assert!(s.presenter_views_dirty);
+    assert!(s.actions.iter().any(
+        |action| matches!(action, Action::SaveDisplayLayout { display, .. } if display == "two")
+    ));
 }
