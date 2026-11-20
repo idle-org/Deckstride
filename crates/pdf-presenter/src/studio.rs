@@ -93,6 +93,7 @@ pub struct PresenterView {
     pub layout: Layout,
     pub layout_open: bool,
     pub layout_target: Option<String>,
+    pub preferences_open: bool,
     pub menu_open: bool,
 }
 pub struct Studio {
@@ -135,6 +136,7 @@ pub struct Studio {
     pub visible_thumbs: HashSet<usize>,
     pub layout_open: bool,
     pub displays_open: bool,
+    pub preferences_open: bool,
     pub menu_open: bool,
     pub browser_open: bool,
     pub browser_selected: usize,
@@ -249,6 +251,7 @@ impl Studio {
             visible_thumbs: HashSet::new(),
             layout_open: false,
             displays_open: false,
+            preferences_open: false,
             menu_open: false,
             browser_open: false,
             browser_selected: 0,

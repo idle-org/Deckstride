@@ -15,7 +15,7 @@ folder in a permanent location and run `python3 install-linux-launcher.py` there
 Python is only needed for this optional installer; no administrator privileges
 are required.
 
-On Windows, use **Menu → Preferences → Set as default PDF app…** to register the
+On Windows, use **Menu → Preferences… → Set as default PDF app…** to register the
 portable executable for the current user. Windows opens
 Default Apps for the required confirmation. Once PDF Presenter is selected for
 `.pdf`, Explorer uses the icon embedded in `pdf-presenter.exe` for PDF files. Keep
@@ -73,7 +73,7 @@ presenter is withheld to protect notes. Reconnect an operator screen, or restart
 windowed rehearsal after verifying privacy. Duplicate monitor names are distinguished
 by enumeration order; verify identical models.
 
-Output is enabled by default when opening a document. Menu → Preferences → Show slides
+Output is enabled by default when opening a document. Menu → Show slides
 automatically lets you save an opt-out. **Show slides** restores blanked output; **Blank slides** or B hides it. Navigation
 preserves blanking. Until an uncached requested slide is ready, output holds the last
 usable frame. The footer distinguishes requested and acknowledged displayed slides. A red
@@ -173,10 +173,10 @@ Opening a show starts two supervised preparation workers. The current slide gets
 Then the **entire deck** is prepared at the largest connected role screen's pixel
 edge, preserving slide aspect ratio. Smaller screens use that same frame scaled to
 fit; separate copies for every smaller resolution would waste RAM. The current
-renderer limit is 4096 pixels per side, shown in Menu → Preferences. Resolution changes start a
+renderer limit is 4096 pixels per side, shown in the Preferences window. Resolution changes start a
 new preparation pass with a new buffer identity.
 
-Processed frames are kept in the application's persistent cache; Menu → Preferences → Storage locations shows its
+Processed frames are kept in the application's persistent cache; **Menu → Preferences… → Storage and preparation** shows its
 location. Reopening with unchanged source contents, resolution and renderer reuses
 those frames without PDF rasterization or image decoding. It still verifies source
 identity/checksums and reads frames into RAM: a restart cannot literally take zero
@@ -196,7 +196,7 @@ Navigation then performs no application slide-file reads, PDF rendering or image
 decoding. Raster composition still happens, and the OS can page memory under pressure.
 The entire deck stays resident when it fits the configured RAM budget.
 
-Menu → Preferences → RAM budget controls the decoded-slide allowance for **each process**, default
+**Menu → Preferences… → Memory and cache** controls the decoded-slide allowance for **each process**, default
 15% of available RAM, with a soft 512 MiB minimum that yields when it would
 exceed 20% of available RAM. The adjustable range is 64–16384 MiB. Saved budgets
 are preserved; the automatic default is chosen when no budget has been saved. Presenter and output can each consume
@@ -242,6 +242,9 @@ dependency/font notices without launching a window.
 ## Appearance and language
 
 Menu opens a dropdown below its button; click outside or press Escape to dismiss it.
+Page zoom, fitted-area zoom and automatic Slides output stay in this dropdown for
+quick access. **Preferences…** opens a separate resizable window for blank-output
+artwork, RAM and cache controls, preparation/storage details and Windows integration.
 Displays uses numbered screen cards with direct Unused / Presenter / Slides
 choices. Repeat a role to mirror it, then choose **Apply changes** and confirm with
 **Keep changes**.
@@ -369,14 +372,14 @@ and [format contract](interfaces/presentation-notes.md#importing-txt-and-markdow
 
 ## Zoom and move around a slide
 
-Zoom is **off by default**. Enable **Menu → Preferences → Enable page zoom**.
+Zoom is **off by default**. Enable **Menu → Enable page zoom**.
 The preference is saved globally; it does not change presentation visibility.
 
 By default, zoom expands the page into the available screen area without stretching.
 For example, an A4 portrait page fills a widescreen display as you zoom in; drag to
 see the cropped top/bottom. Each screen adapts to its own dimensions. To retain
-the original page-shaped area and its margins, enable **Menu → Preferences →
-Keep fitted page area when zooming**. This choice is saved globally. It changes
+the original page-shaped area and its margins, enable **Menu → Keep fitted page
+area when zooming**. This choice is saved globally. It changes
 the visible area, not the cached image resolution.
 
 - On the **current slide preview** or any **Slides screen**, scroll up/down
@@ -403,8 +406,8 @@ cache rewrite or disk access is triggered by changing the zoom. This prioritizes
 response time; text/images may look softer when enlarged, especially while only a
 low-resolution preview is available. Normal background preparation continues.
 
-The Preferences disclaimer explains that software drawing can slow down on large
-or multiple displays. If three consecutive zoomed frames take over 33 ms each to
+Software drawing can slow down on large or multiple displays. If three consecutive
+zoomed frames take over 33 ms each to
 render/present on a window, a **Zoom performance** warning appears on the presenter
 with reset, disable and keep-enabled choices. This is a detected frame-budget
 warning, not proof that zoom caused the delay. It does not blank or interrupt the
@@ -412,7 +415,7 @@ output. It cannot predict compositor/hardware delays or guarantee a frame rate.
 
 ### Disk cache cleanup
 
-In **Menu → Preferences → Disk cache**, set the maximum total size in MiB and
+In **Menu → Preferences… → Memory and cache**, set the maximum total size in MiB and
 lifetime in days since rendering (defaults: 10 GiB and 30 days). Automatic cleanup runs once at startup, after initial document loading and slide
 preparation complete, deleting expired files and then the oldest files to meet the
 size target. Changing limits takes effect at the next startup; manual expunge remains
@@ -422,7 +425,7 @@ background. Active decks are protected and may temporarily exceed either limit.
 The cleanup report shows removed and remaining data; deleted slides regenerate
 when reopened. Source documents and presenter notes are preserved.
 
-Choose **Preferences → Blank slides → Choose picture…** to replace the
+Choose **Menu → Preferences… → Blank Slides image → Choose picture…** to replace the
 black blanking screen with your own picture on every Slides screen. The app
 saves a copy, fits the whole image against black, and remembers it across restarts.
 The original may then be moved or removed. Use **Use solid black** to reset.

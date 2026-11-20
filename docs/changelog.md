@@ -6,6 +6,11 @@
 
 - Disclose the project's MIT license, LLM-generated or LLM-assisted development,
   human review and professional use in the public README.
+- Replace the crowded Preferences submenu with a resizable, scrollable Preferences
+  window for blank-output artwork, Windows PDF integration, RAM, disk cache, cleanup,
+  preparation status and storage paths. Each Presenter owns its own window instance.
+- Keep page zoom, fitted-area zoom behavior and automatic Slides output as direct
+  quick settings in Menu.
 - Linux formatting, Clippy, tests, build, rustdoc and Python helper checks pass.
   Headless line coverage is 68.51%, below the 75% floor; no application behavior
   changed, and physical-display validation was not run.

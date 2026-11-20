@@ -62,10 +62,11 @@ fn native_ui_renders_real_previews_notes_and_all_control_panels() {
     let mut s = studio();
     let mut ui = UiState::default();
     for size in [Vec2::new(1280., 900.), Vec2::new(800., 600.)] {
-        for panel in 0..4 {
+        for panel in 0..5 {
             s.menu_open = panel == 1;
             s.layout_open = panel == 2;
             s.displays_open = panel == 3;
+            s.preferences_open = panel == 4;
             s.jump = "12".into();
             let output = ctx.run_ui(input(size), |root| {
                 presenter_ui::presenter(root, &mut s, &mut ui)
@@ -455,7 +456,7 @@ fn output_recovery_buttons_dispatch_without_presenter_data() {
 }
 
 #[test]
-fn nested_settings_remain_interactive_and_menu_still_dismisses() {
+fn quick_settings_and_preferences_window_remain_interactive() {
     fn position(shapes: &[egui::epaint::ClippedShape], label: &str) -> Pos2 {
         fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
             match shape {
@@ -518,20 +519,26 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
         pdf_presenter::localization::Language::System
     );
     assert!(s.menu_open);
-    click(&mut s, "Preferences");
+    let zoom_enabled = s.settings.zoom_enabled;
+    click(&mut s, "Enable page zoom");
+    assert_eq!(s.settings.zoom_enabled, !zoom_enabled);
+    assert!(s.menu_open);
+    let fitted = s.settings.zoom_keep_fitted_area;
+    click(&mut s, "Keep fitted page area when zooming");
+    assert_eq!(s.settings.zoom_keep_fitted_area, !fitted);
+    assert!(s.menu_open);
     let auto_show = s.settings.auto_show;
     click(&mut s, "Show slides automatically when opening a document");
     assert_eq!(s.settings.auto_show, !auto_show);
     assert!(s.menu_open);
-    click(&mut s, "Disk cache");
-    click(&mut s, "Maximum total size (MiB)");
-    click(&mut s, "Expire after (days since rendering)");
+    click(&mut s, "Preferences…");
+    assert!(s.preferences_open);
+    assert!(!s.menu_open);
     click(&mut s, "Expunge unused cache now");
-    assert!(s.cache_busy, "The Preferences button must submit cleanup");
-    assert!(s.menu_open);
-    click(&mut s, "Disk cache");
-    click(&mut s, "Storage locations");
-    assert!(s.menu_open);
+    assert!(s.cache_busy, "The Preferences window must submit cleanup");
+    assert!(s.preferences_open);
+    click(&mut s, "Close");
+    assert!(!s.preferences_open);
     click(&mut s, "Reset timer");
     assert!(!s.timer.running(std::time::Instant::now(), s.timer_limit()));
     assert!(
@@ -1696,6 +1703,44 @@ fn presenter_layouts_are_display_scoped_and_save_actions_keep_the_origin() {
     let restored = s.settings.for_display("two", "demo");
     s.presenter_views.clear();
     assert_eq!(s.take_presenter_view("two").layout, restored);
+}
+
+#[test]
+fn preferences_window_stays_on_the_presenter_that_opened_it() {
+    fn contains(shape: &egui::Shape, label: &str) -> bool {
+        match shape {
+            egui::Shape::Text(text) => text.galley.text() == label,
+            egui::Shape::Vec(shapes) => shapes.iter().any(|shape| contains(shape, label)),
+            _ => false,
+        }
+    }
+    let mut s = studio();
+    s.routes.presenter = vec!["one".into(), "two".into()];
+    s.routes.presentation.clear();
+    let mut first = s.take_presenter_view("one");
+    first.preferences_open = true;
+    s.presenter_views.insert("one".into(), first);
+    let second = s.take_presenter_view("two");
+    s.presenter_views.insert("two".into(), second);
+    let contexts = [Context::default(), Context::default()];
+    let mut natives = [UiState::default(), UiState::default()];
+    let size = Vec2::new(1280., 900.);
+    let mut render = |index: usize, display: &str| {
+        let mut output = contexts[index].run_ui(input(size), |ui| {
+            presenter_ui::presenter_on_display(ui, &mut s, &mut natives[index], display)
+        });
+        for _ in 0..2 {
+            output = contexts[index].run_ui(input(size), |ui| {
+                presenter_ui::presenter_on_display(ui, &mut s, &mut natives[index], display)
+            });
+        }
+        output
+            .shapes
+            .iter()
+            .any(|shape| contains(&shape.shape, "Memory and cache"))
+    };
+    assert!(render(0, "one"));
+    assert!(!render(1, "two"));
 }
 
 #[test]

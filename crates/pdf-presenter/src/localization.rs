@@ -91,6 +91,10 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         }
         "Appearance" => "Apparence",
         "Preferences" => "Préférences",
+        "Preferences…" => "Préférences…",
+        "Quick settings" => "Réglages rapides",
+        "Memory and cache" => "Mémoire et cache",
+        "Storage and preparation" => "Stockage et préparation",
         "Storage locations" => "Emplacements de stockage",
         "Preparing slide…" => "Préparation de la diapositive…",
         "Slide ready" => "Diapositive prête",

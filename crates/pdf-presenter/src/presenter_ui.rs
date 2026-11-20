@@ -830,6 +830,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         layout: s.layout.clone(),
         layout_open: s.layout_open,
         layout_target: None,
+        preferences_open: s.preferences_open,
         menu_open: s.menu_open,
     };
     presenter_view(ui, s, native, &mut view, None);
@@ -838,6 +839,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     view.layout.timer_autostart = s.layout.timer_autostart;
     s.layout = view.layout;
     s.layout_open = view.layout_open;
+    s.preferences_open = view.preferences_open;
     s.menu_open = view.menu_open;
 }
 /// A native presenter always edits and renders the layout of its own monitor.
@@ -1235,7 +1237,7 @@ fn presenter_view(
                                     (screen.bottom() - trigger.rect.bottom() - 16.)
                                         .clamp(80., 720.),
                                 )
-                                .show(ui, |ui| menu(ui, s));
+                                .show(ui, |ui| menu(ui, s, &mut view.preferences_open));
                         });
                     view.menu_open = menu_open;
                     ui.add_sized(
@@ -1722,6 +1724,9 @@ fn presenter_view(
             s.presenter_views
                 .insert(rendered_layout_display.unwrap(), remote_view);
         }
+    }
+    if view.preferences_open {
+        preferences_window(&ctx, s, &mut view.preferences_open);
     }
     if s.displays_open {
         let mut open = true;
@@ -2367,7 +2372,208 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
 }
 
-fn menu(ui: &mut Ui, s: &mut Studio) {
+fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
+    let locale = ctx.clone();
+    let mut window_open = true;
+    let mut close_requested = false;
+    let screen = ctx.content_rect().size();
+    egui::Window::new(tr(&locale, "Preferences"))
+        .id(egui::Id::new("preferences-window"))
+        .open(&mut window_open)
+        .collapsible(false)
+        .resizable(true)
+        .default_size(Vec2::new(620., 640.).min(screen - Vec2::splat(32.)))
+        .min_size(Vec2::new(360., 320.))
+        .max_size((screen - Vec2::splat(24.)).max(Vec2::splat(1.)))
+        .show(ctx, |ui| {
+            ui.spacing_mut().item_spacing = Vec2::new(8., 8.);
+            let scroll_height = (ui.available_height() - 52.).max(180.);
+            egui::ScrollArea::vertical()
+                .id_salt("preferences-scroll")
+                .auto_shrink([false, false])
+                .max_height(scroll_height)
+                .show(ui, |ui| {
+                    layout_section(
+                        ui,
+                        if s.settings.language.french() {
+                            "Image des diapositives masquées"
+                        } else {
+                            "Blank Slides image"
+                        },
+                        |ui| {
+                            ui.label(if s.settings.blank_picture {
+                                if s.settings.language.french() {
+                                    "Image personnalisée sélectionnée"
+                                } else {
+                                    "Custom picture selected"
+                                }
+                            } else if s.settings.language.french() {
+                                "Écran noir"
+                            } else {
+                                "Solid black"
+                            });
+                            ui.horizontal_wrapped(|ui| {
+                                if ui
+                                    .add_enabled(
+                                        s.initialized && !s.dialog_busy && !s.blank_busy,
+                                        egui::Button::new(if s.settings.language.french() {
+                                            "Choisir une image…"
+                                        } else {
+                                            "Choose picture…"
+                                        }),
+                                    )
+                                    .clicked()
+                                {
+                                    s.actions.push(Action::PickBlankPicture);
+                                }
+                                if ui
+                                    .add_enabled(
+                                        s.initialized
+                                            && !s.dialog_busy
+                                            && (s.settings.blank_picture || s.blank_busy),
+                                        egui::Button::new(if s.settings.language.french() {
+                                            "Utiliser un écran noir"
+                                        } else {
+                                            "Use solid black"
+                                        }),
+                                    )
+                                    .clicked()
+                                {
+                                    s.actions.push(Action::ClearBlankPicture);
+                                }
+                                if s.blank_busy {
+                                    ui.spinner();
+                                }
+                            });
+                            ui.small(if s.settings.language.french() {
+                                "Une copie est conservée et ajustée à tous les écrans de diapositives, sur fond noir."
+                            } else {
+                                "A copy is saved and fitted to all Slides screens against a black background."
+                            });
+                        },
+                    );
+                    #[cfg(target_os = "windows")]
+                    {
+                        ui.add_space(8.);
+                        layout_section(
+                            ui,
+                            if s.settings.language.french() {
+                                "Application PDF par défaut"
+                            } else {
+                                "Default PDF application"
+                            },
+                            |ui| {
+                                ui.label(if s.settings.language.french() {
+                                    "Enregistre PDF Presenter et son icône pour les fichiers PDF de votre compte Windows."
+                                } else {
+                                    "Register PDF Presenter and its icon for PDF files in your Windows account."
+                                });
+                                if ui
+                                    .button(if s.settings.language.french() {
+                                        "Définir comme application PDF par défaut…"
+                                    } else {
+                                        "Set as default PDF app…"
+                                    })
+                                    .clicked()
+                                {
+                                    s.actions.push(Action::RegisterPdfAssociation);
+                                }
+                                ui.small(if s.settings.language.french() {
+                                    "Windows ouvrira Applications par défaut : sélectionnez PDF Presenter pour .pdf afin de confirmer."
+                                } else {
+                                    "Windows will open Default Apps; select PDF Presenter for .pdf to confirm."
+                                });
+                            },
+                        );
+                    }
+                    ui.add_space(8.);
+                    layout_section(ui, tr(&locale, "Memory and cache"), |ui| {
+                        ui.label(tr(
+                            &locale,
+                            "RAM budget per process (presenter + output each use this allowance):",
+                        ));
+                        if ui
+                            .add(
+                                egui::Slider::new(&mut s.settings.buffer_mib, 64..=16384)
+                                    .text("MiB"),
+                            )
+                            .changed()
+                        {
+                            s.remember_buffer_budget();
+                        }
+                        ui.small(tr(
+                            &locale,
+                            "Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px.",
+                        ));
+                        ui.separator();
+                        let mut changed = false;
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(tr(&locale, "Maximum total size (MiB)"));
+                            changed |= ui
+                                .add(
+                                    egui::DragValue::new(&mut s.settings.disk_cache.max_mib)
+                                        .range(64..=1048576)
+                                        .speed(64),
+                                )
+                                .changed();
+                        });
+                        ui.horizontal_wrapped(|ui| {
+                            ui.label(tr(&locale, "Expire after (days since rendering)"));
+                            changed |= ui
+                                .add(
+                                    egui::DragValue::new(&mut s.settings.disk_cache.max_days)
+                                        .range(1..=3650),
+                                )
+                                .changed();
+                        });
+                        if changed {
+                            s.remember_cache_policy();
+                        }
+                        ui.small(tr(
+                            &locale,
+                            "Oldest files are removed first. Active decks are protected and may exceed the limit. Automatic cleanup runs once at startup, after loading and preparation finish.",
+                        ));
+                        if ui
+                            .add_enabled(
+                                !s.cache_busy && !s.loading && s.initialized,
+                                egui::Button::new(tr(&locale, "Expunge unused cache now")),
+                            )
+                            .clicked()
+                        {
+                            s.clean_cache(true);
+                        }
+                        if s.cache_busy {
+                            ui.spinner();
+                        }
+                        ui.small(&s.cache_status);
+                    });
+                    ui.add_space(8.);
+                    layout_section(ui, tr(&locale, "Storage and preparation"), |ui| {
+                        ui.label(s.preparation_status());
+                        ui.separator();
+                        ui.label(format!(
+                            "{}: {}",
+                            if s.settings.language.french() {
+                                "Diapositives préparées"
+                            } else {
+                                "Processed slides"
+                            },
+                            s.cache_path.display()
+                        ));
+                        ui.label(format!("Configuration: {}", s.settings_path.display()));
+                    });
+                });
+            ui.separator();
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                close_requested = ui
+                    .add(egui::Button::new(tr(&locale, "Close")).min_size(Vec2::new(100., 32.)))
+                    .clicked();
+            });
+        });
+    *open = window_open && !close_requested;
+}
+
+fn menu(ui: &mut Ui, s: &mut Studio, preferences_open: &mut bool) {
     let locale = ui.ctx().clone();
     ui.set_min_width(260.);
     let actions_before = s.actions.len();
@@ -2471,67 +2677,43 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             }
         });
     });
-    ui.menu_button(tr(&locale,"Preferences"), |ui| {
-        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-            ui.set_width(370.);
-            ui.collapsing(if s.settings.language.french() { "Image des diapositives masquées" } else { "Blank slides" }, |ui| {
-                ui.label(if s.settings.blank_picture {
-                    if s.settings.language.french() { "Image personnalisée sélectionnée" } else { "Custom picture selected" }
-                } else if s.settings.language.french() { "Écran noir" } else { "Solid black" });
-                if ui.add_enabled(s.initialized && !s.dialog_busy && !s.blank_busy, egui::Button::new(if s.settings.language.french() { "Choisir une image…" } else { "Choose picture…" })).clicked() {
-                    s.actions.push(Action::PickBlankPicture);
-                }
-                if ui.add_enabled(s.initialized && !s.dialog_busy && (s.settings.blank_picture || s.blank_busy), egui::Button::new(if s.settings.language.french() { "Utiliser un écran noir" } else { "Use solid black" })).clicked() {
-                    s.actions.push(Action::ClearBlankPicture);
-                }
-                ui.small(if s.settings.language.french() { "Une copie est conservée et ajustée à tous les écrans Diapositives, sur fond noir." } else { "A copy is saved and fitted to all Slides screens against a black background." });
-                if s.blank_busy { ui.spinner(); }
-            });
-            ui.separator();
-            #[cfg(target_os = "windows")]
-            ui.group(|ui| {
-                ui.strong(if s.settings.language.french() { "Application PDF par défaut" } else { "Default PDF application" });
-                ui.label(if s.settings.language.french() { "Enregistre PDF Presenter et son icône pour les fichiers PDF de votre compte Windows." } else { "Register PDF Presenter and its icon for PDF files in your Windows account." });
-                if ui.button(if s.settings.language.french() { "Définir comme application PDF par défaut…" } else { "Set as default PDF app…" }).clicked() {
-                    s.actions.push(Action::RegisterPdfAssociation);
-                }
-                ui.small(if s.settings.language.french() { "Windows ouvrira Applications par défaut : sélectionnez PDF Presenter pour .pdf afin de confirmer." } else { "Windows will open Default Apps; select PDF Presenter for .pdf to confirm." });
-            });
-            #[cfg(target_os = "windows")]
-            ui.separator();
-            let mut enabled = s.settings.zoom_enabled;
-            if ui.checkbox(&mut enabled, tr(&locale, "Enable page zoom")).changed() { s.enable_zoom(enabled); }
-            if ui.checkbox(&mut s.settings.zoom_keep_fitted_area, tr(&locale, "Keep fitted page area when zooming")).changed() {
-                s.set_zoom(s.zoom.view);
-                s.save_preferences();
-            }
-            ui.small(tr(&locale, "By default, zoom expands the page to fill the screen without stretching. Enable this option to keep the original page-shaped area."));
-            ui.small(tr(&locale, "Zoom reuses buffered images: no extra PDF rendering or image memory. Enlarged slides may look softer. Software drawing can slow down on large or multiple displays."));
-            ui.separator();
-            if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show slides automatically when opening a document")).changed() {s.save_preferences();}
-            ui.separator();
-            ui.label(tr(&locale,"RAM budget per process (presenter + output each use this allowance):"));
-            if ui.add(egui::Slider::new(&mut s.settings.buffer_mib,64..=16384).text("MiB")).changed() {s.remember_buffer_budget();}
-            ui.small(tr(&locale,"Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px."));
-            ui.separator();
-            ui.collapsing(tr(&locale, "Disk cache"), |ui| {
-                let mut changed = false;
-                ui.label(tr(&locale, "Maximum total size (MiB)"));
-                changed |= ui.add(egui::DragValue::new(&mut s.settings.disk_cache.max_mib).range(64..=1048576).speed(64)).changed();
-                ui.label(tr(&locale, "Expire after (days since rendering)"));
-                changed |= ui.add(egui::DragValue::new(&mut s.settings.disk_cache.max_days).range(1..=3650)).changed();
-                if changed { s.remember_cache_policy(); }
-                ui.small(tr(&locale, "Oldest files are removed first. Active decks are protected and may exceed the limit. Automatic cleanup runs once at startup, after loading and preparation finish."));
-                if ui.add_enabled(!s.cache_busy && !s.loading && s.initialized, egui::Button::new(tr(&locale, "Expunge unused cache now"))).clicked() { s.clean_cache(true); }
-                ui.small(&s.cache_status);
-            });
-            ui.label(s.preparation_status());
-            ui.collapsing(tr(&locale,"Storage locations"), |ui| {
-                ui.label(format!("{}: {}",if s.settings.language.french(){"Diapositives préparées"}else{"Processed slides"},s.cache_path.display()));
-                ui.label(format!("Configuration: {}",s.settings_path.display()));
-            });
-        });
-    });
+    ui.separator();
+    ui.label(
+        egui::RichText::new(tr(&locale, "Quick settings"))
+            .small()
+            .strong()
+            .color(ui.visuals().weak_text_color()),
+    );
+    let mut enabled = s.settings.zoom_enabled;
+    if ui
+        .checkbox(&mut enabled, tr(&locale, "Enable page zoom"))
+        .changed()
+    {
+        s.enable_zoom(enabled);
+    }
+    if ui
+        .checkbox(
+            &mut s.settings.zoom_keep_fitted_area,
+            tr(&locale, "Keep fitted page area when zooming"),
+        )
+        .changed()
+    {
+        s.set_zoom(s.zoom.view);
+        s.save_preferences();
+    }
+    if ui
+        .checkbox(
+            &mut s.settings.auto_show,
+            tr(&locale, "Show slides automatically when opening a document"),
+        )
+        .changed()
+    {
+        s.save_preferences();
+    }
+    if ui.button(tr(&locale, "Preferences…")).clicked() {
+        *preferences_open = true;
+        ui.close();
+    }
     if s.settings.zoom_enabled {
         ui.menu_button(tr(&locale, "Page zoom"), |ui| {
             let mut scale = s.zoom.view.scale;
