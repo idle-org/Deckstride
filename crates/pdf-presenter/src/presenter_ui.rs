@@ -1286,65 +1286,49 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
 }
 fn browser_preview_settings(ui: &mut Ui, s: &mut Studio) {
     let locale = ui.ctx().clone();
-    egui::Frame::group(ui.style())
-        .inner_margin(12.)
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.strong(tr(&locale, "Preview size"));
-            ui.small(tr(&locale, "Fit more slides or inspect larger previews."));
-            ui.spacing_mut().slider_width = (ui.available_width() - 4.).max(80.);
-            ui.visuals_mut().slider_trailing_fill = true;
-            ui.add(
-                egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.)
-                    .show_value(false)
-                    .text(""),
-            )
+    ui.horizontal(|ui| {
+        ui.label(tr(&locale, "Preview size"))
+            .on_hover_text(tr(&locale, "Fit more slides or inspect larger previews."));
+        ui.spacing_mut().slider_width = ui.available_width().max(40.);
+        ui.visuals_mut().slider_trailing_fill = true;
+        ui.add(egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.).show_value(false))
             .on_hover_text(format!(
                 "{}: {:.0}",
                 tr(&locale, "Preview size"),
                 s.settings.thumbnail_size
             ));
-            ui.horizontal(|ui| {
-                ui.small(tr(&locale, "Compact"));
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.small(tr(&locale, "Large"));
-                });
-            });
-        });
+    });
 }
 fn browser_screen_settings(ui: &mut Ui, s: &mut Studio) {
     let locale = ui.ctx().clone();
-    egui::Frame::group(ui.style())
-        .inner_margin(12.)
-        .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.strong(tr(&locale, "Show on screen"));
-            ui.small(tr(&locale, "Choose where this slide browser opens."));
-            let selected = s
-                .settings
-                .browser_monitor
-                .as_ref()
-                .and_then(|id| s.monitors.iter().find(|m| &m.id == id))
-                .map(|m| m.name.as_str())
-                .unwrap_or(tr(&locale, "Presenter screen"));
-            egui::ComboBox::from_id_salt("browser-monitor")
-                .width(ui.available_width())
-                .selected_text(selected)
-                .show_ui(ui, |ui| {
+    ui.horizontal(|ui| {
+        ui.label(tr(&locale, "Show on screen"))
+            .on_hover_text(tr(&locale, "Choose where this slide browser opens."));
+        let selected = s
+            .settings
+            .browser_monitor
+            .as_ref()
+            .and_then(|id| s.monitors.iter().find(|m| &m.id == id))
+            .map(|m| m.name.as_str())
+            .unwrap_or(tr(&locale, "Presenter screen"));
+        egui::ComboBox::from_id_salt("browser-monitor")
+            .width(ui.available_width().max(80.))
+            .selected_text(selected)
+            .show_ui(ui, |ui| {
+                ui.selectable_value(
+                    &mut s.settings.browser_monitor,
+                    None,
+                    tr(&locale, "Presenter screen"),
+                );
+                for monitor in &s.monitors {
                     ui.selectable_value(
                         &mut s.settings.browser_monitor,
-                        None,
-                        tr(&locale, "Presenter screen"),
+                        Some(monitor.id.clone()),
+                        &monitor.name,
                     );
-                    for monitor in &s.monitors {
-                        ui.selectable_value(
-                            &mut s.settings.browser_monitor,
-                            Some(monitor.id.clone()),
-                            &monitor.name,
-                        );
-                    }
-                });
-        });
+                }
+            });
+    });
 }
 pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let browser_width = ui.available_width();
@@ -1370,16 +1354,16 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
     egui::ScrollArea::vertical()
         .id_salt("browser-controls-scroll")
-        .max_height(((footer_rect.top() - ui.cursor().top()) * 0.5).max(60.))
+        .max_height(((footer_rect.top() - ui.cursor().top()) * 0.3).max(60.))
         .auto_shrink([false, true])
         .show(ui, |ui| {
             egui::Frame::group(ui.style())
-                .inner_margin(12.)
+                .inner_margin(8.)
                 .show(ui, |ui| {
                     ui.set_width(ui.available_width());
-                    ui.spacing_mut().item_spacing = Vec2::new(16., 10.);
-                    ui.spacing_mut().button_padding = Vec2::new(12., 7.);
-                    ui.spacing_mut().interact_size.y = 30.;
+                    ui.spacing_mut().item_spacing = Vec2::new(12., 6.);
+                    ui.spacing_mut().button_padding = Vec2::new(8., 3.);
+                    ui.spacing_mut().interact_size.y = 24.;
                     if ui.available_width() >= 680. {
                         ui.columns(2, |columns| {
                             browser_preview_settings(&mut columns[0], s);
@@ -1402,15 +1386,13 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                         .color(text),
                                 )
                                 .fill(accent)
-                                .min_size(Vec2::new(160., 38.)),
+                                .min_size(Vec2::new(120., 28.)),
                             )
                             .clicked()
                         {
                             s.actions.push(Action::Go(s.browser_selected));
                         }
                         ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
-                    });
-                    ui.horizontal_wrapped(|ui| {
                         ui.colored_label(
                             if s.change_on_click {
                                 ui.visuals().warn_fg_color
@@ -1425,8 +1407,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                     "Safe browsing"
                                 },
                             ),
-                        );
-                        ui.label(tr(
+                        ).on_hover_text(tr(
                     &locale,
                     if s.change_on_click {
                         "Click changes presentation"
@@ -1437,7 +1418,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     });
                 });
         });
-    ui.add_space(8.);
+    ui.add_space(4.);
     ui.label(format!(
         "{} {} · {} {}",
         if s.settings.language.french() {

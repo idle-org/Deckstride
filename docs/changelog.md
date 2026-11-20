@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.50
+
+- Compact All slides controls into two short rows on wide windows. Move explanatory
+  text to tooltips, remove nested settings cards and reduce padding/button heights;
+  keep wrapping and separately scrolling controls for small windows.
+
 ### 0.1.49
 
 - Add monotonic elapsed/countdown timing with Start/Pause, Restart, configurable
