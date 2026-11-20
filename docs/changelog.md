@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.65
+
+- Hide routine rolling-buffer information when the presenter footer is hidden,
+  including its auto-hidden state. Keep active opening and notes-reading feedback
+  available without the footer. Linux checks pass with 86.50% whole-application
+  coverage; the release binary is rebuilt.
+
 ### 0.1.64
 
 - Keep previous/next shortcuts active in the presenter and All slides, even when a

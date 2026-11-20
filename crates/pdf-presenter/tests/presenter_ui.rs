@@ -1053,6 +1053,46 @@ fn progress_bar_height_changes_rendered_geometry() {
 }
 
 #[test]
+fn hidden_footer_hides_routine_rolling_buffer_status() {
+    fn contains_text(shape: &egui::Shape, needle: &str) -> bool {
+        match shape {
+            egui::Shape::Text(text) => text.galley.text().contains(needle),
+            egui::Shape::Vec(shapes) => shapes.iter().any(|shape| contains_text(shape, needle)),
+            _ => false,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.layout.header = false;
+    s.layout.footer = false;
+    s.evicted_frames = 1;
+    s.prepared.insert(0);
+    let mut native = UiState::default();
+
+    let hidden = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut native)
+    });
+    assert!(s.preparation_status().contains("Rolling buffer"));
+    assert!(
+        !hidden
+            .shapes
+            .iter()
+            .any(|shape| contains_text(&shape.shape, "Rolling buffer"))
+    );
+
+    s.layout.footer = true;
+    let visible = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut native)
+    });
+    assert!(
+        visible
+            .shapes
+            .iter()
+            .any(|shape| contains_text(&shape.shape, "Rolling buffer"))
+    );
+}
+
+#[test]
 fn fullscreen_and_routing_changes_preserve_explicit_output_visibility() {
     for blanked in [false, true] {
         for confirm in [false, true] {

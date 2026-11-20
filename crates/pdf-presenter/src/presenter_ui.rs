@@ -1145,7 +1145,10 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             }
         });
     }
-    if !footer && (s.loading || s.notes_loading || (s.deck.is_some() && !s.fully_buffered())) {
+    let compact_preparation = s.loading
+        || s.notes_loading
+        || (s.deck.is_some() && !s.fully_buffered() && s.evicted_frames == 0);
+    if !footer && compact_preparation {
         egui::Area::new("preparation-progress".into())
             .anchor(egui::Align2::LEFT_BOTTOM, Vec2::new(12., -12.))
             .interactable(false)

@@ -144,8 +144,9 @@ render. Sources and their folders remain unchanged.
 The footer shows the active operation, slides prepared/total, cache reuse, decoded
 RAM usage, and an approximate ETA once there are enough completed slides. It also
 shows output-process buffering separately. A compact progress notification remains
-visible while preparing if the footer is hidden. Notes reading and failures have
-explicit status. ETAs use observed throughput and may change on complex slides.
+visible during initial preparation if the footer is hidden. Routine rolling-buffer
+information hides with the footer. Notes reading and failures have explicit status.
+ETAs use observed throughput and may change on complex slides.
 
 **READY** means every target-resolution slide is held in presenter RAM and, when
 outputs are assigned, acknowledged in the independent presentation host's RAM.
