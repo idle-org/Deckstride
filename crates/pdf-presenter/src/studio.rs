@@ -1474,27 +1474,6 @@ impl Studio {
         }
         Some([monitor.size.0.max(1), monitor.size.1.max(1)])
     }
-    /// Logical Slides viewport used to scale annotation widths in Presenter previews.
-    pub fn presentation_viewport_points(&self) -> Option<[f32; 2]> {
-        let monitor = self
-            .routes
-            .presentation
-            .iter()
-            .find_map(|id| self.monitors.iter().find(|m| &m.id == id))?;
-        if let Some(viewport) = &self.output_viewport
-            && viewport.monitor == monitor.id
-            && viewport.fullscreen == self.presentation_fullscreen()
-            && viewport.size.iter().all(|v| *v > 0)
-        {
-            let scale = if viewport.pixels_per_point.is_finite() && viewport.pixels_per_point > 0. {
-                viewport.pixels_per_point
-            } else {
-                1.
-            };
-            return Some(viewport.size.map(|value| value as f32 / scale));
-        }
-        Some([monitor.size.0.max(1) as f32, monitor.size.1.max(1) as f32])
-    }
     pub fn set_zoom(&mut self, view: crate::zoom::View) {
         self.zoom.keep_fitted_area = self.settings.zoom_keep_fitted_area;
         self.zoom.set(self.settings.zoom_enabled, view);

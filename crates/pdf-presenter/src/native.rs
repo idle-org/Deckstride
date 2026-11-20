@@ -521,7 +521,15 @@ impl NativeWindow {
                     screen_rect: Some(screen),
                     ..Default::default()
                 },
-                |ui| crate::tools::paint(ui.painter(), target, uv, &setup.overlay),
+                |ui| {
+                    crate::tools::paint_scaled(
+                        ui.painter(),
+                        target,
+                        uv,
+                        &setup.overlay,
+                        crate::tools::slide_paint_scale(target),
+                    )
+                },
             );
             let overlay_primitives = self
                 .overlay_ctx
@@ -1733,7 +1741,6 @@ impl ApplicationHandler for App {
                                 monitor: id.clone(),
                                 size: [size.width, size.height],
                                 fullscreen: host.state.fullscreen,
-                                pixels_per_point: w.window.scale_factor() as f32,
                             }
                         })
                 });

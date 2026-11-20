@@ -1361,13 +1361,8 @@ fn zoom_preview_matches_reference_output_crop_and_tracks_window_shape() {
             monitor: "two".into(),
             size,
             fullscreen: s.presentation_fullscreen(),
-            pixels_per_point: 1.,
         });
         assert_eq!(s.presentation_viewport(), Some(size));
-        assert_eq!(
-            s.presentation_viewport_points(),
-            Some([size[0] as f32, size[1] as f32])
-        );
         let output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
             presenter_ui::presenter(ui, &mut s, &mut native);
         });
@@ -1391,8 +1386,6 @@ fn zoom_preview_matches_reference_output_crop_and_tracks_window_shape() {
         );
         assert!((actual.max - expected.max).length() < 0.0001);
     }
-    s.output_viewport.as_mut().unwrap().pixels_per_point = 2.;
-    assert_eq!(s.presentation_viewport_points(), Some([450., 600.]));
     // Stale route/fullscreen reports and minimized windows cannot distort the preview.
     s.output_viewport.as_mut().unwrap().fullscreen = !s.presentation_fullscreen();
     assert_eq!(s.presentation_viewport(), Some([1920, 1080]));

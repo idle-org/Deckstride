@@ -385,7 +385,13 @@ fn toolbox_window(ctx: &Context, s: &mut Studio) {
                     }
                 }
             });
-            ui.add(egui::Slider::new(&mut s.toolbox.size, 4. ..=32.).text(tr(ctx, "Size")));
+            ui.add(
+                egui::Slider::new(
+                    &mut s.toolbox.size,
+                    crate::tools::MIN_TOOL_SIZE..=crate::tools::MAX_TOOL_SIZE,
+                )
+                .text(tr(ctx, "Size")),
+            );
             ui.horizontal(|ui| {
                 if ui
                     .add_enabled(!s.toolbox.overlay.marks.is_empty(), egui::Button::new(tr(ctx, "Undo")))
@@ -458,12 +464,7 @@ fn slide_tools(ui: &mut Ui, s: &mut Studio, area: Rect, dimensions: [u32; 2]) {
             }
         }
     }
-    let paint_scale = s.presentation_viewport_points().map_or(1., |size| {
-        let slides = Rect::from_min_size(Pos2::ZERO, Vec2::new(size[0], size[1]));
-        let (slides_target, _) =
-            zoom_geometry(slides, dimensions, s.zoom.view, s.zoom.keep_fitted_area);
-        crate::tools::preview_paint_scale(target, slides_target)
-    });
+    let paint_scale = crate::tools::slide_paint_scale(target);
     crate::tools::paint_scaled(ui.painter(), target, uv, &s.toolbox.overlay, paint_scale);
     if changed {
         s.presentation_action();

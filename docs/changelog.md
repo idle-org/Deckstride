@@ -4,9 +4,10 @@
 
 ### 0.1.83
 
-- Scale pointers, highlights, arrow shafts and arrow heads in Presenter previews to
-  match their relative size on the reference Slides screen. Account for the Slides
-  window's DPI scale and preserve the lightweight vector overlay path.
+- Scale pointers, highlights, arrow shafts and arrow heads against the visible slide
+  height so they occupy a comparable share of Presenter previews, 1080p Slides and
+  4K Slides, including mixed-DPI screens. Raise the selectable maximum from 32 to 48
+  while preserving the lightweight vector overlay path.
 
 ### 0.1.82
 

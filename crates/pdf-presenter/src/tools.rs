@@ -3,6 +3,8 @@ use egui::{Color32, Pos2, Rect, Stroke, Vec2};
 use serde::{Deserialize, Serialize};
 
 pub const MAX_MARKS: usize = 64;
+pub const MIN_TOOL_SIZE: f32 = 4.;
+pub const MAX_TOOL_SIZE: f32 = 48.;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tool {
@@ -43,7 +45,7 @@ pub struct Overlay {
 impl Overlay {
     pub fn normalized(mut self) -> Self {
         self.pointer = self.pointer.and_then(normalized_point);
-        self.pointer_size = finite_clamp(self.pointer_size, 4., 48., 12.);
+        self.pointer_size = finite_clamp(self.pointer_size, MIN_TOOL_SIZE, MAX_TOOL_SIZE, 12.);
         self.marks.truncate(MAX_MARKS);
         self.marks.retain_mut(|mark| {
             let Some(from) = normalized_point(mark.from) else {
@@ -54,7 +56,7 @@ impl Overlay {
             };
             mark.from = from;
             mark.to = to;
-            mark.width = finite_clamp(mark.width, 2., 48., 8.);
+            mark.width = finite_clamp(mark.width, 2., MAX_TOOL_SIZE, 8.);
             true
         });
         self
@@ -245,10 +247,11 @@ pub fn paint_scaled(
     }
 }
 
-pub fn preview_paint_scale(target: Rect, slides_target: Rect) -> f32 {
-    let ratio = (target.width() / slides_target.width().max(f32::EPSILON))
-        .min(target.height() / slides_target.height().max(f32::EPSILON));
-    finite_clamp(ratio, 0.05, 4., 1.)
+/// Make a tool size occupy the same share of the slide at every output resolution.
+/// egui points account for monitor DPI, so 1080 logical points is also the correct
+/// baseline for a 4K screen using 200% display scaling.
+pub fn slide_paint_scale(target: Rect) -> f32 {
+    finite_clamp(target.height() / 1080., 0.05, 4., 1.)
 }
 
 /// A filled head avoids the three overlapping thick strokes that deform large arrows.
@@ -298,10 +301,15 @@ mod tests {
     }
 
     #[test]
-    fn preview_scale_keeps_arrow_head_proportional() {
-        let slides = Rect::from_min_size(Pos2::ZERO, Vec2::new(1600., 900.));
-        let preview = Rect::from_min_size(Pos2::ZERO, Vec2::new(400., 225.));
-        assert_eq!(preview_paint_scale(preview, slides), 0.25);
+    fn screen_scale_keeps_tools_and_arrow_heads_proportional() {
+        let hd = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920., 1080.));
+        let uhd = Rect::from_min_size(Pos2::ZERO, Vec2::new(3840., 2160.));
+        let preview = Rect::from_min_size(Pos2::ZERO, Vec2::new(480., 270.));
+        assert_eq!(slide_paint_scale(hd), 1.);
+        assert_eq!(slide_paint_scale(uhd), 2.);
+        assert_eq!(slide_paint_scale(preview), 0.25);
+        assert_eq!(MAX_TOOL_SIZE * slide_paint_scale(hd), 48.);
+        assert_eq!(MAX_TOOL_SIZE * slide_paint_scale(uhd), 96.);
 
         let (_, full) = arrow_geometry(Pos2::ZERO, Pos2::new(400., 0.), 32., 1.).unwrap();
         let (_, small) = arrow_geometry(Pos2::ZERO, Pos2::new(100., 0.), 32., 0.25).unwrap();
