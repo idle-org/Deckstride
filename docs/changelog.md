@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.69
+
+- Decode the unsupported-platform keep-awake child status with the private
+  length-prefixed JSON protocol used by the application. This fixes the FreeBSD CI
+  test that incorrectly treated the framed bytes as plain JSON; production sleep
+  behavior is unchanged. Linux checks pass with 84.44% whole-application coverage;
+  the release binary is rebuilt.
+
 ### 0.1.68
 
 - Keep large arrows clean and proportional: shorten the shaft beneath a filled,

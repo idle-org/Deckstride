@@ -615,7 +615,16 @@ fn wayland_browser_parents_to_presenter_before_first_buffer() {
 fn unsupported_sleep_backend_reports_unavailable_and_exits_on_parent_eof() {
     let output = run_native(&["--keep-awake"]);
     assert!(output.status.success());
-    let status: String = serde_json::from_slice(&output.stdout).unwrap();
+    let status: String = pdf_presenter::worker::read_json(&mut output.stdout.as_slice()).unwrap();
     assert!(status.starts_with("Sleep protection unavailable:"));
     assert!(status.contains(std::env::consts::OS));
+}
+
+#[test]
+fn keep_awake_status_uses_private_length_prefixed_json() {
+    let mut framed = Vec::new();
+    pdf_presenter::worker::write_json(&mut framed, &"Sleep protection test").unwrap();
+    assert!(serde_json::from_slice::<String>(&framed).is_err());
+    let decoded: String = pdf_presenter::worker::read_json(&mut framed.as_slice()).unwrap();
+    assert_eq!(decoded, "Sleep protection test");
 }
