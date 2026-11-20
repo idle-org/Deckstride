@@ -174,6 +174,7 @@ fn widget(
     size_label: &str,
 ) {
     let locale = ui.ctx().clone();
+    ui.spacing_mut().slider_width = (ui.available_width() - 155.).clamp(60., 160.);
     ui.horizontal_wrapped(|ui| {
         ui.add_sized([150., 30.], egui::Checkbox::new(&mut w.show, label));
         ui.add_enabled(
@@ -713,7 +714,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         egui::Window::new(tr(&locale, "Your presenter view"))
             .id(egui::Id::new("layout-window"))
             .open(&mut open)
-            .default_width(560.)
+            .default_size(Vec2::new(560., 680.).min(ctx.content_rect().size() - Vec2::splat(48.)))
+            .min_size(Vec2::new(320., 320.))
+            .max_size((ctx.content_rect().size() - Vec2::splat(32.)).max(Vec2::splat(1.)))
             .resizable(true)
             .show(&ctx, |ui| {
                 ui.spacing_mut().item_spacing = Vec2::new(12., 8.);
@@ -726,8 +729,16 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 ));
                 egui::ScrollArea::vertical()
                     .id_salt("layout-settings-scroll")
-                    .max_height((ctx.content_rect().height() - 260.).max(160.))
-                    .auto_shrink([false, true])
+                    .max_height(
+                        (ui.available_height()
+                            - if ui.available_width() < 510. {
+                                190.
+                            } else {
+                                140.
+                            })
+                        .max(48.),
+                    )
+                    .auto_shrink([false, false])
                     .show(ui, |ui| {
                         layout_section(ui, tr(&locale, "Start with a preset"), |ui| {
                             ui.horizontal_wrapped(|ui| {
@@ -886,7 +897,10 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         egui::Window::new(tr(&locale, "Displays"))
             .id(egui::Id::new("displays-window"))
             .open(&mut open)
-            .default_width(600.)
+            .default_size(Vec2::new(600., 580.).min(ctx.content_rect().size() - Vec2::splat(48.)))
+            .min_size(Vec2::new(320., 240.))
+            .max_size((ctx.content_rect().size() - Vec2::splat(32.)).max(Vec2::splat(1.)))
+            .resizable(true)
             .vscroll(true)
             .show(&ctx, |ui| {
                 ui.label(tr(
@@ -897,7 +911,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     egui::Frame::group(ui.style())
                         .inner_margin(12.)
                         .show(ui, |ui| {
-                            ui.set_min_width(540.);
+                            ui.set_width(ui.available_width());
                             ui.horizontal(|ui| {
                                 let (slot, _) =
                                     ui.allocate_exact_size(Vec2::splat(64.), Sense::hover());
@@ -925,7 +939,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                     ui.visuals().text_color(),
                                 );
                                 ui.vertical(|ui| {
-                                    ui.strong(&m.name);
+                                    ui.add(egui::Label::new(egui::RichText::new(&m.name).strong()).wrap());
                                     ui.small(format!("{} × {} px", m.size.0, m.size.1));
                                 });
                             });
@@ -938,7 +952,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                 0
                             };
                             ui.push_id(&m.id, |ui| {
-                                ui.horizontal(|ui| {
+                                ui.horizontal_wrapped(|ui| {
                                     for (i, name) in [
                                         tr(&locale, "Unused"),
                                         tr(&locale, "Presenter"),
@@ -1085,60 +1099,65 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             "Open a PDF or picture folder to browse slides.",
         ));
     }
-    egui::Frame::group(ui.style())
-        .inner_margin(12.)
+    egui::ScrollArea::vertical()
+        .id_salt("browser-controls-scroll")
+        .max_height(((footer_rect.top() - ui.cursor().top()) * 0.5).max(60.))
+        .auto_shrink([false, true])
         .show(ui, |ui| {
-            ui.set_width(ui.available_width());
-            ui.spacing_mut().item_spacing = Vec2::new(16., 10.);
-            ui.spacing_mut().button_padding = Vec2::new(12., 7.);
-            ui.spacing_mut().interact_size.y = 30.;
-            if ui.available_width() >= 680. {
-                ui.columns(2, |columns| {
-                    browser_preview_settings(&mut columns[0], s);
-                    browser_screen_settings(&mut columns[1], s);
-                });
-            } else {
-                browser_preview_settings(ui, s);
-                browser_screen_settings(ui, s);
-            }
-            ui.separator();
-            ui.horizontal_wrapped(|ui| {
-                let accent = ui.visuals().selection.bg_fill;
-                let text = ui.visuals().selection.stroke.color;
-                if ui
-                    .add_enabled(
-                        s.count() > 0,
-                        egui::Button::new(
-                            egui::RichText::new(tr(&locale, "Show selected"))
-                                .strong()
-                                .color(text),
-                        )
-                        .fill(accent)
-                        .min_size(Vec2::new(160., 38.)),
-                    )
-                    .clicked()
-                {
-                    s.actions.push(Action::Go(s.browser_selected));
-                }
-                ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
-            });
-            ui.horizontal_wrapped(|ui| {
-                ui.colored_label(
-                    if s.change_on_click {
-                        ui.visuals().warn_fg_color
+            egui::Frame::group(ui.style())
+                .inner_margin(12.)
+                .show(ui, |ui| {
+                    ui.set_width(ui.available_width());
+                    ui.spacing_mut().item_spacing = Vec2::new(16., 10.);
+                    ui.spacing_mut().button_padding = Vec2::new(12., 7.);
+                    ui.spacing_mut().interact_size.y = 30.;
+                    if ui.available_width() >= 680. {
+                        ui.columns(2, |columns| {
+                            browser_preview_settings(&mut columns[0], s);
+                            browser_screen_settings(&mut columns[1], s);
+                        });
                     } else {
-                        ui.visuals().hyperlink_color
-                    },
-                    tr(
-                        &locale,
-                        if s.change_on_click {
-                            "Live browsing"
-                        } else {
-                            "Safe browsing"
-                        },
-                    ),
-                );
-                ui.label(tr(
+                        browser_preview_settings(ui, s);
+                        browser_screen_settings(ui, s);
+                    }
+                    ui.separator();
+                    ui.horizontal_wrapped(|ui| {
+                        let accent = ui.visuals().selection.bg_fill;
+                        let text = ui.visuals().selection.stroke.color;
+                        if ui
+                            .add_enabled(
+                                s.count() > 0,
+                                egui::Button::new(
+                                    egui::RichText::new(tr(&locale, "Show selected"))
+                                        .strong()
+                                        .color(text),
+                                )
+                                .fill(accent)
+                                .min_size(Vec2::new(160., 38.)),
+                            )
+                            .clicked()
+                        {
+                            s.actions.push(Action::Go(s.browser_selected));
+                        }
+                        ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
+                    });
+                    ui.horizontal_wrapped(|ui| {
+                        ui.colored_label(
+                            if s.change_on_click {
+                                ui.visuals().warn_fg_color
+                            } else {
+                                ui.visuals().hyperlink_color
+                            },
+                            tr(
+                                &locale,
+                                if s.change_on_click {
+                                    "Live browsing"
+                                } else {
+                                    "Safe browsing"
+                                },
+                            ),
+                        );
+                        ui.label(tr(
                     &locale,
                     if s.change_on_click {
                         "Click changes presentation"
@@ -1146,7 +1165,8 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         "Click to select. Double-click to preview. Show selected to present."
                     },
                 ));
-            });
+                    });
+                });
         });
     ui.add_space(8.);
     ui.label(format!(
@@ -1281,6 +1301,8 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         .collapsible(false)
         .resizable(true)
         .default_size(Vec2::new(800., 500.).min(screen * 0.8))
+        .min_size(Vec2::new(240., 180.))
+        .max_size((screen - Vec2::splat(32.)).max(Vec2::splat(1.)))
         .show(ui.ctx(), |ui| {
             ui.label(tr(&locale, "Preview only — presentation unchanged"));
             let (rect, _) =

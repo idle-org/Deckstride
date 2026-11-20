@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.44
+
+- Size Layout scrolling from its resized window rather than the desktop. Remove
+  Displays’ forced content width, wrap roles/names, and constrain floating windows
+  to the viewport. Bound the browser toolbar separately so short windows retain
+  thumbnail space and the Close footer.
+
 ### 0.1.43
 
 - Reorganize Layout into padded preset, slide/notes, timer/progress and bar sections.

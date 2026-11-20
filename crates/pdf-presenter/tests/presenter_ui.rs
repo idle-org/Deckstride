@@ -767,3 +767,74 @@ fn browser_thumbnails_fill_resized_window_without_stretching_tiles() {
         assert!(s.visible_thumbs.len() < s.count());
     }
 }
+
+#[test]
+fn floating_windows_can_grow_and_shrink_after_content_is_drawn() {
+    for id in ["layout-window", "displays-window", "slide-preview"] {
+        let ctx = Context::default();
+        let mut s = studio();
+        s.layout_open = id == "layout-window";
+        s.displays_open = id == "displays-window";
+        if id == "slide-preview" {
+            s.browser_preview = Some((s.generation, 0));
+        }
+        let mut native = UiState::default();
+        let mut frame = |events| {
+            let mut raw = input(Vec2::new(1920., 1200.));
+            raw.events = events;
+            let _ = ctx.run_ui(raw, |ui| {
+                if id == "slide-preview" {
+                    presenter_ui::browser(ui, &mut s, &mut native);
+                } else {
+                    presenter_ui::presenter(ui, &mut s, &mut native);
+                }
+            });
+        };
+        for _ in 0..4 {
+            frame(vec![]);
+        }
+        let rect = || ctx.memory(|m| m.area_rect(egui::Id::new(id))).unwrap();
+        for delta in [Vec2::new(120., 80.), Vec2::new(-180., -180.)] {
+            let before = rect();
+            let start = before.right_bottom() - Vec2::splat(2.);
+            frame(vec![egui::Event::PointerMoved(start)]);
+            frame(vec![egui::Event::PointerButton {
+                pos: start,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Default::default(),
+            }]);
+            let end = start + delta;
+            frame(vec![egui::Event::PointerMoved(end)]);
+            frame(vec![egui::Event::PointerButton {
+                pos: end,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: Default::default(),
+            }]);
+            for _ in 0..4 {
+                frame(vec![]);
+            }
+            let after = rect();
+            if delta.x > 0. {
+                assert!(
+                    after.width() > before.width() + 50.,
+                    "{id}: {before:?} -> {after:?}"
+                );
+                assert!(
+                    after.height() > before.height() + 30.,
+                    "{id}: {before:?} -> {after:?}"
+                );
+            } else {
+                assert!(
+                    after.width() < before.width() - 50.,
+                    "{id}: {before:?} -> {after:?}"
+                );
+                assert!(
+                    after.height() < before.height() - 50.,
+                    "{id}: {before:?} -> {after:?}"
+                );
+            }
+        }
+    }
+}
