@@ -578,9 +578,16 @@ impl App {
                 s.draft_routes = s.routes.clone();
             }
         }
-        if changed && let Some(host) = &mut self.host {
-            host.presented.clear();
-            for w in &self.windows {
+        if changed {
+            if let Some(host) = &mut self.host {
+                host.presented.clear();
+            }
+            for w in &mut self.windows {
+                // The OS may move a surviving window when another display is
+                // removed. Its route ID/fullscreen flag can remain unchanged,
+                // so discard placement cached for the old desktop topology.
+                w.target = None;
+                w.transition = None;
                 if !self.handles.iter().any(|(m, _)| m.id == w.monitor) {
                     w.window.set_visible(false);
                 }
@@ -1600,7 +1607,7 @@ mod buffer_tests {
 
     #[cfg(target_os = "linux")]
     #[test]
-    fn three_native_windows_render_without_clicks_and_then_stop_repainting() {
+    fn three_native_windows_render_without_clicks_and_reset_placement_on_topology_change() {
         if std::env::var_os("PDF_PRESENTER_GUI_TESTS").is_none() {
             return;
         }
@@ -1608,13 +1615,16 @@ mod buffer_tests {
         struct Harness {
             app: App,
             started: Instant,
+            topology_checked: bool,
         }
         impl ApplicationHandler for Harness {
             fn resumed(&mut self, el: &ActiveEventLoop) {
+                self.app.handles = monitors(el).0;
+                let id = self.app.handles[0].0.id.clone();
                 for index in 0..3 {
-                    let window =
-                        NativeWindow::create(el, Role::Presentation, format!("test-{index}"))
-                            .unwrap();
+                    let mut window =
+                        NativeWindow::create(el, Role::Presentation, id.clone()).unwrap();
+                    window.target = Some((id.clone(), false));
                     let _ = window
                         .window
                         .request_inner_size(PhysicalSize::new(180, 120));
@@ -1634,6 +1644,19 @@ mod buffer_tests {
                 for window in &mut self.app.windows {
                     window.repaint_if_due(now);
                 }
+                if !self.topology_checked
+                    && now.duration_since(self.started) >= Duration::from_millis(200)
+                {
+                    // Simulate a previous desktop layout. Route IDs and fullscreen
+                    // are unchanged, but all three placements must be invalidated.
+                    self.app.handles[0].0.origin.0 += 1;
+                    self.app.refresh(el);
+                    for window in &self.app.windows {
+                        assert!(window.target.is_none());
+                        assert!(window.transition.is_none());
+                    }
+                    self.topology_checked = true;
+                }
                 if now.duration_since(self.started) >= Duration::from_secs(1) {
                     el.exit();
                 }
@@ -1643,6 +1666,7 @@ mod buffer_tests {
         let now = Instant::now();
         let mut harness = Harness {
             started: now,
+            topology_checked: false,
             app: App {
                 studio: None,
                 host: None,
@@ -1672,6 +1696,7 @@ mod buffer_tests {
             .run_app(&mut harness)
             .unwrap();
         assert!(harness.app.error.is_none(), "{:?}", harness.app.error);
+        assert!(harness.topology_checked);
         assert_eq!(harness.app.windows.len(), 3);
         for window in &harness.app.windows {
             assert!(window.frames > 0, "Every mirror must paint without a click");

@@ -400,3 +400,23 @@ paints in one second. The fixed version passes alongside the full Linux workspac
 and native tests, 13 Python helper tests, formatting, and warnings-denied Clippy
 and rustdoc. Whole-application coverage is 84.57% against the 75% floor. The Linux
 release binary is rebuilt; no Windows/macOS builds or publication were performed.
+
+
+## 0.1.74 reconnect placement
+
+Topology changes now invalidate each native window's placement target and pending
+transition. Reconciliation reapplies its selected monitor and fullscreen mode even
+when the route ID is unchanged: an OS relocation during disconnect must not become
+permanent merely because the old ID/fullscreen tuple still matches. Missing windows
+are hidden before reconciliation; saved route choices and output visibility remain
+unchanged. Existing X11 staged placement is reused.
+
+Regression coverage includes repeated disconnect/reconnect of the third and middle
+monitors, with the third assigned to either role and with output shown or blanked.
+The native three-window test also simulates a topology change while retaining route
+IDs and verifies all cached placements are discarded. These checks do not establish
+physical hotplug acceptance or Windows/macOS compositor behavior.
+
+Linux formatting, warnings-denied Clippy/rustdoc, workspace/native tests and 13
+Python helper tests pass. Whole-application coverage is 84.56% (75% floor), and
+the Linux release binary is rebuilt. Windows/macOS builds were not run.

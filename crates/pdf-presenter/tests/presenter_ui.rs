@@ -1453,3 +1453,47 @@ fn held_navigation_buttons_accelerate_and_release_without_an_extra_step() {
     assert!(native.navigation_hold.is_none());
     assert!(!s.blanked);
 }
+
+#[test]
+fn third_monitor_routes_restore_after_repeated_disconnects_without_changing_visibility() {
+    for third_is_presenter in [false, true] {
+        for blanked in [false, true] {
+            let mut s = studio();
+            s.monitors.push(Monitor {
+                id: "three".into(),
+                name: "Third".into(),
+                origin: (3840, 0),
+                size: (1920, 1080),
+            });
+            if third_is_presenter {
+                s.routes.presenter.push("three".into());
+            } else {
+                s.routes.presentation.push("three".into());
+            }
+            s.settings.routes = s.routes.clone();
+            s.blanked = blanked;
+            let saved = s.settings.routes.clone();
+            let all = s.monitors.clone();
+            for missing in [2, 1, 2] {
+                let connected = all
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, _)| *index != missing)
+                    .map(|(_, monitor)| monitor.clone())
+                    .collect();
+                s.set_monitors(connected, 0);
+                assert!(!s.routes.presenter.contains(&all[missing].id));
+                assert!(!s.routes.presentation.contains(&all[missing].id));
+                assert_eq!(s.settings.routes, saved);
+                assert_eq!(s.blanked, blanked);
+                s.new_output = false;
+                s.dirty_routes = false;
+                s.set_monitors(all.clone(), 0);
+                assert_eq!(s.routes, saved);
+                assert!(s.new_output && s.dirty_routes);
+                assert_eq!(s.blanked, blanked);
+                assert!(!s.privacy_hold);
+            }
+        }
+    }
+}

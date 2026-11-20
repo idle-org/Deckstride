@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.1.74
+
+- Reapply all native window placements after monitor topology changes, even when
+  assigned monitor IDs and fullscreen flags remain the same. This repairs stale
+  positions after the OS relocates windows during unplug/replug cycles.
+- Cover repeated third/middle monitor disconnects with presenter and presentation
+  mirrors, preserving saved roles and show/blank state; verify topology changes
+  invalidate placement for three native windows. Physical reconnect testing remains
+  open, including Windows/macOS. Linux workspace/native and 13 Python tests pass,
+  along with formatting and warnings-denied Clippy/rustdoc; whole-application
+  coverage is 84.56% (75% floor). The Linux release binary is rebuilt.
+
 ### 0.1.73
 
 - Stop self-perpetuating native repaint requests that can starve other selected
