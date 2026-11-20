@@ -15,8 +15,8 @@ folder in a permanent location and run `python3 install-linux-launcher.py` there
 Python is only needed for this optional installer; no administrator privileges
 are required.
 
-On Windows, use **Menu → Preferences → Windows integration → Choose as PDF
-app…** to register the portable executable for the current user. Windows opens
+On Windows, use **Menu → Preferences → Set as default PDF app…** to register the
+portable executable for the current user. Windows opens
 Default Apps for the required confirmation. Once PDF Presenter is selected for
 `.pdf`, Explorer uses the icon embedded in `pdf-presenter.exe` for PDF files. Keep
 the extracted folder in a permanent location; repeat the action after moving it.

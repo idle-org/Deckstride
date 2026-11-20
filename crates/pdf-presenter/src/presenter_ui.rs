@@ -2489,12 +2489,13 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             });
             ui.separator();
             #[cfg(target_os = "windows")]
-            ui.collapsing(if s.settings.language.french() { "Intégration Windows" } else { "Windows integration" }, |ui| {
-                ui.label(if s.settings.language.french() { "Enregistre l’application et son icône pour les fichiers PDF, sans droits administrateur." } else { "Register the app and its icon for PDF files without administrator rights." });
-                if ui.button(if s.settings.language.french() { "Choisir comme application PDF…" } else { "Choose as PDF app…" }).clicked() {
+            ui.group(|ui| {
+                ui.strong(if s.settings.language.french() { "Application PDF par défaut" } else { "Default PDF application" });
+                ui.label(if s.settings.language.french() { "Enregistre PDF Presenter et son icône pour les fichiers PDF de votre compte Windows." } else { "Register PDF Presenter and its icon for PDF files in your Windows account." });
+                if ui.button(if s.settings.language.french() { "Définir comme application PDF par défaut…" } else { "Set as default PDF app…" }).clicked() {
                     s.actions.push(Action::RegisterPdfAssociation);
                 }
-                ui.small(if s.settings.language.french() { "Windows ouvre Applications par défaut pour confirmer votre choix." } else { "Windows opens Default Apps so you can confirm the choice." });
+                ui.small(if s.settings.language.french() { "Windows ouvrira Applications par défaut : sélectionnez PDF Presenter pour .pdf afin de confirmer." } else { "Windows will open Default Apps; select PDF Presenter for .pdf to confirm." });
             });
             #[cfg(target_os = "windows")]
             ui.separator();

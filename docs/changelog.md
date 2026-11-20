@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.80
+
+- Put a visible **Set as default PDF app…** action directly in Preferences on
+  Windows. It registers the portable executable and PDF icon for the current user,
+  then opens Default Apps for Windows' required confirmation.
+- Formatting, Clippy, workspace tests, Python helper tests and a Windows-target type
+  check pass. Selecting the association in Windows remains a physical acceptance check.
+
 ### 0.1.79
 
 - Name the two display roles **Presenter** and **Slides** throughout the user-facing
