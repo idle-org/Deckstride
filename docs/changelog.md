@@ -4,6 +4,10 @@
 
 ### 0.1.75
 
+- Prepare the 0.1.75 preview release with Linux/Windows x86_64 packages and a
+  three-display Windows test checklist; see
+  [release notes](development/release-notes/v0.1.75.md).
+
 - Explicitly refresh all presenter windows when the shared display-confirmation
   trial changes, independently of status text. Explain that one confirmation on
   any screen applies to all displays. The 0.1.73 repaint fix already removes the
