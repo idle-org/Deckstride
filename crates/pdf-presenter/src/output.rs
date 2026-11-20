@@ -239,6 +239,7 @@ impl Drop for SleepLease {
     }
 }
 pub fn keep_awake() -> Result<(), String> {
+    #[cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))]
     let guard = keepawake::Builder::default()
         .display(true)
         .idle(true)
@@ -246,6 +247,11 @@ pub fn keep_awake() -> Result<(), String> {
         .app_name("PDF Presenter")
         .app_reverse_domain("com.beffroi.pdfpresenter")
         .create();
+    #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+    let guard: Result<(), String> = Err(format!(
+        "No native sleep-inhibition backend for {}",
+        std::env::consts::OS
+    ));
     #[cfg(target_os = "linux")]
     let x11 = X11Lease::new();
     let status = match &guard {

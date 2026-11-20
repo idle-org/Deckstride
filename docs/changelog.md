@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.34
+
+- Restrict keepawake to its supported Linux, Windows and macOS targets so the
+  FreeBSD CI worker can compile. Other platforms explicitly report sleep protection
+  as unavailable while retaining the helper status/parent-pipe lifecycle.
+- FreeBSD cross-target Clippy passes for all targets/features; native FreeBSD
+  execution awaits Jenkins. Linux checks/native tests and 13 Python tests pass;
+  whole-application line coverage is 86.40%.
+
 ### 0.1.33
 
 - Prepare local Linux/Windows x86_64 preview artifacts with rust_realease; verify

@@ -57,3 +57,8 @@ the ordinary tests remain headless and explicitly skip native-window smoke. CI u
 neither the flag nor the virtual-display wrapper. Xvfb tests cannot
 validate actual monitor routing, compositor policy, macOS Spaces or Windows desktop
 behavior. The wrapper starts no network listener and alters no physical display.
+
+The FreeBSD worker compiles without `keepawake`, whose native backends only support
+Linux, Windows and macOS. The helper reports sleep protection as unavailable on
+FreeBSD and waits for its parent pipe to close as usual. This does not establish
+FreeBSD sleep-inhibition support; supported desktop platforms retain their backends.

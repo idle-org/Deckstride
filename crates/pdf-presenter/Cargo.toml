@@ -25,8 +25,10 @@ sha2 = "0.10"
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp", "tiff"] }
 hayro = "=0.9.0"
 chrono = "0.4"
-keepawake = "=0.6.1"
 rfd = "=0.15.4"
+
+[target.'cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))'.dependencies]
+keepawake = "=0.6.1"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

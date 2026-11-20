@@ -7,6 +7,7 @@ use std::{
 fn run_native(args: &[&str]) -> Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_pdf-presenter"))
         .args(args)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
@@ -561,4 +562,14 @@ fn wayland_browser_parents_to_presenter_before_first_buffer() {
         !log.contains(&format!("{presenter}.set_parent(")),
         "Only the browser is parented"
     );
+}
+
+#[test]
+#[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
+fn unsupported_sleep_backend_reports_unavailable_and_exits_on_parent_eof() {
+    let output = run_native(&["--keep-awake"]);
+    assert!(output.status.success());
+    let status: String = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(status.starts_with("Sleep protection unavailable:"));
+    assert!(status.contains(std::env::consts::OS));
 }
