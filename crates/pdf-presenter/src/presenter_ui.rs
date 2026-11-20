@@ -155,14 +155,32 @@ fn bar_visibility_button(ui: &mut Ui, pinned: bool, header: bool) -> egui::Respo
     ));
     response.on_hover_text(label)
 }
-fn widget(ui: &mut Ui, label: &str, w: &mut crate::settings::Widget, min: f32, max: f32) {
+fn layout_section(ui: &mut Ui, title: &str, content: impl FnOnce(&mut Ui)) {
+    egui::Frame::group(ui.style())
+        .inner_margin(12.)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.strong(title);
+            ui.add_space(4.);
+            content(ui);
+        });
+}
+fn widget(
+    ui: &mut Ui,
+    label: &str,
+    w: &mut crate::settings::Widget,
+    min: f32,
+    max: f32,
+    size_label: &str,
+) {
     let locale = ui.ctx().clone();
-    ui.checkbox(&mut w.show, label);
-    ui.add_enabled(
-        w.show,
-        egui::Slider::new(&mut w.size, min..=max).text(tr(&locale, "Size")),
-    );
-    ui.separator();
+    ui.horizontal_wrapped(|ui| {
+        ui.add_sized([150., 30.], egui::Checkbox::new(&mut w.show, label));
+        ui.add_enabled(
+            w.show,
+            egui::Slider::new(&mut w.size, min..=max).text(tr(&locale, size_label)),
+        );
+    });
 }
 fn timer_position(ui: &mut Ui, id: &str, position: &mut TimerPosition) {
     let locale = ui.ctx().clone();
@@ -695,91 +713,171 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         egui::Window::new(tr(&locale, "Your presenter view"))
             .id(egui::Id::new("layout-window"))
             .open(&mut open)
-            .default_width(330.)
-            .vscroll(true)
+            .default_width(560.)
+            .resizable(true)
             .show(&ctx, |ui| {
-                ui.horizontal(|ui| {
-                    if ui.button(tr(&locale, "Balanced")).clicked() {
-                        s.layout = Layout::default();
-                    }
-                    if ui.button(tr(&locale, "Slide focus")).clicked() {
-                        s.layout = Layout::default();
-                        s.layout.previous.show = false;
-                        s.layout.next.show = false;
-                        s.layout.notes.show = false;
-                        s.layout.elapsed.show = false;
-                        s.layout.clock.show = false;
-                    }
-                    if ui.button(tr(&locale, "Notes first")).clicked() {
-                        s.layout.notes.show = true;
-                        s.layout.notes.size = 60.;
-                        s.layout.previous.show = false;
-                    }
-                });
-                ui.checkbox(&mut s.layout.header, tr(&locale, "Keep header visible"));
-                ui.checkbox(&mut s.layout.footer, tr(&locale, "Keep footer visible"));
-                ui.small(tr(
+                ui.spacing_mut().item_spacing = Vec2::new(12., 8.);
+                ui.spacing_mut().button_padding = Vec2::new(12., 7.);
+                ui.spacing_mut().interact_size.y = 30.;
+                ui.visuals_mut().slider_trailing_fill = true;
+                ui.label(tr(
                     &locale,
-                    "Hidden bars reveal near edges. Right-click to restore.",
+                    "Changes appear immediately. Save to reuse this layout.",
                 ));
-                widget(
-                    ui,
-                    tr(&locale, "Previous slide"),
-                    &mut s.layout.previous,
-                    30.,
-                    160.,
-                );
-                widget(
-                    ui,
-                    tr(&locale, "Current slide"),
-                    &mut s.layout.current,
-                    60.,
-                    200.,
-                );
-                widget(ui, tr(&locale, "Next slide"), &mut s.layout.next, 30., 160.);
-                widget(ui, tr(&locale, "Notes"), &mut s.layout.notes, 12., 65.);
-                widget(
-                    ui,
-                    tr(&locale, "Elapsed time"),
-                    &mut s.layout.elapsed,
-                    16.,
-                    72.,
-                );
-                widget(
-                    ui,
-                    tr(&locale, "Time · HH:MM"),
-                    &mut s.layout.clock,
-                    16.,
-                    72.,
-                );
-                ui.label(tr(&locale, "Elapsed time position"));
-                timer_position(ui, "elapsed-position", &mut s.layout.elapsed_position);
-                ui.label(tr(&locale, "Clock position"));
-                timer_position(ui, "clock-position", &mut s.layout.clock_position);
-                ui.checkbox(
-                    &mut s.layout.slide_progress,
-                    tr(&locale, "Slide progress bar"),
-                );
+                egui::ScrollArea::vertical()
+                    .id_salt("layout-settings-scroll")
+                    .max_height((ctx.content_rect().height() - 260.).max(160.))
+                    .auto_shrink([false, true])
+                    .show(ui, |ui| {
+                        layout_section(ui, tr(&locale, "Start with a preset"), |ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                if ui.button(tr(&locale, "Balanced")).clicked() {
+                                    s.layout = Layout::default();
+                                }
+                                if ui.button(tr(&locale, "Slide focus")).clicked() {
+                                    s.layout = Layout::default();
+                                    s.layout.previous.show = false;
+                                    s.layout.next.show = false;
+                                    s.layout.notes.show = false;
+                                    s.layout.elapsed.show = false;
+                                    s.layout.clock.show = false;
+                                }
+                                if ui.button(tr(&locale, "Notes first")).clicked() {
+                                    s.layout.notes.show = true;
+                                    s.layout.notes.size = 60.;
+                                    s.layout.previous.show = false;
+                                }
+                            });
+                        });
+                        layout_section(ui, tr(&locale, "Slides and notes"), |ui| {
+                            ui.small(tr(
+                                &locale,
+                                "Hide anything you do not need to give the rest more room.",
+                            ));
+                            widget(
+                                ui,
+                                tr(&locale, "Previous slide"),
+                                &mut s.layout.previous,
+                                30.,
+                                160.,
+                                "Relative size",
+                            );
+                            widget(
+                                ui,
+                                tr(&locale, "Current slide"),
+                                &mut s.layout.current,
+                                60.,
+                                200.,
+                                "Relative size",
+                            );
+                            widget(
+                                ui,
+                                tr(&locale, "Next slide"),
+                                &mut s.layout.next,
+                                30.,
+                                160.,
+                                "Relative size",
+                            );
+                            ui.separator();
+                            widget(
+                                ui,
+                                tr(&locale, "Notes"),
+                                &mut s.layout.notes,
+                                12.,
+                                65.,
+                                "Space (%)",
+                            );
+                        });
+                        layout_section(ui, tr(&locale, "Timers and progress"), |ui| {
+                            widget(
+                                ui,
+                                tr(&locale, "Elapsed time"),
+                                &mut s.layout.elapsed,
+                                16.,
+                                72.,
+                                "Text size",
+                            );
+                            ui.add_enabled_ui(s.layout.elapsed.show, |ui| {
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.label(tr(&locale, "Elapsed time position"));
+                                    timer_position(
+                                        ui,
+                                        "elapsed-position",
+                                        &mut s.layout.elapsed_position,
+                                    );
+                                });
+                            });
+                            ui.separator();
+                            widget(
+                                ui,
+                                tr(&locale, "Time · HH:MM"),
+                                &mut s.layout.clock,
+                                16.,
+                                72.,
+                                "Text size",
+                            );
+                            ui.add_enabled_ui(s.layout.clock.show, |ui| {
+                                ui.horizontal_wrapped(|ui| {
+                                    ui.label(tr(&locale, "Clock position"));
+                                    timer_position(
+                                        ui,
+                                        "clock-position",
+                                        &mut s.layout.clock_position,
+                                    );
+                                });
+                            });
+                            ui.separator();
+                            ui.checkbox(
+                                &mut s.layout.slide_progress,
+                                tr(&locale, "Slide progress bar"),
+                            );
+                        });
+                        layout_section(ui, tr(&locale, "Header and footer"), |ui| {
+                            ui.horizontal_wrapped(|ui| {
+                                ui.checkbox(
+                                    &mut s.layout.header,
+                                    tr(&locale, "Keep header visible"),
+                                );
+                                ui.checkbox(
+                                    &mut s.layout.footer,
+                                    tr(&locale, "Keep footer visible"),
+                                );
+                            });
+                            ui.small(tr(
+                                &locale,
+                                "Hidden bars reveal near edges. Right-click to restore.",
+                            ));
+                        });
+                    });
                 ui.separator();
-                button(
-                    ui,
-                    tr(&locale, "Save layout · This project"),
-                    Action::SaveProject,
-                    &mut s.actions,
-                );
-                button(
-                    ui,
-                    tr(&locale, "Save layout · All projects"),
-                    Action::SaveGlobal,
-                    &mut s.actions,
-                );
-                button(
-                    ui,
-                    tr(&locale, "Use all-projects default"),
-                    Action::UseGlobal,
-                    &mut s.actions,
-                );
-                ui.small(tr(&locale, "Project layouts override the default."));
+                ui.strong(tr(&locale, "Remember this layout"));
+                ui.horizontal_wrapped(|ui| {
+                    ui.add_enabled_ui(s.deck.is_some(), |ui| {
+                        button(
+                            ui,
+                            tr(&locale, "Save layout · This project"),
+                            Action::SaveProject,
+                            &mut s.actions,
+                        );
+                    });
+                    button(
+                        ui,
+                        tr(&locale, "Save layout · All projects"),
+                        Action::SaveGlobal,
+                        &mut s.actions,
+                    );
+                });
+                ui.horizontal_wrapped(|ui| {
+                    ui.add_enabled_ui(s.deck.is_some(), |ui| {
+                        button(
+                            ui,
+                            tr(&locale, "Use all-projects default"),
+                            Action::UseGlobal,
+                            &mut s.actions,
+                        );
+                    });
+                    ui.small(tr(&locale, "Project layouts override the default."));
+                });
             });
         s.layout_open = open;
     }

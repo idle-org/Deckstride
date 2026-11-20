@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.43
+
+- Reorganize Layout into padded preset, slide/notes, timer/progress and bar sections.
+  Pair timer positions with their controls, explain size units and keep save actions
+  outside the settings scroll area. Disable project actions until a document is open.
+
 ### 0.1.42
 
 - Remove the redundant All slides heading from the browser content and move Close

@@ -134,6 +134,20 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Click to select. Double-click to preview. Show selected to present." => {
             "Cliquer pour sélectionner. Double-cliquer pour prévisualiser. Diffuser la sélection pour présenter."
         }
+        "Changes appear immediately. Save to reuse this layout." => {
+            "Les modifications sont immédiates. Enregistrez pour réutiliser cette disposition."
+        }
+        "Start with a preset" => "Choisir un préréglage",
+        "Slides and notes" => "Diapositives et notes",
+        "Hide anything you do not need to give the rest more room." => {
+            "Masquez les éléments inutiles pour libérer de l’espace."
+        }
+        "Relative size" => "Taille relative",
+        "Space (%)" => "Espace (%)",
+        "Text size" => "Taille du texte",
+        "Timers and progress" => "Horloges et progression",
+        "Header and footer" => "En-tête et pied de page",
+        "Remember this layout" => "Enregistrer cette disposition",
         "Preview size" => "Taille des aperçus",
         "Change on click" => "Diffuser au clic",
         "Presenter screen" => "Écran du présentateur",
