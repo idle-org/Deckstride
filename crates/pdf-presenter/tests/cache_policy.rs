@@ -170,7 +170,7 @@ fn manual_worker_cleanup_preserves_live_document_and_regenerates_after_expunging
 }
 
 #[test]
-fn changed_policy_triggers_background_expiration_and_errors_are_reported() {
+fn startup_cleanup_runs_once_and_manual_errors_are_reported() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("cache");
     let expired = entry(&root, 1, 0, 30, 40);
@@ -178,7 +178,6 @@ fn changed_policy_triggers_background_expiration_and_errors_are_reported() {
     let mut s = Studio::with_program(true, None, env!("CARGO_BIN_EXE_pdf-presenter").into());
     s.cache_path = root;
     s.initialized = true;
-    s.remember_cache_policy();
     let deadline = Instant::now() + Duration::from_secs(10);
     while !s.cache_status.starts_with("Disk cache:") {
         s.poll();
@@ -187,6 +186,14 @@ fn changed_policy_triggers_background_expiration_and_errors_are_reported() {
     }
     assert!(!expired.exists());
     assert!(fresh.exists());
+    // Neither changing policy nor subsequent polling rearms automatic cleanup.
+    let later = entry(&s.cache_path, 1, 2, 30, 40);
+    s.remember_cache_policy();
+    for _ in 0..20 {
+        s.poll();
+        assert!(!s.cache_busy);
+    }
+    assert!(later.exists());
     s.cache_path = fresh;
     s.clean_cache(true);
     while s.cache_busy {
@@ -199,4 +206,44 @@ fn changed_policy_triggers_background_expiration_and_errors_are_reported() {
         "{}",
         s.cache_status
     );
+}
+
+#[test]
+fn startup_cleanup_waits_for_initial_deck_preparation() {
+    let temp = tempfile::tempdir().unwrap();
+    let images = temp.path().join("images");
+    fs::create_dir(&images).unwrap();
+    for i in 0..8 {
+        common::image(&images.join(format!("{i}.png")), [20, 40, 60, 255]);
+    }
+    let root = temp.path().join("cache");
+    let expired = entry(&root, 1, 0, 30, 40);
+    let mut s = Studio::with_program(
+        true,
+        Some(images),
+        env!("CARGO_BIN_EXE_pdf-presenter").into(),
+    );
+    s.cache_path = root;
+    s.poll();
+    assert!(!s.cache_busy, "Initial open must precede cleanup");
+    assert!(expired.exists());
+    let deadline = Instant::now() + Duration::from_secs(15);
+    while !s.cache_status.starts_with("Disk cache:") {
+        s.poll();
+        if s.cache_busy {
+            assert!(!s.loading && !s.notes_loading);
+            assert_eq!(s.count(), 8);
+            assert_eq!(s.prepared.len(), s.count());
+            // No output acknowledgment is needed for disk preparation completion.
+            assert_eq!(s.output_buffered, 0);
+        }
+        assert!(
+            Instant::now() < deadline,
+            "{} / {}",
+            s.status,
+            s.cache_status
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(!expired.exists());
 }

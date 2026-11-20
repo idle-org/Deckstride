@@ -388,8 +388,10 @@ output. It cannot predict compositor/hardware delays or guarantee a frame rate.
 ### Disk cache cleanup
 
 In **Menu → Preferences → Disk cache**, set the maximum total size in MiB and
-lifetime in days since rendering (defaults: 10 GiB and 30 days). Cleanup runs every
-minute, deleting expired files and then the oldest files to meet the size target.
+lifetime in days since rendering (defaults: 10 GiB and 30 days). Automatic cleanup runs once at startup, after initial document loading and slide
+preparation complete, deleting expired files and then the oldest files to meet the
+size target. Changing limits takes effect at the next startup; manual expunge remains
+available immediately.
 **Expunge unused cache now** clears eligible cached slides immediately in the
 background. Active decks are protected and may temporarily exceed either limit.
 The cleanup report shows removed and remaining data; deleted slides regenerate

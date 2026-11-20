@@ -120,7 +120,7 @@ pub struct Studio {
     cache_io: Bridge,
     pub cache_busy: bool,
     pub cache_status: String,
-    cache_next: Instant,
+    startup_cache_pending: bool,
     pub fg: Bridge,
     pub bg: Bridge,
     pub io: Bridge,
@@ -228,7 +228,7 @@ impl Studio {
             cache_io: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             cache_busy: false,
             cache_status: String::new(),
-            cache_next: Instant::now() + Duration::from_secs(60),
+            startup_cache_pending: true,
             fg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             bg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             io,
@@ -731,18 +731,17 @@ impl Studio {
                 manual,
             },
         ) {
+            self.startup_cache_pending = false;
             self.cache_busy = true;
             self.cache_status = "Cleaning disk cache…".into();
         }
     }
     pub fn remember_cache_policy(&mut self) {
         self.save_preferences();
-        self.cache_next = Instant::now() + Duration::from_secs(2);
     }
     pub fn poll(&mut self) {
         while let Ok(c) = self.cache_io.rx.try_recv() {
             self.cache_busy = false;
-            self.cache_next = Instant::now() + Duration::from_secs(60);
             self.cache_status = match c.result {
                 Ok(p) => match (p.reply.error, p.reply.cleanup) {
                     (Some(e), _) => format!("Cache cleanup: {e}"),
@@ -757,9 +756,6 @@ impl Studio {
                 },
                 Err(e) => format!("Cache cleanup: {e}"),
             };
-        }
-        if Instant::now() >= self.cache_next {
-            self.clean_cache(false);
         }
 
         while let Ok(completion) = self.notes_io.rx.try_recv() {
@@ -1134,6 +1130,19 @@ impl Studio {
             self.output_buffered = 0;
             self.ram_blocked = false;
             self.new_output = true;
+        }
+        // One startup pass, after source/notes loading and initial rendering settle.
+        // Prepared disk artifacts count even when the deck exceeds the RAM budget.
+        if self.startup_cache_pending
+            && self.open_path.is_none()
+            && self.pending_open.is_none()
+            && !self.fg_busy
+            && !self.bg_busy
+            && !self.notes_pending
+            && !self.notes_loading
+            && self.prepared.len() == self.count()
+        {
+            self.clean_cache(false);
         }
     }
     fn schedule(&mut self, page: usize, edge: u32, foreground: bool) {

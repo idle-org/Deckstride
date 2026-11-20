@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.71
+
+- Run automatic disk-cache cleanup once at startup, after initial document/notes
+  loading and slide preparation finish, instead of every minute. Preferences edits
+  no longer trigger scans; manual expunge remains available. Startup cleanup uses
+  disk preparation completion so decks exceeding the RAM budget are supported.
+  Linux validation passes, including native GUI tests and 84.46% whole-application
+  coverage (75% floor). Windows/macOS checks were not run.
+
 ### 0.1.70
 
 - Add configurable disk-cache size and lifetime limits (10 GiB / 30 days by

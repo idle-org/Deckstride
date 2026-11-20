@@ -2347,7 +2347,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
                 ui.label(tr(&locale, "Expire after (days since rendering)"));
                 changed |= ui.add(egui::DragValue::new(&mut s.settings.disk_cache.max_days).range(1..=3650)).changed();
                 if changed { s.remember_cache_policy(); }
-                ui.small(tr(&locale, "Oldest files are removed first. Active decks are protected and may exceed the limit. Cleanup runs every minute."));
+                ui.small(tr(&locale, "Oldest files are removed first. Active decks are protected and may exceed the limit. Automatic cleanup runs once at startup, after loading and preparation finish."));
                 if ui.add_enabled(!s.cache_busy && !s.loading && s.initialized, egui::Button::new(tr(&locale, "Expunge unused cache now"))).clicked() { s.clean_cache(true); }
                 ui.small(&s.cache_status);
             });

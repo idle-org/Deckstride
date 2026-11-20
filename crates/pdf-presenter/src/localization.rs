@@ -42,8 +42,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Disk cache" => "Cache disque",
         "Maximum total size (MiB)" => "Taille totale maximale (Mio)",
         "Expire after (days since rendering)" => "Expiration (jours depuis le rendu)",
-        "Oldest files are removed first. Active decks are protected and may exceed the limit. Cleanup runs every minute." => {
-            "Les fichiers les plus anciens sont supprimés en premier. Les présentations actives sont protégées et peuvent dépasser la limite. Nettoyage toutes les minutes."
+        "Oldest files are removed first. Active decks are protected and may exceed the limit. Automatic cleanup runs once at startup, after loading and preparation finish." => {
+            "Les fichiers les plus anciens sont supprimés en premier. Les présentations actives sont protégées et peuvent dépasser la limite. Nettoyage automatique une fois au démarrage, après le chargement et la préparation."
         }
         "Expunge unused cache now" => "Purger le cache inutilisé maintenant",
         "Keep fitted page area when zooming" => {

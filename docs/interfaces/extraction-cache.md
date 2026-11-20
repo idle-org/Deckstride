@@ -64,11 +64,16 @@ do not extend lifetime. Future timestamps do not expire until their age reaches
 the limit. Expired files are removed first in oldest-first order, then older files
 are removed until total bytes are within the target. Ties sort by path.
 
-A dedicated killable worker starts maintenance 60 seconds after startup and repeats
-60 seconds after completion; option changes schedule it after two seconds. Loading
-a document defers submission. Cleanup never blocks first-page display or UI input.
+Since 0.1.71, a dedicated killable worker runs automatic maintenance once per launch,
+after settings and any initial document/notes loading and slide preparation finish.
+Rolling-buffer decks need all slides prepared on disk, not resident in RAM. With no
+document, cleanup runs after startup settings load. Incomplete/failed slide preparation
+defers automatic cleanup; manual expunge remains available. Later document opens and
+option changes do not schedule another pass. New limits apply on the next startup;
+manual expunge is immediate. Cleanup never blocks first-page display or UI input.
 Only one cleanup request is admitted per presenter; its deadline is 30 seconds.
-Errors/timeouts appear in the Disk cache section and retry on the next interval.
+Errors/timeouts appear in the Disk cache section without automatic retries.
+A manual request also consumes any pending startup pass, avoiding duplicate work.
 Manual cleanup reports removed files/bytes, remaining bytes and retained candidates.
 Counts are a scan snapshot; concurrent rendering can change actual usage.
 
