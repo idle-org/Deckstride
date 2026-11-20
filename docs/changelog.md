@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.56
+
+- Move the presenter header fullscreen button after Menu, Displays, All slides
+  and Layout, keeping the hide-header icon at the far left.
+
 ### 0.1.55
 
 - Let zoom expand portrait/landscape pages into each screen without stretching,

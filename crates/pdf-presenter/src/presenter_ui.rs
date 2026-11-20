@@ -940,7 +940,6 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     s.layout.header = !s.layout.header;
                     native.header_until = now;
                 }
-                fullscreen_button(ui, s);
                 let trigger = ui.button(tr(&locale, "Menu"));
                 let mut menu_open = if trigger.clicked() {
                     !s.menu_open
@@ -974,6 +973,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 if ui.button(tr(&locale, "Layout")).clicked() {
                     s.layout_open = !s.layout_open;
                 }
+                fullscreen_button(ui, s);
                 let inactive = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
                 let color = if inactive {
                     ui.visuals().error_fg_color
