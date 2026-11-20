@@ -22,6 +22,13 @@ fullscreen on your Slides screens while keeping previews, notes, timers and
 navigation on your Presenter screens. Rehearse on one monitor, or mirror either view
 across several displays.
 
+## Open source and development
+
+PDF Presenter is open-source software under the [MIT license](LICENSE). Its
+development includes LLM-generated or LLM-assisted work, with human review.
+It is used in professional settings; supported workflows and current
+limitations are documented in this repository.
+
 ## Download, extract, present
 
 Start with the [release downloads](https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases).

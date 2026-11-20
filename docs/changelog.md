@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.82
+
+- Disclose the project's MIT license, LLM-generated or LLM-assisted development,
+  human review and professional use in the public README.
+- Linux formatting, Clippy, tests, build, rustdoc and Python helper checks pass.
+  Headless line coverage is 68.51%, below the 75% floor; no application behavior
+  changed, and physical-display validation was not run.
+
 ### 0.1.81
 
 - Retry Presenter activation for a short bounded period during Windows startup,
