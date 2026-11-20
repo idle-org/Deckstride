@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.66
+
+- Run the optional Linux desktop-launcher installation test only on Linux workers;
+  platform-neutral desktop-entry escaping tests still run everywhere. Include the
+  installer’s stderr when a real Linux integration failure occurs. Linux checks pass
+  with 86.50% whole-application coverage; the release binary is rebuilt.
+
 ### 0.1.65
 
 - Hide routine rolling-buffer information when the presenter footer is hidden,
