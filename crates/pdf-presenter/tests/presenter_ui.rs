@@ -1497,3 +1497,93 @@ fn third_monitor_routes_restore_after_repeated_disconnects_without_changing_visi
         }
     }
 }
+
+#[test]
+fn one_presenter_confirmation_dismisses_both_presenters_on_three_monitors() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    for confirming_presenter in 0..2 {
+        let mut s = studio();
+        s.monitors.push(Monitor {
+            id: "three".into(),
+            name: "Third".into(),
+            origin: (3840, 0),
+            size: (1920, 1080),
+        });
+        s.settings.routes = s.routes.clone();
+        s.begin_display_edit();
+        s.draft_routes.presenter.push("three".into());
+        s.execute(Action::ApplyRoutes);
+        let expected = s.routes.clone();
+        let mut views = [
+            (Context::default(), UiState::default()),
+            (Context::default(), UiState::default()),
+        ];
+        let size = Vec2::new(1280., 720.);
+        let mut buttons = vec![];
+        for (ctx, native) in &mut views {
+            let mut output = ctx.run_ui(input(size), |ui| {
+                presenter_ui::presenter(ui, &mut s, native)
+            });
+            for _ in 0..2 {
+                output = ctx.run_ui(input(size), |ui| {
+                    presenter_ui::presenter(ui, &mut s, native)
+                });
+            }
+            buttons.push(
+                output
+                    .shapes
+                    .iter()
+                    .find_map(|shape| find(&shape.shape, "Keep changes"))
+                    .unwrap(),
+            );
+        }
+        let pos = buttons[confirming_presenter];
+        let (ctx, native) = &mut views[confirming_presenter];
+        for pressed in [true, false] {
+            let mut raw = input(size);
+            raw.events = vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ];
+            let _ = ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, &mut s, native));
+        }
+        assert_eq!(
+            s.actions
+                .iter()
+                .filter(|action| matches!(action, Action::KeepRoutes))
+                .count(),
+            1
+        );
+        for action in std::mem::take(&mut s.actions) {
+            s.execute(action);
+        }
+        assert!(s.route_trial.is_none());
+        assert_eq!(s.settings.routes, expected);
+        assert!(!s.blanked);
+        // Neither presenter needs another click; both consume the same confirmed state.
+        for (ctx, native) in &mut views {
+            let output = ctx.run_ui(input(size), |ui| {
+                presenter_ui::presenter(ui, &mut s, native)
+            });
+            assert!(
+                output
+                    .shapes
+                    .iter()
+                    .all(|shape| find(&shape.shape, "Keep changes").is_none())
+            );
+        }
+        s.execute(Action::RevertRoutes); // An obsolete second dialog cannot undo confirmation.
+        assert_eq!(s.routes, expected);
+    }
+}

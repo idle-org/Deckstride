@@ -420,3 +420,23 @@ physical hotplug acceptance or Windows/macOS compositor behavior.
 Linux formatting, warnings-denied Clippy/rustdoc, workspace/native tests and 13
 Python helper tests pass. Whole-application coverage is 84.56% (75% floor), and
 the Linux release binary is rebuilt. Windows/macOS builds were not run.
+
+
+## 0.1.75 shared display confirmation
+
+Display trials belong to the shared Studio, not individual presenter windows.
+One Keep changes action confirms the whole route setup. Native redraw detection
+now explicitly includes the shared trial ID so starting, confirming, reverting or
+expiring a trial refreshes every presenter even if the status text is unchanged.
+The dialog explains in English/French that one confirmation applies to all displays.
+
+The new regression renders two independent egui presenter contexts on a simulated
+three-monitor setup, clicks Keep changes in either context, and verifies that the
+saved routes cover both presenters and that neither dialog remains after redraw.
+This already passes with the preceding shared-state implementation; combined with
+the 0.1.73 idle repaint correction, it guards against requiring extra clicks on
+other presenter windows. Physical multi-monitor verification remains open.
+
+Linux workspace/native tests, 13 Python helper tests, formatting and warnings-denied
+Clippy/rustdoc pass. Whole-application coverage is 84.56% (75% floor). The Linux
+release binary is rebuilt; Windows/macOS builds and publication were not performed.

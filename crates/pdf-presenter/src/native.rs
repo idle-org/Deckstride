@@ -848,6 +848,7 @@ impl App {
                 s.status.clone(),
                 s.layout_open,
                 s.browser_open,
+                s.route_trial.as_ref().map(|trial| trial.id),
             );
             let chooser_was_open = s.dialog_busy;
             s.poll();
@@ -1016,6 +1017,7 @@ impl App {
                     s.status.clone(),
                     s.layout_open,
                     s.browser_open,
+                    s.route_trial.as_ref().map(|trial| trial.id),
                 );
         }
         if let Some(host) = &mut self.host {

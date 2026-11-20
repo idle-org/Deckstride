@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 0.1.75
+
+- Explicitly refresh all presenter windows when the shared display-confirmation
+  trial changes, independently of status text. Explain that one confirmation on
+  any screen applies to all displays. The 0.1.73 repaint fix already removes the
+  idle redraw loop that could leave another presenter's dialog stale.
+- Add a three-monitor/two-presenter regression that clicks Keep changes in either
+  presenter and verifies both dialogs disappear, the entire setup is saved, and
+  output remains visible without a second confirmation. Linux workspace/native
+  tests, 13 Python tests, formatting and warnings-denied Clippy/rustdoc pass;
+  whole-application coverage is 84.56% (75% floor). Linux release binary rebuilt;
+  physical three-monitor and Windows/macOS verification remain open.
+
 ### 0.1.74
 
 - Reapply all native window placements after monitor topology changes, even when

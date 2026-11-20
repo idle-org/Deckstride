@@ -1394,6 +1394,11 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 "Keep these display settings?"
             });
             ui.label(if s.settings.language.french() {
+                "Une seule confirmation suffit pour tous les écrans."
+            } else {
+                "Confirm once on any screen to apply to all displays."
+            });
+            ui.label(if s.settings.language.french() {
                 format!("Retour automatique dans {seconds} s. Échap pour annuler.")
             } else {
                 format!("Automatically reverts in {seconds} seconds. Escape to revert.")
