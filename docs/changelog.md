@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.70
+
+- Add configurable disk-cache size and lifetime limits (10 GiB / 30 days by
+  default) and manual expunge under Preferences. A supervised background worker
+  removes expired/oldest artifacts, protects active decks with process locks,
+  reports reclaimed space and errors, and preserves source files and notes.
+  Linux formatting, warnings-denied Clippy/rustdoc, workspace/native tests and
+  13 Python tests pass; whole-application coverage is 84.39% (75% floor).
+  Windows/macOS checks and physical-display acceptance were not run.
+
 ### 0.1.69
 
 - Decode the unsupported-platform keep-awake child status with the private

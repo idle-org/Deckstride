@@ -117,6 +117,10 @@ pub struct Studio {
     pub actions: Vec<Action>,
     pub settings_path: PathBuf,
     pub cache_path: PathBuf,
+    cache_io: Bridge,
+    pub cache_busy: bool,
+    pub cache_status: String,
+    cache_next: Instant,
     pub fg: Bridge,
     pub bg: Bridge,
     pub io: Bridge,
@@ -221,6 +225,10 @@ impl Studio {
             actions: vec![],
             settings_path,
             cache_path,
+            cache_io: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
+            cache_busy: false,
+            cache_status: String::new(),
+            cache_next: Instant::now() + Duration::from_secs(60),
             fg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             bg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             io,
@@ -708,7 +716,52 @@ impl Studio {
                 t.presentation_fullscreen
             })
     }
+    pub fn clean_cache(&mut self, manual: bool) {
+        if self.cache_busy || !self.initialized || self.loading {
+            return;
+        }
+        let protected = self.deck.iter().map(|d| d.key.clone()).collect();
+        if self.cache_io.submit(
+            0,
+            0,
+            Request::CleanCache {
+                path: self.cache_path.clone(),
+                policy: self.settings.disk_cache.clone(),
+                protected,
+                manual,
+            },
+        ) {
+            self.cache_busy = true;
+            self.cache_status = "Cleaning disk cache…".into();
+        }
+    }
+    pub fn remember_cache_policy(&mut self) {
+        self.save_preferences();
+        self.cache_next = Instant::now() + Duration::from_secs(2);
+    }
     pub fn poll(&mut self) {
+        while let Ok(c) = self.cache_io.rx.try_recv() {
+            self.cache_busy = false;
+            self.cache_next = Instant::now() + Duration::from_secs(60);
+            self.cache_status = match c.result {
+                Ok(p) => match (p.reply.error, p.reply.cleanup) {
+                    (Some(e), _) => format!("Cache cleanup: {e}"),
+                    (_, Some(r)) => format!(
+                        "Disk cache: {} MiB remaining; removed {} files ({} MiB); {} protected/changed files retained.",
+                        r.remaining_bytes.div_ceil(1024 * 1024),
+                        r.removed_files,
+                        r.removed_bytes.div_ceil(1024 * 1024),
+                        r.skipped_files
+                    ),
+                    _ => "Cache cleanup returned no report.".into(),
+                },
+                Err(e) => format!("Cache cleanup: {e}"),
+            };
+        }
+        if Instant::now() >= self.cache_next {
+            self.clean_cache(false);
+        }
+
         while let Ok(completion) = self.notes_io.rx.try_recv() {
             if completion.generation != self.generation {
                 continue;

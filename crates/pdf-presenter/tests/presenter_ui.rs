@@ -526,6 +526,13 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
     );
     assert_eq!(s.settings.auto_show, !auto_show);
     assert!(s.menu_open);
+    click(&mut s, "Disk cache");
+    click(&mut s, "Maximum total size (MiB)");
+    click(&mut s, "Expire after (days since rendering)");
+    click(&mut s, "Expunge unused cache now");
+    assert!(s.cache_busy, "The Preferences button must submit cleanup");
+    assert!(s.menu_open);
+    click(&mut s, "Disk cache");
     click(&mut s, "Storage locations");
     assert!(s.menu_open);
     click(&mut s, "Reset timer");

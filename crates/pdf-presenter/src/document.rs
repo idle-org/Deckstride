@@ -43,6 +43,7 @@ pub struct Document {
     pub info: DeckInfo,
     source: Source,
     cache: PathBuf,
+    _cache_lease: crate::cache::Lease,
 }
 enum Source {
     Pdf(Pdf),
@@ -120,6 +121,7 @@ impl Document {
     fn open_inner(path: &Path, cache: PathBuf, load_notes: bool) -> Result<Self, String> {
         let path = std::fs::canonicalize(path).map_err(|e| e.to_string())?;
         let key = settings::project_key(&path);
+        let cache_lease = crate::cache::lease(&cache, &key)?;
         let mut warnings = vec![];
         let mut notes = vec![];
         let names;
@@ -265,6 +267,7 @@ impl Document {
             info,
             source,
             cache,
+            _cache_lease: cache_lease,
         })
     }
     pub fn render(&self, page: usize, edge: u32) -> Result<Frame, String> {

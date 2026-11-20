@@ -84,6 +84,11 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
 - `presenter_fullscreen`, `presentation_fullscreen`: booleans, default true.
 - `browser_monitor`: optional monitor ID; missing/unavailable means presenter screen.
 - `thumbnail_size`: logical width in pixels, finite 100–400; default 220.
+- `disk_cache.max_mib`: integer 64–1048576 MiB, default 10240 (10 GiB).
+- `disk_cache.max_days`: integer 1–3650 days, default 30. Added in 0.1.70;
+  missing table/fields in v1 settings use defaults. Invalid limits are rejected.
+  Global options persist asynchronously; older binaries ignore these fields. See
+  [cache retention](extraction-cache.md) for age, active-deck protection and cleanup.
 - `buffer_mib`: integer 64–16384, adaptive default, added in 0.1.13. Decoded slide RAM
   allowance for each presenter/output process; one MiB = 1048576 bytes. Additional
   worker/texture/UI memory is not included. Since 0.1.46, missing budgets use 15% of available physical RAM measured once at

@@ -224,6 +224,7 @@ pub struct Settings {
     pub browser_monitor: Option<String>,
     pub thumbnail_size: f32,
     pub buffer_mib: u32,
+    pub disk_cache: crate::cache::Policy,
     pub auto_show: bool,
     pub zoom_enabled: bool,
     pub zoom_keep_fitted_area: bool,
@@ -267,6 +268,7 @@ impl Default for Settings {
             browser_monitor: None,
             thumbnail_size: 220.,
             buffer_mib: default_buffer_mib(),
+            disk_cache: Default::default(),
             auto_show: true,
             zoom_enabled: false,
             zoom_keep_fitted_area: false,
@@ -280,6 +282,7 @@ impl Settings {
         if self.version != 1 {
             return Err(format!("Unsupported settings version {}", self.version));
         }
+        self.disk_cache.validate()?;
         if !(64..=16384).contains(&self.buffer_mib) {
             return Err("RAM buffer must be 64–16384 MiB per process".into());
         }

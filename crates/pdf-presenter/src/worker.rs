@@ -71,6 +71,12 @@ pub enum Request {
     },
     ReadFrame(PathBuf),
     LoadSettings(PathBuf),
+    CleanCache {
+        path: PathBuf,
+        policy: crate::cache::Policy,
+        protected: Vec<String>,
+        manual: bool,
+    },
     SaveSettings {
         path: PathBuf,
         settings: Box<Settings>,
@@ -94,6 +100,7 @@ pub struct Reply {
     pub bytes: usize,
     pub edge: Option<u32>,
     pub cached: bool,
+    pub cleanup: Option<crate::cache::Report>,
 }
 pub struct ResultPacket {
     pub reply: Reply,
@@ -284,6 +291,20 @@ pub fn run() -> Result<(), String> {
                         sha256: String::new(),
                     });
                     data = rgba;
+                }
+                Request::CleanCache {
+                    path,
+                    policy,
+                    protected,
+                    manual,
+                } => {
+                    reply.cleanup = Some(crate::cache::clean(
+                        &path,
+                        &policy,
+                        &protected,
+                        manual,
+                        std::time::SystemTime::now(),
+                    )?);
                 }
                 Request::LoadSettings(path) => reply.settings = Some(settings::read(&path)?),
                 Request::SaveSettings { path, settings } => settings::write(&path, &settings)?,

@@ -2340,6 +2340,17 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             if ui.add(egui::Slider::new(&mut s.settings.buffer_mib,64..=16384).text("MiB")).changed() {s.remember_buffer_budget();}
             ui.small(tr(&locale,"Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px."));
             ui.separator();
+            ui.collapsing(tr(&locale, "Disk cache"), |ui| {
+                let mut changed = false;
+                ui.label(tr(&locale, "Maximum total size (MiB)"));
+                changed |= ui.add(egui::DragValue::new(&mut s.settings.disk_cache.max_mib).range(64..=1048576).speed(64)).changed();
+                ui.label(tr(&locale, "Expire after (days since rendering)"));
+                changed |= ui.add(egui::DragValue::new(&mut s.settings.disk_cache.max_days).range(1..=3650)).changed();
+                if changed { s.remember_cache_policy(); }
+                ui.small(tr(&locale, "Oldest files are removed first. Active decks are protected and may exceed the limit. Cleanup runs every minute."));
+                if ui.add_enabled(!s.cache_busy && !s.loading && s.initialized, egui::Button::new(tr(&locale, "Expunge unused cache now"))).clicked() { s.clean_cache(true); }
+                ui.small(&s.cache_status);
+            });
             ui.label(s.preparation_status());
             ui.collapsing(tr(&locale,"Storage locations"), |ui| {
                 ui.label(format!("{}: {}",if s.settings.language.french(){"Diapositives préparées"}else{"Processed slides"},s.cache_path.display()));

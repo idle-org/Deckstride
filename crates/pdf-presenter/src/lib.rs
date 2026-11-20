@@ -95,3 +95,6 @@ pub mod tools;
 pub mod notes;
 
 pub mod zoom;
+
+/// Disk cache retention and worker-only cleanup.
+pub mod cache;

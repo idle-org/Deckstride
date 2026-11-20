@@ -54,4 +54,43 @@ Stale reads for evicted entries are discarded. READY requires the whole deck to 
 resident in both processes; rolling-buffer mode explicitly permits background disk
 reads and is never described as fully RAM-buffered. OS paging and software composition
 are outside this application-level no-file-read guarantee. The disk schema remains v1.
-Disk eviction/quota remains outstanding; full disk reports an explicit error.
+## Disk retention — 0.1.70
+
+Menu → Preferences → Disk cache controls total size (default 10240 MiB / 10 GiB)
+and lifetime (default 30 days), with **Expunge unused cache now** to remove all
+eligible artifacts regardless of age/size. One day is 86400 seconds. Age is measured
+from filesystem modification time (render/write time), not access time; warm reads
+do not extend lifetime. Future timestamps do not expire until their age reaches
+the limit. Expired files are removed first in oldest-first order, then older files
+are removed until total bytes are within the target. Ties sort by path.
+
+A dedicated killable worker starts maintenance 60 seconds after startup and repeats
+60 seconds after completion; option changes schedule it after two seconds. Loading
+a document defers submission. Cleanup never blocks first-page display or UI input.
+Only one cleanup request is admitted per presenter; its deadline is 30 seconds.
+Errors/timeouts appear in the Disk cache section and retry on the next interval.
+Manual cleanup reports removed files/bytes, remaining bytes and retained candidates.
+Counts are a scan snapshot; concurrent rendering can change actual usage.
+
+Current presenter projects are excluded. Live document workers also hold shared OS
+locks on `<project-key>/.lease-v1`; cleanup takes a nonblocking exclusive lock before
+deleting each file. Locks release on process exit, including crashes. This protects
+workers opening/rendering decks across instances. Lease files are empty, contain no
+persistent fields, are never unlinked, and support old caches by lazy creation.
+Older application versions do not honor these locks: avoid concurrent mixed-version
+use of one cache. Active decks can exceed the quota or lifetime; limits are eventual
+targets, not a hard write cap. Manual expunge also retains active projects. To clear
+the current deck, close the application and delete `slides-v1`, or reopen the app
+without a deck and use manual expunge.
+
+The scan is fixed to project/source-hash directories, never follows discovered
+symlinks, and caps traversal at 200000 entries before deletion. It deletes only known
+page/edge `hayro09` and `hayro09-straight` RGBA files and extraction manifests;
+unknown files and temporary files are retained. Total bytes count all regular files
+at the artifact level, including unknown files, but exclude filesystem overhead and
+empty lease files. Unknown files or protected decks can prevent reaching the target.
+Metadata is rechecked under the project lock before deletion. Empty source-hash
+directories are removed when possible; project/lease directories remain. Image and
+manifest deletion is individually recoverable: missing artifacts regenerate.
+Source documents, notes sidecars and settings are outside cleanup scope. A full or
+unwritable disk still reports an explicit error; a memory-only fallback is pending.

@@ -100,8 +100,8 @@ benchmark or comparison against Pympress. The source PDF remains untracked and u
 - Idle-timeout, AC/battery, blank-state and crash-release sleep checks on each OS.
 - Automatic reconnect to an orphan output host; Windows worker memory job limits;
   per-output process isolation where one display driver can stall a shared host.
-- Automatic disk cache quota/eviction and an unwritable-cache memory fallback.
-  Current disk cache needs manual cleanup while closed; failures retain prior output.
+- Unwritable-cache memory fallback. Since 0.1.70 disk cache maintenance supports
+  size/age limits and manual expunge, preserving active decks; failures retain output.
 - Explicit slide/notes-region cropping for notes-page PDFs, broader bundled CJK font
   coverage and pathological notes-layout latency. Current PDF notes are annotation
   Contents, not inferred speaker text embedded as page graphics.

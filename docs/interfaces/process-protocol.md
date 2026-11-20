@@ -196,3 +196,11 @@ lets the current preview use that aspect ratio, without transferring image data.
 Missing/zero dimensions or a route/fullscreen mismatch fall back to the connected
 monitor size. Reports are refreshed by the existing one-second heartbeat, and are
 not persisted. Outputs with different aspect ratios still use their own viewport.
+
+## Cache maintenance — 0.1.70
+
+`CleanCache {path, policy: {max_mib, max_days}, protected: [project_key], manual}`
+runs on a dedicated 30-second supervised worker, one outstanding job per presenter.
+The reply adds optional `cleanup` with unsigned `removed_bytes`, `remaining_bytes`,
+`removed_files`, and `skipped_files`. Errors use the existing error field. No frame
+payload is transferred. The same-build private protocol requires no migration.

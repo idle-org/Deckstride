@@ -11,14 +11,15 @@ T06 bundled renderer/codecs (Hayro replaces PDFium); T07 bounded pipes; T08 real
 T08a folders; T09 priorities; T10 worker deadlines; T11/T12 verified atomic caches;
 T13 bounded decoded cache; T14 software composition; T16 approved presenter/browser
 workflow; T17 asynchronous annotation/sidecar notes; T18 last-frame crash hold and
-blanked output-host restart. T01 full latency instrumentation, T15 disk quota,
+blanked output-host restart. 0.1.70 adds T15 disk size/age cleanup with active-deck
+protection and manual expunge. T01 full latency instrumentation,
 T17 explicit notes-region crop, T18 reconnect, platform acceptance and clean-machine
 release checks remain open. Do not mark their broader acceptance from this code alone.
 
 0.1.13 adds whole-deck processed-frame reuse and RAM preparation to T09/T12/T13:
 two workers, screen-derived resolution, cache-first opening, retained complete buffers,
 explicit preparation progress/ETA and memory-pressure pause. T01's full optical
-latency matrix and T15's persistent disk quota remain open.
+latency matrix remains open; T15's persistent disk quota was added in 0.1.70.
 
 0.1.19 replaces the memory-pressure pause with bounded rolling eviction, while
 retaining full RAM residency when the deck fits. Processed-page progress is separate
