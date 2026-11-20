@@ -51,8 +51,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Disable zoom" => "Désactiver le zoom",
         "Keep zoom enabled" => "Garder le zoom activé",
         "Zoom performance" => "Performances du zoom",
-        "Scroll to zoom · drag to pan · double-click to reset" => {
-            "Molette pour zoomer · glisser pour déplacer · double-clic pour réinitialiser"
+        "Scroll to zoom · drag to pan · double-click to fit width / reset" => {
+            "Molette pour zoomer · glisser pour déplacer · double-clic pour ajuster à la largeur / réinitialiser"
         }
         "Use the current slide preview or a presentation screen. Changing slides resets zoom." => {
             "Utilisez l’aperçu actuel ou un écran de présentation. Changer de diapositive réinitialise le zoom."

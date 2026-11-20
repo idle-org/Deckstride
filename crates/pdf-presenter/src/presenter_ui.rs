@@ -171,6 +171,12 @@ pub fn zoom_gestures_in(
     }
     if response.double_clicked() {
         next = Default::default();
+        if view.normalized().scale == 1. {
+            let fitted = fitted_slide(rect, dimensions);
+            if fitted.width() > 0. {
+                next.scale = (rect.width() / fitted.width()).clamp(1., 8.);
+            }
+        }
     }
     if response.hovered() || response.dragged() {
         ui.ctx().set_cursor_icon(if response.dragged() {
@@ -845,7 +851,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         );
                         response.on_hover_text(tr(
                             &locale,
-                            "Scroll to zoom · drag to pan · double-click to reset",
+                            "Scroll to zoom · drag to pan · double-click to fit width / reset",
                         ));
                         if view != s.zoom.view {
                             s.set_zoom(view);
@@ -2108,7 +2114,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
                 s.set_zoom(s.zoom.view.zoom_at(scale, [0.5; 2]));
             }
             if ui.button(tr(&locale, "Reset zoom")).clicked() { s.set_zoom(Default::default()); }
-            ui.small(tr(&locale, "Scroll to zoom · drag to pan · double-click to reset"));
+            ui.small(tr(&locale, "Scroll to zoom · drag to pan · double-click to fit width / reset"));
             ui.small(tr(&locale, "Use the current slide preview or a presentation screen. Changing slides resets zoom."));
         });
     }

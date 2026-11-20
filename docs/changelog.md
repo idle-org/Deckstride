@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.58
+
+- Double-click an unzoomed current preview or presentation output to fit the page
+  width to that viewport (within the existing 8× limit). Double-click while zoomed
+  still resets to the whole page. Reuse the buffered texture and shared zoom state;
+  update English/French gesture hints and the guide. Linux checks pass, including
+  pointer-gesture regression tests and 86.22% whole-application coverage.
+
 ### 0.1.57
 
 - Fix tiny clock/timer text in the header, above slides and below notes: use the

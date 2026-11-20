@@ -601,3 +601,57 @@ fn portrait_screen_adapting_gestures_pan_visible_area_and_reset() {
     }
     assert_eq!(zoom, View::default());
 }
+
+#[test]
+fn double_click_fits_width_then_resets_without_stretching() {
+    use pdf_presenter::presenter_ui::{zoom_geometry, zoom_gestures_in};
+    for (dimensions, expected) in [([210, 297], 2.8285716), ([400, 100], 1.), ([10, 1000], 8.)] {
+        let ctx = Context::default();
+        let target = Rect::from_min_size(Pos2::new(40., 40.), Vec2::new(400., 200.));
+        let center = target.center();
+        let mut view = View::default();
+        let mut time = 0.;
+        let mut render = |events| {
+            time += 0.04;
+            let _ = ctx.run_ui(
+                RawInput {
+                    screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(500., 300.))),
+                    events,
+                    time: Some(time),
+                    ..Default::default()
+                },
+                |ui| {
+                    view = zoom_gestures_in(ui, target, dimensions, view, false).0;
+                },
+            );
+            view
+        };
+        render(vec![egui::Event::PointerMoved(center)]);
+        for expected_scale in [expected, 1.] {
+            for _ in 0..20 {
+                render(vec![]);
+            }
+            let mut actual = View::default();
+            for _ in 0..2 {
+                for pressed in [true, false] {
+                    actual = render(vec![egui::Event::PointerButton {
+                        pos: center,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: Default::default(),
+                    }]);
+                }
+            }
+            assert!((actual.scale - expected_scale).abs() < 0.0001);
+            assert_eq!(actual.center, [0.5; 2]);
+            if actual.scale > 1. && actual.scale < 8. {
+                let (draw, uv) = zoom_geometry(target, dimensions, actual, false);
+                assert!((draw.width() - target.width()).abs() < 0.001);
+                assert!(
+                    (uv.width() - 1.).abs() < 0.001,
+                    "fit width must show the entire page width"
+                );
+            }
+        }
+    }
+}

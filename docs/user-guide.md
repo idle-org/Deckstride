@@ -334,7 +334,10 @@ the visible area, not the cached image resolution.
 - On the **current slide preview** or any **presentation screen**, scroll up/down
   to zoom in/out (1×–8×). The point under the mouse stays anchored when possible.
 - Hold the left mouse button and drag to move the enlarged image. Movement stops
-  at the page edges. Double-click to reset to the complete fitted slide.
+  at the page edges. When viewing the whole page, **double-click to fit its width**
+  to the screen or current-preview area you clicked (up to 8×). Double-click again
+  while zoomed to reset to the complete fitted page. Pages already filling the
+  width stay unchanged. The optional fixed page area still applies if enabled.
 - **Menu → Page zoom** also has a zoom slider and **Reset zoom** button. If the
   current preview is hidden, show it in Layout to pan from the presenter.
 - All mirrored presenter/current previews and presentation outputs share zoom and
