@@ -260,3 +260,7 @@ window-rule {
 
 See [Niri window rules](https://github.com/niri-wm/niri/wiki/Configuration%3A-Window-Rules).
 The rule targets only All slides, not presenter or audience windows.
+
+In All slides, double-click a thumbnail to open a larger, resizable preview inside
+the browser. It does not change the presentation. Close it with its X or Escape.
+When Change on click is enabled, clicks switch the live slide and do not open previews.

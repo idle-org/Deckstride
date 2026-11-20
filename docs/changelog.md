@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.37
+
+- Double-click a thumbnail in All slides to open a resizable preview without
+  changing output. Change on click mode retains live navigation without previews.
+  Escape dismisses the preview first; changing documents clears stale previews.
+
 ### 0.1.36
 
 - Give All slides a padded toolbar with separate title, preview/display settings,

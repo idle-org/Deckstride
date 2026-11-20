@@ -120,6 +120,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
             "Ouvrez un PDF ou un dossier d’images pour parcourir les diapositives."
         }
         "Close" => "Fermer",
+        "Slide preview" => "Aperçu de la diapositive",
+        "Preview only — presentation unchanged" => "Aperçu uniquement — présentation inchangée",
         "Browser screen" => "Écran du navigateur",
         "Preview size" => "Taille des aperçus",
         "Change on click" => "Diffuser au clic",

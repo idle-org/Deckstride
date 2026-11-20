@@ -77,6 +77,7 @@ pub struct Studio {
     pub menu_open: bool,
     pub browser_open: bool,
     pub browser_selected: usize,
+    pub browser_preview: Option<(u64, usize)>,
     pub change_on_click: bool,
     pub jump: String,
     pub started: Instant,
@@ -169,6 +170,7 @@ impl Studio {
             menu_open: false,
             browser_open: false,
             browser_selected: 0,
+            browser_preview: None,
             change_on_click: false,
             jump: String::new(),
             started: Instant::now(),
@@ -422,6 +424,7 @@ impl Studio {
             }
             Action::CloseBrowser => {
                 self.browser_open = false;
+                self.browser_preview = None;
                 self.pending_save = true;
             }
             Action::Refresh => self.dirty_routes = true,

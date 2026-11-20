@@ -622,7 +622,9 @@ impl App {
                 if !s.jump.is_empty() {
                     s.jump.clear();
                 } else if role == Role::Browser {
-                    s.execute(Action::CloseBrowser);
+                    if s.browser_preview.take().is_none() {
+                        s.execute(Action::CloseBrowser);
+                    }
                 } else if s.layout_open || s.displays_open || s.menu_open {
                     s.layout_open = false;
                     s.displays_open = false;

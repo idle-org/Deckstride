@@ -657,3 +657,69 @@ fn end_of_slides_is_only_a_presenter_next_preview_not_a_page() {
         );
     }
 }
+
+#[test]
+fn browser_double_click_previews_without_live_navigation() {
+    fn find(shape: &egui::Shape) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == "2" => Some(t.pos + Vec2::new(40., -45.)),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(find),
+            _ => None,
+        }
+    }
+    for live in [false, true] {
+        let ctx = Context::default();
+        let mut s = studio();
+        s.change_on_click = live;
+        s.browser_open = true;
+        let mut native = UiState::default();
+        let mut time = 0.;
+        let mut frame = |s: &mut Studio, events| {
+            time += 0.03;
+            let mut raw = input(Vec2::new(1280., 900.));
+            raw.time = Some(time);
+            raw.events = events;
+            ctx.run_ui(raw, |ui| presenter_ui::browser(ui, s, &mut native))
+        };
+        let mut output = frame(&mut s, vec![]);
+        for _ in 0..3 {
+            output = frame(&mut s, vec![]);
+        }
+        let pos = output.shapes.iter().find_map(|s| find(&s.shape)).unwrap();
+        for _ in 0..2 {
+            for pressed in [true, false] {
+                frame(
+                    &mut s,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: Default::default(),
+                        },
+                    ],
+                );
+            }
+        }
+        assert_eq!(s.browser_selected, 1);
+        assert_eq!(s.requested, 0);
+        if live {
+            assert!(s.browser_preview.is_none());
+            assert!(s.actions.iter().any(|a| matches!(a, Action::Go(1))));
+        } else {
+            assert_eq!(s.browser_preview, Some((s.generation, 1)));
+            assert!(s.actions.is_empty());
+            s.generation += 1;
+            frame(&mut s, vec![]);
+            assert!(s.browser_preview.is_none());
+            s.browser_preview = Some((s.generation, 1));
+            s.change_on_click = true;
+            frame(&mut s, vec![]);
+            assert!(s.browser_preview.is_none());
+            s.browser_preview = Some((s.generation, 1));
+            s.execute(Action::CloseBrowser);
+            assert!(s.browser_preview.is_none());
+        }
+    }
+}

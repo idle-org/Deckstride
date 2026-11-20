@@ -895,6 +895,12 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let locale = ui.ctx().clone();
     ui.painter()
         .rect_filled(ui.max_rect(), 0., ui.visuals().panel_fill);
+    if s.change_on_click
+        || s.browser_preview
+            .is_some_and(|(generation, page)| generation != s.generation || page >= s.count())
+    {
+        s.browser_preview = None;
+    }
     native.trim(s);
     if s.count() == 0 {
         ui.label(tr(
@@ -1028,6 +1034,9 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                 egui::StrokeKind::Inside,
                             );
                         }
+                        if response.double_clicked() && !s.change_on_click {
+                            s.browser_preview = Some((s.generation, page));
+                        }
                         if response.clicked() {
                             s.browser_selected = page;
                             if s.change_on_click {
@@ -1048,6 +1057,32 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         }
     });
+    if let Some((_, page)) = s.browser_preview {
+        // Keep preview requests in the browser's bounded asynchronous loading path.
+        s.visible_thumbs.insert(page);
+        let mut open = true;
+        let screen = ui.ctx().content_rect().size();
+        egui::Window::new(format!(
+            "{} · {} / {}",
+            tr(&locale, "Slide preview"),
+            page + 1,
+            s.count()
+        ))
+        .id(egui::Id::new("slide-preview"))
+        .open(&mut open)
+        .collapsible(false)
+        .resizable(true)
+        .default_size(Vec2::new(800., 500.).min(screen * 0.8))
+        .show(ui.ctx(), |ui| {
+            ui.label(tr(&locale, "Preview only — presentation unchanged"));
+            let (rect, _) =
+                ui.allocate_exact_size(ui.available_size().max(Vec2::splat(1.)), Sense::hover());
+            native.image(ui, s, page, rect);
+        });
+        if !open {
+            s.browser_preview = None;
+        }
+    }
 }
 
 fn menu(ui: &mut Ui, s: &mut Studio) {
