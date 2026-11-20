@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.45
+
+- Distinguish Theme and Language section headings with smaller, bold, muted text
+  and separate their selectable submenus with spacing and a divider.
+
 ### 0.1.44
 
 - Size Layout scrolling from its resized window rather than the desktop. Remove

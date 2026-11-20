@@ -1355,7 +1355,12 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_min_width(250.);
             let mut changed = false;
-            ui.label(tr(&locale, "Theme"));
+            ui.label(
+                egui::RichText::new(tr(&locale, "Theme"))
+                    .small()
+                    .strong()
+                    .color(ui.visuals().weak_text_color()),
+            );
             ui.menu_button(s.settings.theme.name().to_owned(), |ui| {
                 for theme in crate::theme::Theme::ALL {
                     let name = theme.name();
@@ -1364,7 +1369,15 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
                         .changed();
                 }
             });
-            ui.label(tr(&locale, "Language"));
+            ui.add_space(6.);
+            ui.separator();
+            ui.add_space(4.);
+            ui.label(
+                egui::RichText::new(tr(&locale, "Language"))
+                    .small()
+                    .strong()
+                    .color(ui.visuals().weak_text_color()),
+            );
             ui.menu_button(s.settings.language.name(), |ui| {
                 for language in crate::localization::Language::ALL {
                     changed |= ui
