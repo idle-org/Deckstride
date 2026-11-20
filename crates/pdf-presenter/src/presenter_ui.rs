@@ -932,7 +932,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         .text(tr(&locale, "Preview size")),
                 );
                 ui.horizontal(|ui| {
-                    ui.label(tr(&locale, "Browser screen"));
+                    ui.label(tr(&locale, "Show on screen"));
                     egui::ComboBox::from_id_salt("browser-monitor")
                         .selected_text(
                             s.settings

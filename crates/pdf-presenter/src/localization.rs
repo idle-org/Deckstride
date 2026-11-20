@@ -122,7 +122,7 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Close" => "Fermer",
         "Slide preview" => "Aperçu de la diapositive",
         "Preview only — presentation unchanged" => "Aperçu uniquement — présentation inchangée",
-        "Browser screen" => "Écran du navigateur",
+        "Show on screen" => "Afficher sur l’écran",
         "Preview size" => "Taille des aperçus",
         "Change on click" => "Diffuser au clic",
         "Presenter screen" => "Écran du présentateur",

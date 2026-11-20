@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.39
+
+- Rename the All slides screen selector to “Show on screen” (French: “Afficher
+  sur l’écran”).
+
 ### 0.1.38
 
 - Keep the All slides scrollbar at the right edge with a stable gutter. Fit
