@@ -35,7 +35,8 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
 - `layout`: `previous`, `current`, `next`, `notes`, `elapsed`, `clock`, each with
   boolean `show` and finite floating `size`; plus boolean `header`/`footer`.
   Previous/next sizes are relative weights 30–160, current 60–200; notes size
-  is percentage 12–65; elapsed/clock sizes are logical pixels 16–72. Defaults are in `settings.rs`.
+  is percentage 12–65; elapsed/clock sizes are logical pixels 16–72. Defaults are in `settings.rs`. Since 0.1.35, the previous-slide widget defaults
+  to hidden; an explicitly saved `previous.show` value is preserved.
 - `layout.elapsed_position` and `layout.clock_position`: `header` (default),
   `above_slides`, or `below_notes`, added in 0.1.24. Independent presenter-only
   placement presets; unknown values are rejected. Body timer rows reserve space

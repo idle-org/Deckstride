@@ -87,6 +87,8 @@ do not navigate. Output windows accept B/Escape for emergency blanking.
 Layout independently enables and sizes previous/current/next slides, notes, elapsed
 time and the local HH:MM clock. Hidden widgets release their space. Notes wrap and
 automatically shrink to fit; extremely long notes can become too small to read.
+The previous-slide preview is off by default; enable **Previous slide** in Layout
+when you want it. Saved layouts keep their chosen visibility.
 Menu → Reset timer starts elapsed time again. Bundled UI fonts cover their supplied
 character sets; broad CJK text coverage remains a packaging acceptance item.
 

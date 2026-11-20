@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.35
+
+- Hide the previous-slide preview by default; enable it in Layout. Preserve explicit
+  visibility choices in saved layouts and verify default/opt-in persistence.
+
 ### 0.1.34
 
 - Restrict keepawake to its supported Linux, Windows and macOS targets so the

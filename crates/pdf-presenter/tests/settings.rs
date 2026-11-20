@@ -11,6 +11,7 @@ fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     settings.theme = pdf_presenter::theme::Theme::CorporateLight;
     settings.language = pdf_presenter::localization::Language::Fr;
     let mut project = Layout::default();
+    project.previous.show = true; // Explicit opt-in survives saving and loading.
     project.current.show = false;
     project.header = false;
     project.footer = false;
@@ -63,6 +64,8 @@ fn settings_reject_invalid_versions_ranges_and_duplicate_roles() {
     assert!(settings::read(&p).is_err());
     std::fs::write(&p, "version=1").unwrap();
     assert!(settings::read(&p).unwrap().layout.header);
+    assert!(!settings::read(&p).unwrap().layout.previous.show);
+    assert!(!Layout::default().previous.show);
     assert_eq!(settings::read(&p).unwrap().buffer_mib, 1024);
     assert!(settings::read(&p).unwrap().auto_show);
 }

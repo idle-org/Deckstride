@@ -49,7 +49,7 @@ impl Default for Layout {
     fn default() -> Self {
         Self {
             previous: Widget {
-                show: true,
+                show: false,
                 size: 60.,
             },
             current: Widget {
