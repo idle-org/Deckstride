@@ -975,7 +975,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     .open_bool(&mut menu_open)
                     .show(|ui| {
                         egui::ScrollArea::vertical()
-                            .max_height(520.)
+                            .max_height(
+                                (screen.bottom() - trigger.rect.bottom() - 16.).clamp(80., 720.),
+                            )
                             .show(ui, |ui| menu(ui, s));
                     });
                 s.menu_open = menu_open;

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.59
+
+- Increase the Menu dropdown height from 520 to 720 logical pixels so Quit stays
+  accessible without scrolling on taller screens. Limit it to the space below
+  its button and retain scrolling on smaller windows.
+
 ### 0.1.58
 
 - Double-click an unzoomed current preview or presentation output to fit the page
