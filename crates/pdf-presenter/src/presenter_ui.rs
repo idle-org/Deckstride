@@ -967,6 +967,10 @@ fn browser_screen_settings(ui: &mut Ui, s: &mut Studio) {
 }
 pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let browser_width = ui.available_width();
+    let footer_rect = Rect::from_min_max(
+        Pos2::new(ui.max_rect().left(), ui.max_rect().bottom() - 44.),
+        ui.max_rect().max,
+    );
     let locale = ui.ctx().clone();
     ui.painter()
         .rect_filled(ui.max_rect(), 0., ui.visuals().panel_fill);
@@ -990,16 +994,6 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.spacing_mut().item_spacing = Vec2::new(16., 10.);
             ui.spacing_mut().button_padding = Vec2::new(12., 7.);
             ui.spacing_mut().interact_size.y = 30.;
-            ui.horizontal_wrapped(|ui| {
-                ui.heading(tr(&locale, "All slides"));
-                button(
-                    ui,
-                    tr(&locale, "Close"),
-                    Action::CloseBrowser,
-                    &mut s.actions,
-                );
-            });
-            ui.add_space(2.);
             if ui.available_width() >= 680. {
                 ui.columns(2, |columns| {
                     browser_preview_settings(&mut columns[0], s);
@@ -1105,6 +1099,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     s.visible_thumbs.clear();
     egui::ScrollArea::vertical()
         .max_width(browser_width)
+        .max_height((footer_rect.top() - ui.cursor().top() - 8.).max(0.))
         .auto_shrink([false, false])
         .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
         .show_rows(ui, size * 0.5625 + 50., rows, |ui, range| {
@@ -1161,6 +1156,17 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 });
             }
         });
+    ui.scope_builder(egui::UiBuilder::new().max_rect(footer_rect), |ui| {
+        ui.separator();
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui
+                .add(egui::Button::new(tr(&locale, "Close")).min_size(Vec2::new(100., 32.)))
+                .clicked()
+            {
+                s.actions.push(Action::CloseBrowser);
+            }
+        });
+    });
     if let Some((_, page)) = s.browser_preview {
         // Keep preview requests in the browser's bounded asynchronous loading path.
         s.visible_thumbs.insert(page);

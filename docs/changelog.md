@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.42
+
+- Remove the redundant All slides heading from the browser content and move Close
+  into a fixed bottom-right footer, outside the scrolling thumbnail grid.
+
 ### 0.1.41
 
 - Redesign All slides controls with labeled settings cards, a filled Compact/Large
