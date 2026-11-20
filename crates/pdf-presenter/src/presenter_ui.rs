@@ -472,7 +472,7 @@ fn timer_height(s: &Studio, position: TimerPosition) -> f32 {
     ]
     .into_iter()
     .filter(|(w, p)| w.show && *p == position)
-    .map(|(w, _)| w.size + 32.)
+    .map(|(w, _)| w.size * 1.3 + 36.)
     .fold(0., f32::max)
 }
 fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
@@ -584,7 +584,7 @@ fn side_timers(
         if size == 0. || !original.is_positive() {
             continue;
         }
-        let width = ((size - 32.) * 3.6 + 24.).min(original.width() * 0.32);
+        let width = ((size - 36.) / 1.3 * 3.6 + 24.).min(original.width() * 0.32);
         let column = if is_left {
             Rect::from_min_max(
                 original.min,
@@ -661,9 +661,19 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.close();
         }
     });
-    let header_height = (timer_height(s, TimerPosition::Header) + 20.)
-        .max(64.)
-        .min(screen.height() * 0.35);
+    let header_timer_height = timer_height(s, TimerPosition::Header);
+    let separate_header_timers =
+        header_timer_height > 100. || (header_timer_height > 0. && screen.width() < 1100.);
+    let header_controls_height = 44.;
+    let header_height = (header_timer_height
+        + 20.
+        + if separate_header_timers {
+            header_controls_height
+        } else {
+            0.
+        })
+    .max(64.)
+    .min(screen.height() * 0.35);
     let mut body = screen.shrink(16.);
     if s.layout.header {
         body.min.y += header_height;
@@ -712,9 +722,12 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             } else {
                 body.max.y -= height + 8.;
             }
-            ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
-                ui.horizontal(|ui| timers(ui, s, position));
-            });
+            ui.scope_builder(
+                egui::UiBuilder::new()
+                    .max_rect(rect)
+                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                |ui| timers(ui, s, position),
+            );
         }
     }
     let preview_visible = s.layout.previous.show || s.layout.current.show || s.layout.next.show;
@@ -934,8 +947,12 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     if header {
         let rect = Rect::from_min_size(screen.min, Vec2::new(screen.width(), header_height));
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
-        ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(10.)), |ui| {
-            ui.horizontal(|ui| {
+        let mut controls = rect.shrink(10.);
+        if separate_header_timers {
+            controls.max.y = controls.min.y + header_controls_height - 8.;
+        }
+        ui.scope_builder(egui::UiBuilder::new().max_rect(controls), |ui| {
+            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 if bar_visibility_button(ui, s.layout.header, true).clicked() {
                     s.layout.header = !s.layout.header;
                     native.header_until = now;
@@ -999,9 +1016,23 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 {
                     s.actions.push(Action::Blank);
                 }
-                timers(ui, s, TimerPosition::Header);
+                if !separate_header_timers {
+                    timers(ui, s, TimerPosition::Header);
+                }
             });
         });
+        if separate_header_timers {
+            let timer_rect = Rect::from_min_max(
+                rect.min + Vec2::new(10., 10. + header_controls_height),
+                rect.max - Vec2::splat(10.),
+            );
+            ui.scope_builder(
+                egui::UiBuilder::new()
+                    .max_rect(timer_rect)
+                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                |ui| timers(ui, s, TimerPosition::Header),
+            );
+        }
     }
     if footer {
         let rect = Rect::from_min_size(

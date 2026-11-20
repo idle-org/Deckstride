@@ -589,6 +589,31 @@ fn timer_presets_reserve_space_and_progress_tracks_navigation() {
     let current = text_rect(&output.shapes, "CURRENT  1 / 30").unwrap();
     assert!(elapsed.bottom() < current.top());
     assert!(clock.top() > current.bottom());
+    assert!(
+        text_rect(&output.shapes, "00:00").unwrap().height() >= 65.,
+        "the above-slides timer must use its configured size, not button-row height"
+    );
+    let clock_value = chrono::Local::now().format("%H:%M").to_string();
+    assert!(text_rect(&output.shapes, &clock_value).unwrap().height() >= 65.);
+    for font_size in [28., 72., 160.] {
+        s.layout.header = true;
+        s.layout.elapsed_position = TimerPosition::Header;
+        s.layout.clock_position = TimerPosition::Header;
+        s.layout.elapsed.size = font_size;
+        s.layout.clock.size = font_size;
+        let header = render(&mut s);
+        let elapsed = text_rect(&header.shapes, "00:00").unwrap();
+        assert!(
+            elapsed.height() >= font_size * 0.85,
+            "header font {font_size}: {elapsed:?}"
+        );
+        assert!(elapsed.bottom() < text_rect(&header.shapes, "CURRENT  1 / 30").unwrap().top());
+    }
+    s.layout.header = false;
+    s.layout.elapsed_position = TimerPosition::AboveSlides;
+    s.layout.clock_position = TimerPosition::BelowNotes;
+    s.layout.elapsed.size = 72.;
+    s.layout.clock.size = 72.;
     assert!(text_rect(&output.shapes, "Slide 1 / 30").is_none());
     s.layout.slide_progress = true;
     for page in [0, 14, 29] {

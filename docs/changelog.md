@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.57
+
+- Fix tiny clock/timer text in the header, above slides and below notes: use the
+  reserved row height and account for labels/padding. Put large header timers,
+  or timers in narrow windows, on a separate row below the menu controls.
+  Regression checks verify rendered text size and separation from slides.
+  Linux workspace tests, 13 Python tests, formatting and warnings-denied
+  Clippy/rustdoc pass; release binary rebuilt. Coverage measurement failed twice
+  on corrupt LLVM worker profiles after the tests passed.
+
 ### 0.1.56
 
 - Move the presenter header fullscreen button after Menu, Displays, All slides
