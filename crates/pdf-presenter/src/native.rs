@@ -789,6 +789,7 @@ impl App {
                         if ack.generation == s.buffer_generation() && ack.page == Some(s.requested)
                         {
                             if s.zoom.accept_output(zoom) {
+                                s.presentation_action();
                                 repaint = true;
                             }
                             if zoom.epoch == s.zoom.epoch {
@@ -814,17 +815,12 @@ impl App {
                         s.new_output = true;
                     }
                     if ack.request_blank {
+                        s.presentation_action();
                         s.blanked = true;
                         s.new_output = true;
                     }
                     if ack.sequence == s.output_sequence {
                         s.displayed = ack.page;
-                        if ack.page.is_some()
-                            && !s.blanked
-                            && ack.generation == s.buffer_generation()
-                        {
-                            s.slide_played();
-                        }
                     }
                 }
                 if s.new_output {

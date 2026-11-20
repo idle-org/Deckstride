@@ -5,14 +5,14 @@ use std::time::{Duration, Instant};
 pub struct Timer {
     accumulated: Duration,
     running_since: Option<Instant>,
-    pub waiting_for_slide: bool,
+    pub waiting_for_action: bool,
 }
 impl Default for Timer {
     fn default() -> Self {
         Self {
             accumulated: Duration::ZERO,
             running_since: None,
-            waiting_for_slide: true,
+            waiting_for_action: true,
         }
     }
 }
@@ -36,25 +36,27 @@ impl Timer {
             None => elapsed.as_secs(),
         }
     }
-    pub fn restart(&mut self, now: Instant) {
+    /// Return to zero and wait for the next presentation action.
+    pub fn reset(&mut self) {
         self.accumulated = Duration::ZERO;
-        self.running_since = Some(now);
-        self.waiting_for_slide = false;
+        self.running_since = None;
+        self.waiting_for_action = true;
     }
     pub fn toggle(&mut self, now: Instant, limit: Option<Duration>) {
-        self.waiting_for_slide = false;
+        self.waiting_for_action = false;
         if self.running(now, limit) {
             self.accumulated = self.elapsed(now);
             self.running_since = None;
         } else if limit.is_some_and(|limit| self.elapsed(now) >= limit) {
-            self.restart(now);
+            self.accumulated = Duration::ZERO;
+            self.running_since = Some(now);
         } else {
             self.running_since = Some(now);
         }
     }
-    pub fn first_slide(&mut self, now: Instant, automatic: bool) {
-        if self.waiting_for_slide {
-            self.waiting_for_slide = false;
+    pub fn presentation_action(&mut self, now: Instant, automatic: bool) {
+        if self.waiting_for_action {
+            self.waiting_for_action = false;
             if automatic {
                 self.running_since = Some(now);
             }

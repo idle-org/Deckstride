@@ -39,7 +39,7 @@ pub enum Action {
     Exit,
     ToggleFullscreen,
     ToggleTimer,
-    RestartTimer,
+    ResetTimer,
     EditNotes,
     ReloadNotes,
     SaveNotes,
@@ -312,9 +312,9 @@ impl Studio {
         (self.layout.timer_mode == settings::TimerMode::Countdown)
             .then(|| Duration::from_secs(self.layout.countdown_seconds as u64))
     }
-    pub fn slide_played(&mut self) {
+    pub fn presentation_action(&mut self) {
         self.timer
-            .first_slide(Instant::now(), self.layout.timer_autostart);
+            .presentation_action(Instant::now(), self.layout.timer_autostart);
     }
     pub fn execute(&mut self, action: Action) {
         match action {
@@ -435,11 +435,9 @@ impl Studio {
                         self.fg_job = None;
                     }
                     self.presentation_started = true;
-                    if !self.blanked && self.routes.presentation.is_empty() {
-                        self.slide_played();
-                    }
                     if self.requested != page {
                         self.set_zoom(crate::zoom::View::default());
+                        self.presentation_action();
                     }
                     self.requested = page;
                     self.jump.clear();
@@ -448,11 +446,9 @@ impl Studio {
             }
             Action::Blank => {
                 self.blanked = !self.blanked;
+                self.presentation_action();
                 if !self.blanked {
                     self.presentation_started = true;
-                    if self.count() > 0 && self.routes.presentation.is_empty() {
-                        self.slide_played();
-                    }
                 }
                 self.new_output = true;
             }
@@ -630,7 +626,7 @@ impl Studio {
                 }
             }
             Action::ToggleTimer => self.timer.toggle(Instant::now(), self.timer_limit()),
-            Action::RestartTimer => self.timer.restart(Instant::now()),
+            Action::ResetTimer => self.timer.reset(),
             Action::ToggleFullscreen => {
                 if self.route_trial.is_some() {
                     return;
@@ -1139,6 +1135,12 @@ impl Studio {
         self.zoom.keep_fitted_area = self.settings.zoom_keep_fitted_area;
         self.zoom.set(self.settings.zoom_enabled, view);
         self.new_zoom = true;
+    }
+    pub fn set_zoom_from_action(&mut self, view: crate::zoom::View) {
+        if self.settings.zoom_enabled && view.normalized() != self.zoom.view.normalized() {
+            self.presentation_action();
+        }
+        self.set_zoom(view);
     }
     pub fn enable_zoom(&mut self, enabled: bool) {
         self.settings.zoom_enabled = enabled;

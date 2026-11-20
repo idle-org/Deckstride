@@ -528,16 +528,16 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
     assert!(s.menu_open);
     click(&mut s, "Storage locations");
     assert!(s.menu_open);
-    click(&mut s, "Restart timer");
-    assert!(s.timer.running(std::time::Instant::now(), s.timer_limit()));
+    click(&mut s, "Reset timer");
+    assert!(!s.timer.running(std::time::Instant::now(), s.timer_limit()));
     assert!(
         !s.menu_open,
         "Clicking the header command should dismiss the dropdown"
     );
-    click(&mut s, "Pause timer");
-    assert!(!s.timer.running(std::time::Instant::now(), s.timer_limit()));
     click(&mut s, "Start timer");
     assert!(s.timer.running(std::time::Instant::now(), s.timer_limit()));
+    click(&mut s, "Pause timer");
+    assert!(!s.timer.running(std::time::Instant::now(), s.timer_limit()));
     click(&mut s, "Menu");
     click(&mut s, "Demo");
     assert!(!s.menu_open, "Outside click should dismiss the dropdown");
@@ -924,28 +924,35 @@ fn fullscreen_button_trials_both_directions_and_can_revert() {
 }
 
 #[test]
-fn timer_actions_and_slide_triggers_do_not_restart_paused_timers() {
+fn timer_waits_for_activity_reset_rearms_and_pause_stays_paused() {
     use std::time::Instant;
     let mut s = studio();
     s.blanked = true;
     s.execute(Action::Go(1));
-    assert!(!s.timer.running(Instant::now(), s.timer_limit()));
+    assert!(s.timer.running(Instant::now(), s.timer_limit()));
     s.blanked = false;
-    s.slide_played();
     assert!(s.timer.running(Instant::now(), s.timer_limit()));
     s.execute(Action::ToggleTimer);
-    s.slide_played();
+    s.presentation_action();
     assert!(!s.timer.running(Instant::now(), s.timer_limit()));
-    s.execute(Action::RestartTimer);
+    s.execute(Action::ResetTimer);
+    assert!(!s.timer.running(Instant::now(), s.timer_limit()));
+    s.settings.zoom_enabled = true;
+    s.set_zoom_from_action(pdf_presenter::zoom::View {
+        scale: 2.,
+        center: [0.5; 2],
+    });
     assert!(s.timer.running(Instant::now(), s.timer_limit()));
     s.timer = Default::default();
     s.layout.timer_autostart = false;
-    s.slide_played();
+    s.presentation_action();
     assert!(!s.timer.running(Instant::now(), s.timer_limit()));
     s.timer = Default::default();
     s.layout.timer_autostart = true;
     s.routes.presentation.clear();
-    s.execute(Action::Go(0));
+    s.execute(Action::Go(s.requested));
+    assert!(!s.timer.running(Instant::now(), s.timer_limit()));
+    s.execute(Action::Blank);
     assert!(s.timer.running(Instant::now(), s.timer_limit()));
 }
 

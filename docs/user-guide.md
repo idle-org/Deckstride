@@ -91,7 +91,7 @@ time and the local HH:MM clock. Hidden widgets release their space. Notes wrap a
 automatically shrink to fit; extremely long notes can become too small to read.
 The previous-slide preview is off by default; enable **Previous slide** in Layout
 when you want it. Saved layouts keep their chosen visibility.
-The header’s **Restart timer** button starts elapsed time again. Bundled UI fonts cover their supplied
+The header's **Reset timer** button returns elapsed time to zero and arms it for the next presentation action. Bundled UI fonts cover their supplied
 character sets; broad CJK text coverage remains a packaging acceptance item.
 
 Save layout (this project) stores an override for the canonical document/folder path.
@@ -224,14 +224,16 @@ Header, Above slides, Below notes, or left/right of the notes or slides.
 Timer text can be set up to 320 logical pixels; it scales down only to fit its
 allocated space. Timers on the same side stack vertically. Timers have separate labeled boxes; size and
 visibility controls still apply. Body positions remain visible when bars are hidden.
-Use **Start timer**, **Pause timer** and **Restart timer** in the presenter header or Layout.
-Pause preserves the time; Restart resets and starts immediately. Under Layout →
+Use **Start timer**, **Pause timer** and **Reset timer** in the presenter header or Layout.
+Pause preserves the time. Reset returns to zero and waits for the next slide navigation,
+zoom change or output visibility action. Start always begins immediately. Under Layout →
 Timers and progress, choose **Elapsed time** or **Countdown** and set a countdown
-in minutes and seconds (up to 24 hours). **Start on first slide** is enabled by
-default: timing begins when the first slide reaches the presentation output,
-including automatic output after opening a document. Turn it off for manual start.
+in minutes and seconds (up to 24 hours). **Start on first action** is enabled by
+default: timing begins on the first presentation action after opening or resetting.
+Automatic output after opening a document does not count. Turn it off for manual start.
 Rehearsal without an output screen starts on explicit navigation or Show presentation.
-Loading a new source resets the timer; pausing is never undone by slide navigation.
+Merely displaying the initial slide does not start it. Loading a new source resets the
+timer; pausing is never undone by slide navigation.
 Countdown stops at zero. Changing mode, duration or autostart resets the timer.
 Save the layout for this project or all projects to remember these preferences.
 

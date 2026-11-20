@@ -69,11 +69,12 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   Running/paused state, monotonic timestamps and elapsed time are transient,
   never saved. Successful source loads reset the timer to its waiting state;
   failed loads preserve the current timer. Mode/duration/autostart edits reset it.
-  Automatic start uses the first matching, unblanked output frame acknowledgement;
-  without output monitors, explicit navigation/show starts rehearsal timing.
-  Pause disables pending autostart; later slide changes never resume a paused timer.
-  Restart resets and runs immediately. Countdown uses ceiling seconds, stops at
-  zero and never wraps; Start after expiry restarts the configured duration.
+  Automatic start uses the first explicit navigation, zoom or output-visibility
+  action; passively displaying the initial output frame does not start timing.
+  Pause disables pending autostart; later actions never resume a paused timer. Reset
+  returns to the configured initial value and arms autostart for the next navigation,
+  zoom or visibility action. Countdown uses ceiling seconds, stops at zero and never wraps; explicit
+  Start after expiry restarts the configured duration immediately.
 - `projects`: at most 4096 SHA-256 canonical-path keys mapping to full layouts.
   Path identity uses OS encoded bytes, not source content. Moving files or switching
   platforms may therefore select a different layout. Project overrides win globally.

@@ -382,8 +382,8 @@ fn timer_buttons(ui: &mut Ui, s: &mut Studio) {
     {
         s.execute(Action::ToggleTimer);
     }
-    if ui.button(tr(&locale, "Restart timer")).clicked() {
-        s.execute(Action::RestartTimer);
+    if ui.button(tr(&locale, "Reset timer")).clicked() {
+        s.execute(Action::ResetTimer);
     }
 }
 fn timer_controls(ui: &mut Ui, s: &mut Studio) {
@@ -392,8 +392,8 @@ fn timer_controls(ui: &mut Ui, s: &mut Studio) {
     let running = s.timer.running(Instant::now(), s.timer_limit());
     let state = if running {
         "Running"
-    } else if s.timer.waiting_for_slide && s.layout.timer_autostart {
-        "Waiting for first slide"
+    } else if s.timer.waiting_for_action && s.layout.timer_autostart {
+        "Waiting for first action"
     } else if s.timer_limit().is_some() && s.timer.seconds(Instant::now(), s.timer_limit()) == 0 {
         "Time is up"
     } else {
@@ -440,11 +440,11 @@ fn timer_settings(ui: &mut Ui, s: &mut Studio) {
     }
     ui.checkbox(
         &mut s.layout.timer_autostart,
-        tr(&locale, "Start on first slide"),
+        tr(&locale, "Start on first action"),
     );
     ui.small(tr(
         &locale,
-        "Or use Start timer. Restart resets and starts immediately.",
+        "Start begins immediately. Reset waits for the next presentation action.",
     ));
     if before
         != (
@@ -856,7 +856,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             "Scroll to zoom · drag to pan · double-click to fit width / reset",
                         ));
                         if view != s.zoom.view {
-                            s.set_zoom(view);
+                            s.set_zoom_from_action(view);
                         }
                     }
                 } else {
@@ -1523,7 +1523,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             .collapsible(false).resizable(false).show(&ctx, |ui| {
                 ui.set_max_width(420.);
                 ui.label(tr(&ctx, "Zoomed frames are taking over 33 ms to draw. Panning may feel slow on this display. Reset or disable zoom to return to normal viewing."));
-                if ui.button(tr(&ctx, "Reset zoom")).clicked() { s.set_zoom(Default::default()); s.zoom_warning_dismissed = true; }
+                if ui.button(tr(&ctx, "Reset zoom")).clicked() { s.set_zoom_from_action(Default::default()); s.zoom_warning_dismissed = true; }
                 if ui.button(tr(&ctx, "Disable zoom")).clicked() { s.enable_zoom(false); }
                 if ui.button(tr(&ctx, "Keep zoom enabled")).clicked() { s.zoom_warning_dismissed = true; }
             });
@@ -2116,9 +2116,9 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         ui.menu_button(tr(&locale, "Page zoom"), |ui| {
             let mut scale = s.zoom.view.scale;
             if ui.add(egui::Slider::new(&mut scale, 1.0..=8.0).text("×")).changed() {
-                s.set_zoom(s.zoom.view.zoom_at(scale, [0.5; 2]));
+                s.set_zoom_from_action(s.zoom.view.zoom_at(scale, [0.5; 2]));
             }
-            if ui.button(tr(&locale, "Reset zoom")).clicked() { s.set_zoom(Default::default()); }
+            if ui.button(tr(&locale, "Reset zoom")).clicked() { s.set_zoom_from_action(Default::default()); }
             ui.small(tr(&locale, "Scroll to zoom · drag to pan · double-click to fit width / reset"));
             ui.small(tr(&locale, "Use the current slide preview or a presentation screen. Changing slides resets zoom."));
         });

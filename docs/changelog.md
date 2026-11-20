@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.62
+
+- Keep the default timer at zero when a deck's initial slide is merely displayed.
+  Start it on the first navigation, zoom or output visibility action. Rename Restart
+  to Reset: it now returns to zero and rearms this action trigger, while explicit
+  Start still begins immediately and Pause cannot be undone by later activity.
+  Linux checks pass with 86.54% whole-application coverage; the release binary
+  is rebuilt. Physical presentation timing remains a separate acceptance check.
+
 ### 0.1.61
 
 - Keep Displays, Layout and fullscreen as header buttons and remove their Menu
