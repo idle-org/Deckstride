@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.1.72
+
+- Preserve the live show when Escape closes All slides, including focused controls
+  and keyboard focus moving to the audience window. Escape still reverts display
+  trials and closes orphan outputs; B remains the explicit blank shortcut.
+- Accelerate held next/previous buttons and navigation keys from single steps to
+  bounded batches. Coalesce uncached destinations without render-job queues or
+  repeated worker restarts; stop on release/focus loss and retain the last ready frame.
+  Linux formatting, warnings-denied Clippy/rustdoc, workspace/native tests and 13
+  Python tests pass; whole-application coverage is 84.71% (75% floor). The Linux
+  release binary is rebuilt. Windows/macOS and physical-display retesting remain open.
+
 ### 0.1.71
 
 - Prepare the 0.1.71 preview release with Linux/Windows x86_64 packages; see

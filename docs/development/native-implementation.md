@@ -358,3 +358,22 @@ of 5.18/4.70 ms at 1080p (4×/8×) and 15.94/15.50 ms at 4K, maximum 16.87 ms.
 The synthetic texture remains 1920×1080; page metadata supplies A4 proportions to
 exercise viewport expansion. These are software-drawing measurements, not physical
 display latency. Windows/macOS were not built or runtime-tested for this change.
+
+
+## Escape and held navigation — 0.1.72
+
+Browser Escape dismisses the preview/browser even when a control consumes keyboard
+input; it preserves audience visibility. Audience Escape can revert a display trial
+or close an orphan, but cannot blank a connected show. Synthetic focus-transfer key
+presses are ignored. B and explicit output Close retain their blanking behavior.
+
+A constant-size monotonic hold state ignores OS repeat frequency. Native keys tick
+on the existing event loop; held mouse buttons redraw only when a repeat is due.
+Single steps start after 400 ms at 100 ms intervals, then batches of five/ten at
+160 ms intervals after two/five seconds (capped to 10% of the deck, minimum one).
+No missed ticks are replayed. Key release, focus loss or modifier changes cancel
+keyboard holds. Mouse release, leaving the button or hiding its controls cancels
+mouse holds. Skipped uncached destinations defer new rendering until input settles
+for 180 ms or ends; existing workers are not restarted on each repeat. Release can
+cancel one obsolete foreground job so the final destination gets priority. The
+last ready audience frame remains visible; RAM-ready destinations can show directly.

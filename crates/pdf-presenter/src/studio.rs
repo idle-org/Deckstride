@@ -25,6 +25,8 @@ pub enum Action {
     ImportNotes(PathBuf),
     ApplyNotesImport,
     Go(usize),
+    Navigate { delta: i32, repeated: bool },
+    FinishNavigation,
     Blank,
     SaveProject,
     SaveGlobal,
@@ -121,6 +123,7 @@ pub struct Studio {
     pub cache_busy: bool,
     pub cache_status: String,
     startup_cache_pending: bool,
+    navigation_settle: Option<Instant>,
     pub fg: Bridge,
     pub bg: Bridge,
     pub io: Bridge,
@@ -229,6 +232,7 @@ impl Studio {
             cache_busy: false,
             cache_status: String::new(),
             startup_cache_pending: true,
+            navigation_settle: None,
             fg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             bg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             io,
@@ -365,6 +369,7 @@ impl Studio {
                     self.fg_busy = false;
                     self.fg_job = None;
                 }
+                self.navigation_settle = None;
                 self.loading = true;
                 self.pending_open = Some(path);
                 self.status = "Opening document in an isolated worker…".into();
@@ -456,12 +461,49 @@ impl Studio {
                     .into();
                 }
             }
+            Action::Navigate { delta, repeated } => {
+                if self.notes_editor.is_some()
+                    || self.notes_import.is_some()
+                    || self.dialog_busy
+                    || self.route_trial.is_some()
+                {
+                    return;
+                }
+                let page = self
+                    .requested
+                    .saturating_add_signed(delta as isize)
+                    .min(self.count().saturating_sub(1));
+                if page != self.requested {
+                    if !repeated {
+                        self.navigation_settle = None;
+                    }
+                    if repeated {
+                        self.navigation_settle = Some(Instant::now() + Duration::from_millis(180));
+                    }
+                    self.execute(Action::Go(page));
+                }
+            }
+            Action::FinishNavigation => {
+                if self.navigation_settle.take().is_some()
+                    && self.fg_job.is_some_and(|(page, _)| page != self.requested)
+                    && !self.loading
+                {
+                    self.fg =
+                        Bridge::with_program(Duration::from_secs(30), self.worker_program.clone());
+                    self.fg_busy = false;
+                    self.fg_job = None;
+                }
+            }
             Action::Go(page) => {
                 if self.route_trial.is_some() {
                     return;
                 }
                 if page < self.count() {
-                    if page != self.requested && self.fg_busy && !self.loading {
+                    if page != self.requested
+                        && self.fg_busy
+                        && !self.loading
+                        && self.navigation_settle.is_none()
+                    {
                         self.fg = Bridge::with_program(
                             Duration::from_secs(30),
                             self.worker_program.clone(),
@@ -1031,7 +1073,13 @@ impl Studio {
                 self.pending_open = Some(path);
             }
         }
-        if self.deck.is_some() && self.pending_open.is_none() {
+        if self
+            .navigation_settle
+            .is_some_and(|deadline| Instant::now() >= deadline)
+        {
+            self.navigation_settle = None;
+        }
+        if self.deck.is_some() && self.pending_open.is_none() && self.navigation_settle.is_none() {
             if !self.fg_busy {
                 let edge = self.target_edge;
                 if !self.frames.contains_key(&(self.requested, edge))
@@ -1447,6 +1495,54 @@ impl Studio {
 mod tests {
     use super::*;
 
+    #[test]
+    fn repeated_navigation_coalesces_rendering_and_clamps_without_blanking() {
+        let mut s = Studio::new(true, None);
+        s.deck = Some(DeckInfo {
+            path: "test.pdf".into(),
+            key: "test".into(),
+            title: "Test".into(),
+            names: vec![String::new(); 500],
+            notes: vec![],
+            warnings: vec![],
+            sha256: String::new(),
+        });
+        s.blanked = false;
+        s.fg_busy = true;
+        s.fg_job = Some((0, s.target_edge));
+        for _ in 0..100 {
+            s.execute(Action::Navigate {
+                delta: 10,
+                repeated: true,
+            });
+        }
+        assert_eq!(s.requested, 499);
+        assert!(!s.blanked);
+        assert!(
+            s.fg_busy,
+            "Repeats must not repeatedly replace renderer workers"
+        );
+        assert_eq!(s.fg_job, Some((0, s.target_edge)));
+        s.execute(Action::FinishNavigation);
+        assert!(!s.fg_busy && s.fg_job.is_none());
+        assert!(s.navigation_settle.is_none());
+        s.execute(Action::Navigate {
+            delta: -10,
+            repeated: true,
+        });
+        s.poll();
+        assert!(
+            !s.fg_busy && !s.bg_busy,
+            "Skipped slides must not start render jobs during a hold"
+        );
+        assert_eq!(s.requested, 489);
+        s.execute(Action::Navigate {
+            delta: -1000,
+            repeated: true,
+        });
+        assert_eq!(s.requested, 0);
+        s.execute(Action::FinishNavigation);
+    }
     #[test]
     fn absent_frames_report_their_actual_load_state() {
         let mut studio = Studio::new(true, None);

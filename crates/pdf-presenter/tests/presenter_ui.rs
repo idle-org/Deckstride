@@ -1385,3 +1385,71 @@ fn zoom_preview_matches_reference_output_crop_and_tracks_window_shape() {
     s.routes.presentation.clear();
     assert_eq!(s.presentation_viewport(), None);
 }
+
+#[test]
+fn held_navigation_buttons_accelerate_and_release_without_an_extra_step() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(v) => v.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    s.layout.footer = true;
+    s.blanked = false;
+    let mut native = UiState::default();
+    let frame = |s: &mut Studio, native: &mut UiState, events| {
+        let mut raw = input(Vec2::new(1920., 1080.));
+        raw.events = events;
+        let output = ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, s, native));
+        for action in std::mem::take(&mut s.actions) {
+            s.execute(action);
+        }
+        output
+    };
+    for _ in 0..3 {
+        frame(&mut s, &mut native, vec![]);
+    }
+    let output = frame(&mut s, &mut native, vec![]);
+    let pos = output
+        .shapes
+        .iter()
+        .find_map(|s| find(&s.shape, "Next"))
+        .unwrap();
+    frame(
+        &mut s,
+        &mut native,
+        vec![
+            egui::Event::PointerMoved(pos),
+            egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: Default::default(),
+            },
+        ],
+    );
+    assert_eq!(s.requested, 1);
+    native.navigation_hold = Some(pdf_presenter::navigation::Hold::new(
+        1,
+        std::time::Instant::now() - std::time::Duration::from_secs(6),
+    ));
+    frame(&mut s, &mut native, vec![]);
+    assert_eq!(s.requested, 4); // Batches capped to 10% of this 30-slide deck.
+    frame(
+        &mut s,
+        &mut native,
+        vec![egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: Default::default(),
+        }],
+    );
+    assert_eq!(s.requested, 4);
+    assert!(native.navigation_hold.is_none());
+    assert!(!s.blanked);
+}

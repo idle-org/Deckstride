@@ -26,6 +26,17 @@ use winit::{
     monitor::MonitorHandle,
     window::{Fullscreen, Window, WindowId},
 };
+fn navigation_direction(key: &Key, modifiers: egui::Modifiers) -> Option<i32> {
+    if modifiers.ctrl || modifiers.alt || modifiers.command {
+        return None;
+    }
+    match key {
+        Key::Named(NamedKey::Space) if modifiers.shift => Some(-1),
+        Key::Named(NamedKey::ArrowRight | NamedKey::PageDown | NamedKey::Space) => Some(1),
+        Key::Named(NamedKey::ArrowLeft | NamedKey::PageUp) => Some(-1),
+        _ => None,
+    }
+}
 type Failure = Box<dyn std::error::Error>;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Role {
@@ -467,6 +478,7 @@ struct App {
     windowed: bool,
     override_presenter: Option<usize>,
     override_output: Option<usize>,
+    navigation_hold: Option<(WindowId, Key, crate::navigation::Hold)>,
 }
 impl App {
     fn redraw(&self) {
@@ -643,12 +655,15 @@ impl App {
                 });
                 return;
             }
-            if matches!(key, Key::Named(NamedKey::Escape))
-                || matches!(&key,Key::Character(c) if c.eq_ignore_ascii_case("b"))
-            {
+            if matches!(key, Key::Named(NamedKey::Escape)) {
+                // Focus may move here as All slides closes. Escape must never blank
+                // a connected show; an orphan can still be dismissed safely.
+                if let Some(h) = &mut self.host {
+                    h.close_requested = !h.parent_connected;
+                }
+            } else if matches!(&key, Key::Character(c) if c.eq_ignore_ascii_case("b")) {
                 if let Some(h) = &mut self.host {
                     h.state.blanked = true;
-                    h.close_requested = matches!(key, Key::Named(NamedKey::Escape));
                     let _ = h.acks.try_send(Ack {
                         request_blank: true,
                         status: "Presentation blanked from output keyboard.".into(),
@@ -677,23 +692,21 @@ impl App {
         // Keep the live show responsive while an operator is using All slides or
         // has a presenter menu open. Text editors and modified shortcuts above
         // retain priority; focused controls may still consume all other keys.
-        match key {
-            Key::Named(NamedKey::Space) if modifiers.shift => {
-                s.execute(Action::Go(s.requested.saturating_sub(1)));
-                self.redraw();
-                return;
+        if let Some(delta) = navigation_direction(&key, modifiers) {
+            s.execute(Action::Navigate {
+                delta,
+                repeated: false,
+            });
+            self.redraw();
+            return;
+        }
+        if role == Role::Browser && matches!(key, Key::Named(NamedKey::Escape)) {
+            if !s.jump.is_empty() {
+                s.jump.clear();
+            } else if s.browser_preview.take().is_none() {
+                s.execute(Action::CloseBrowser);
             }
-            Key::Named(NamedKey::ArrowRight | NamedKey::PageDown | NamedKey::Space) => {
-                s.execute(Action::Go(s.requested + 1));
-                self.redraw();
-                return;
-            }
-            Key::Named(NamedKey::ArrowLeft | NamedKey::PageUp) => {
-                s.execute(Action::Go(s.requested.saturating_sub(1)));
-                self.redraw();
-                return;
-            }
-            _ => {}
+            return;
         }
         if consumed {
             return;
@@ -720,10 +733,6 @@ impl App {
             Key::Named(NamedKey::Escape) => {
                 if !s.jump.is_empty() {
                     s.jump.clear();
-                } else if role == Role::Browser {
-                    if s.browser_preview.take().is_none() {
-                        s.execute(Action::CloseBrowser);
-                    }
                 } else if s.layout_open || s.displays_open || s.menu_open || s.toolbox.open {
                     s.layout_open = false;
                     s.displays_open = false;
@@ -758,6 +767,46 @@ impl App {
             _ => {}
         }
         self.redraw();
+    }
+    fn stop_navigation(&mut self) {
+        self.navigation_hold = None;
+        if let Some(s) = &mut self.studio {
+            s.execute(Action::FinishNavigation);
+        }
+    }
+    fn repeat_navigation(&mut self, now: Instant) {
+        let Some((id, _, _)) = &self.navigation_hold else {
+            return;
+        };
+        let valid = self
+            .windows
+            .iter()
+            .any(|w| w.window.id() == *id && w.window.has_focus())
+            && self.studio.as_ref().is_some_and(|s| {
+                s.notes_editor.is_none()
+                    && s.notes_import.is_none()
+                    && !s.dialog_busy
+                    && !s.loading
+                    && s.route_trial.is_none()
+            });
+        if !valid {
+            self.stop_navigation();
+            return;
+        }
+        let s = self.studio.as_mut().unwrap();
+        if let Some(delta) = self
+            .navigation_hold
+            .as_mut()
+            .unwrap()
+            .2
+            .tick(now, s.count())
+        {
+            s.execute(Action::Navigate {
+                delta,
+                repeated: true,
+            });
+            self.redraw();
+        }
     }
     fn poll(&mut self, el: &ActiveEventLoop) {
         let mut repaint = false;
@@ -1156,11 +1205,27 @@ impl ApplicationHandler for App {
             return;
         };
         let role = self.windows[index].role;
-        let response = {
+        if matches!(&event, WindowEvent::KeyboardInput { event, is_synthetic: true, .. } if event.state == ElementState::Pressed)
+        {
+            return;
+        }
+        // Navigation belongs to the bounded native hold controller, not also to
+        // egui's focused button activation or the OS repeat stream.
+        let navigation_event = role != Role::Presentation
+            && self.studio.as_ref().is_some_and(|s| {
+                s.notes_editor.is_none()
+                    && s.notes_import.is_none()
+                    && !s.dialog_busy
+                    && s.route_trial.is_none()
+            })
+            && matches!(&event, WindowEvent::KeyboardInput { event, .. } if navigation_direction(&event.logical_key, self.windows[index].input.egui_input().modifiers).is_some());
+        let repaint = if navigation_event {
+            false
+        } else {
             let n = &mut self.windows[index];
-            n.input.on_window_event(&n.window, &event)
+            n.input.on_window_event(&n.window, &event).repaint
         };
-        if response.repaint {
+        if repaint {
             self.windows[index].window.request_redraw();
         }
         match event {
@@ -1200,16 +1265,46 @@ impl ApplicationHandler for App {
                     });
                 }
             }
-            WindowEvent::KeyboardInput { event, .. }
-                if event.state == ElementState::Pressed && !event.repeat =>
-            {
-                let native = &self.windows[index];
-                self.key(
-                    role,
-                    event.logical_key,
-                    native.ctx.egui_wants_keyboard_input(),
-                    native.input.egui_input().modifiers,
-                );
+            WindowEvent::Focused(false) => {
+                self.stop_navigation();
+                self.windows[index].ui.navigation_hold = None;
+            }
+            WindowEvent::ModifiersChanged(_) => self.stop_navigation(),
+            WindowEvent::KeyboardInput {
+                event,
+                is_synthetic,
+                ..
+            } => {
+                if event.state == ElementState::Released {
+                    if self
+                        .navigation_hold
+                        .as_ref()
+                        .is_some_and(|(owner, key, _)| *owner == id && *key == event.logical_key)
+                    {
+                        self.stop_navigation();
+                    }
+                } else if !event.repeat && !is_synthetic {
+                    self.stop_navigation();
+                    let native = &self.windows[index];
+                    let modifiers = native.input.egui_input().modifiers;
+                    let consumed = native.ctx.egui_wants_keyboard_input();
+                    let direction = navigation_direction(&event.logical_key, modifiers);
+                    let allowed = role != Role::Presentation
+                        && self.studio.as_ref().is_some_and(|s| {
+                            s.notes_editor.is_none()
+                                && s.notes_import.is_none()
+                                && !s.dialog_busy
+                                && s.route_trial.is_none()
+                        });
+                    if allowed && let Some(direction) = direction {
+                        self.navigation_hold = Some((
+                            id,
+                            event.logical_key.clone(),
+                            crate::navigation::Hold::new(direction, Instant::now()),
+                        ));
+                    }
+                    self.key(role, event.logical_key, consumed, modifiers);
+                }
             }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
                 self.windows[index].window.request_redraw()
@@ -1271,6 +1366,14 @@ impl ApplicationHandler for App {
             self.next_monitors = now + Duration::from_millis(750);
         }
         if now >= self.next_poll {
+            self.repeat_navigation(now);
+            // egui repaint timers alone do not wake this custom native host.
+            // Redraw held mouse controls at their repeat deadline, not at frame rate.
+            for window in &self.windows {
+                if window.ui.navigation_hold.is_some_and(|hold| hold.due(now)) {
+                    window.window.request_redraw();
+                }
+            }
             self.poll(el);
             self.next_poll = now + Duration::from_millis(8);
         }
@@ -1379,6 +1482,7 @@ pub fn run(options: crate::poc::Options, path: Option<std::path::PathBuf>) -> Re
         windowed: options.windowed,
         override_presenter: options.presenter,
         override_output: options.audience,
+        navigation_hold: None,
     };
     let result = el.run_app(&mut app);
     if let Some(output) = &mut app.output {
@@ -1445,6 +1549,7 @@ pub fn run_output() -> Result<(), Failure> {
         windowed: false,
         override_presenter: None,
         override_output: None,
+        navigation_hold: None,
     };
     el.run_app(&mut app)?;
     Ok(())
@@ -1485,6 +1590,7 @@ mod buffer_tests {
             windowed: true,
             override_presenter: None,
             override_output: None,
+            navigation_hold: None,
         };
         for (role, consumed, modifiers, expected) in [
             (Role::Presenter, false, egui::Modifiers::NONE, 1),
@@ -1534,6 +1640,76 @@ mod buffer_tests {
         let s = app.studio.as_ref().unwrap();
         assert!(s.presenter_fullscreen() && s.presentation_fullscreen());
         assert!(!s.blanked);
+        for consumed in [false, true] {
+            let s = app.studio.as_mut().unwrap();
+            s.browser_open = true;
+            s.browser_preview = Some((s.generation, 1));
+            app.key(
+                Role::Browser,
+                Key::Named(NamedKey::Escape),
+                consumed,
+                egui::Modifiers::NONE,
+            );
+            let s = app.studio.as_ref().unwrap();
+            assert!(s.browser_open && s.browser_preview.is_none() && !s.blanked);
+            app.key(
+                Role::Browser,
+                Key::Named(NamedKey::Escape),
+                consumed,
+                egui::Modifiers::NONE,
+            );
+            let s = app.studio.as_ref().unwrap();
+            assert!(!s.browser_open && !s.blanked && s.presentation_fullscreen());
+        }
+        let (_tx, commands) = mpsc::sync_channel(4);
+        let (acks, rx) = mpsc::sync_channel(8);
+        app.host = Some(Host {
+            parent_connected: true,
+            close_requested: false,
+            commands,
+            acks,
+            state: HostState {
+                blanked: false,
+                ..Default::default()
+            },
+            reader: Bridge::new(Duration::from_secs(10)),
+            reading: None,
+            cache: HashMap::new(),
+            frame: None,
+            presented: HashSet::new(),
+            failed_reads: HashSet::new(),
+            preload_cursor: 0,
+            zoom_pending: false,
+            zoom_slow: false,
+            next_zoom_ack: now,
+        });
+        app.key(
+            Role::Presentation,
+            Key::Named(NamedKey::Escape),
+            false,
+            egui::Modifiers::NONE,
+        );
+        assert!(!app.host.as_ref().unwrap().state.blanked);
+        assert!(!app.host.as_ref().unwrap().close_requested);
+        assert!(
+            rx.try_recv().is_err(),
+            "Focus transfer must not request audience blanking"
+        );
+        app.key(
+            Role::Presentation,
+            Key::Character("b".into()),
+            false,
+            egui::Modifiers::NONE,
+        );
+        assert!(rx.try_recv().unwrap().request_blank);
+        app.host.as_mut().unwrap().parent_connected = false;
+        app.key(
+            Role::Presentation,
+            Key::Named(NamedKey::Escape),
+            false,
+            egui::Modifiers::NONE,
+        );
+        assert!(app.host.as_ref().unwrap().close_requested);
     }
     fn frame(page: usize) -> Arc<Frame> {
         Arc::new(Frame {

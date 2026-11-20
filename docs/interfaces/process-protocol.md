@@ -70,8 +70,9 @@ No wire fields change. EOF/failed input drops the host command sender; the nativ
 host detects receiver disconnection instead of treating it as an empty queue forever.
 An established output keeps its last frame after unexpected connection loss, while
 Close or Escape requests exit on the next event-loop tick. A disconnected host with
-no windows exits immediately. B still blanks. With a live presenter, output Close or
-Escape retains the existing emergency-blank behavior.
+no windows exits immediately. B still blanks. With a live presenter, output Close
+retains emergency blanking, but Escape never blanks (since 0.1.72). It can still
+revert a pending display trial. Focus-transfer synthetic key presses are ignored.
 
 Normal presenter shutdown signals the supervisor and allows 500 ms for graceful
 completion, then terminates/reaps the owned child through a separate shared process

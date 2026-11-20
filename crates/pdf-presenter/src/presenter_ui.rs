@@ -201,6 +201,7 @@ pub struct UiState {
     pub textures: HashMap<(u64, usize, u32), TextureHandle>,
     pub header_until: Instant,
     pub footer_until: Instant,
+    pub navigation_hold: Option<crate::navigation::Hold>,
     note_cache: Option<(String, Vec2, Arc<egui::Galley>)>,
 }
 impl Default for UiState {
@@ -210,6 +211,7 @@ impl Default for UiState {
             header_until: Instant::now(),
             footer_until: Instant::now(),
             note_cache: None,
+            navigation_hold: None,
         }
     }
 }
@@ -463,6 +465,47 @@ fn slide_tools(ui: &mut Ui, s: &mut Studio, area: Rect, dimensions: [u32; 2]) {
     }
 }
 
+fn navigation_button(
+    ui: &mut Ui,
+    s: &mut Studio,
+    native: &mut UiState,
+    label: &str,
+    direction: i32,
+) {
+    let response = ui.button(label);
+    let now = Instant::now();
+    let active = response.is_pointer_button_down_on() && response.hovered();
+    let owned = native
+        .navigation_hold
+        .is_some_and(|h| h.direction == direction);
+    if active {
+        if !owned {
+            native.navigation_hold = Some(crate::navigation::Hold::new(direction, now));
+            s.actions.push(Action::Navigate {
+                delta: direction,
+                repeated: false,
+            });
+        } else if let Some(delta) = native
+            .navigation_hold
+            .as_mut()
+            .unwrap()
+            .tick(now, s.count())
+        {
+            s.actions.push(Action::Navigate {
+                delta,
+                repeated: true,
+            });
+        }
+    } else if owned {
+        native.navigation_hold = None;
+        s.actions.push(Action::FinishNavigation);
+    } else if response.clicked() {
+        s.actions.push(Action::Navigate {
+            delta: direction,
+            repeated: false,
+        });
+    }
+}
 fn button(ui: &mut Ui, label: &str, action: Action, actions: &mut Vec<Action>) {
     if ui.button(label).clicked() {
         actions.push(action);
@@ -797,6 +840,11 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
     let header = s.layout.header || native.header_until > now || s.menu_open;
     let footer = s.layout.footer || native.footer_until > now;
+    if native.navigation_hold.is_some() && (!footer || !ctx.input(|i| i.focused)) {
+        native.navigation_hold = None;
+        s.actions.push(Action::FinishNavigation);
+    }
+
     let background = ui.interact(screen, ui.id().with("context"), Sense::click());
     background.context_menu(|ui| {
         if !s.presentation_started
@@ -1240,18 +1288,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     s.layout.footer = !s.layout.footer;
                     native.footer_until = now;
                 }
-                button(
-                    ui,
-                    tr(&locale, "Previous"),
-                    Action::Go(s.requested.saturating_sub(1)),
-                    &mut s.actions,
-                );
-                button(
-                    ui,
-                    tr(&locale, "Next"),
-                    Action::Go(s.requested + 1),
-                    &mut s.actions,
-                );
+                navigation_button(ui, s, native, tr(&locale, "Previous"), -1);
+                navigation_button(ui, s, native, tr(&locale, "Next"), 1);
                 ui.label(format!(
                     "{} / {}",
                     if s.count() == 0 { 0 } else { s.requested + 1 },

@@ -83,7 +83,16 @@ Arrow keys and Page Up/Down navigate from the presenter or All slides, including
 while a presenter menu is open. Space moves forward; Shift+Space moves back. Notes
 editors and Ctrl/Alt/Command combinations retain keyboard priority. Type a 1-based slide
 number then Enter to jump; Backspace edits and Escape cancels. Out-of-range numbers
-do not navigate. Output windows accept B/Escape for emergency blanking.
+do not navigate. Output windows accept B for emergency blanking. Escape never blanks a connected
+show; it only reverts a display trial or closes an orphaned output.
+
+Hold Next/Previous, an arrow key, Page Up/Down or Space (Shift+Space backwards)
+to accelerate. The first step is immediate; after 400 ms, single steps repeat every
+100 ms. After two seconds, steps become batches of up to five; after five seconds,
+up to ten, every 160 ms. Batches never exceed 10% of the deck (minimum one slide).
+Release or change focus to stop. Missed repeats are never queued or replayed.
+Buffered slides display immediately; uncached intermediate destinations are skipped,
+with rendering resumed at the latest destination on release or after input settles.
 
 ## Pointer and drawing tools
 
