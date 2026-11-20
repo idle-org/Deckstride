@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.84
+
+- Rewrite the root README for presenters: lead with the tested multi-screen workflow,
+  per-screen layouts, fast buffered navigation, monitor reconnection, zoom, live
+  tools, safe slide browsing and portable release downloads.
+- Add real application screenshots made with the repository's fictional demo PDF,
+  covering Presenter, display routing, All slides and the pointer toolbox.
+
 ### 0.1.83
 
 - Scale pointers, highlights, arrow shafts and arrow heads against the visible slide
