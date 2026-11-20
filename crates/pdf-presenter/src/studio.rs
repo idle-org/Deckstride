@@ -57,6 +57,14 @@ pub struct NotesEditor {
     pub busy: bool,
     pub error: Option<String>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlideLoadState {
+    Ready,
+    Preparing,
+    Cached,
+    Queued,
+    Failed,
+}
 pub struct RouteTrial {
     pub id: u64,
     pub deadline: Instant,
@@ -255,6 +263,21 @@ impl Studio {
         [self.target_edge, 512, 1280, 320]
             .iter()
             .find_map(|&edge| self.frames.get(&(page, edge)).cloned())
+    }
+    pub fn slide_load_state(&self, page: usize) -> SlideLoadState {
+        if self.frame(page).is_some() {
+            SlideLoadState::Ready
+        } else if self.fg_job.is_some_and(|(job, _)| job == page)
+            || self.bg_job.is_some_and(|(job, _)| job == page)
+        {
+            SlideLoadState::Preparing
+        } else if self.failed.contains(&(page, self.target_edge)) {
+            SlideLoadState::Failed
+        } else if self.prepared.contains(&page) {
+            SlideLoadState::Cached
+        } else {
+            SlideLoadState::Queued
+        }
     }
     pub fn full_frame(&self, page: usize) -> Option<Arc<Frame>> {
         [self.target_edge, 512, 1280]
@@ -1347,5 +1370,26 @@ impl Studio {
                 self.target_edge, self.cached_slides
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn absent_frames_report_their_actual_load_state() {
+        let mut studio = Studio::new(true, None);
+        assert_eq!(studio.slide_load_state(7), SlideLoadState::Queued);
+
+        studio.prepared.insert(7);
+        assert_eq!(studio.slide_load_state(7), SlideLoadState::Cached);
+
+        studio.fg_job = Some((7, studio.target_edge));
+        assert_eq!(studio.slide_load_state(7), SlideLoadState::Preparing);
+
+        studio.fg_job = None;
+        studio.failed.insert((7, studio.target_edge));
+        assert_eq!(studio.slide_load_state(7), SlideLoadState::Failed);
     }
 }

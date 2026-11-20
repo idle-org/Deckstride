@@ -824,9 +824,8 @@ fn browser_thumbnails_fill_resized_window_without_stretching_tiles() {
         }
         assert!(!rects.is_empty());
         let max_right = rects.iter().map(Rect::right).fold(0., f32::max);
-        assert!(
-            (max_right + egui::style::ScrollStyle::solid().allocated_width() - right).abs() < 1.
-        );
+        // A wide, non-floating scrollbar owns the far-right gutter.
+        assert!((max_right + 14. - right).abs() < 1.);
         for rect in &rects {
             assert!((rect.height() / rect.width() - 0.5625).abs() < 0.001);
             assert!(rect.right() <= right);

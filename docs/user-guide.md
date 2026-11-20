@@ -79,8 +79,9 @@ Exit fullscreen** in the header to toggle both display roles. Like other
 display changes, this previews the change with Keep/Revert confirmation. While the presenter is connected, closing a presentation window blanks it; close a
 presenter or choose Menu → Quit to end the application.
 
-Arrow keys and Page Up/Down navigate from the presenter. Space moves forward;
-Shift+Space moves back. Type a 1-based slide
+Arrow keys and Page Up/Down navigate from the presenter or All slides, including
+while a presenter menu is open. Space moves forward; Shift+Space moves back. Notes
+editors and Ctrl/Alt/Command combinations retain keyboard priority. Type a 1-based slide
 number then Enter to jump; Backspace edits and Escape cancels. Out-of-range numbers
 do not navigate. Output windows accept B/Escape for emergency blanking.
 
@@ -119,7 +120,9 @@ without navigating unless Change on click is checked; it resets to OFF each time
 browser opens. Show selected navigates explicitly and respects output blanking.
 The selected tile and current slide have distinct outlines. Closing the browser saves
 its monitor and preview-size preferences. The grid uses the slides already in memory;
-only visible thumbnail textures are retained.
+only visible thumbnail textures are retained. Empty tiles say whether a slide is
+actively preparing, queued, or cached on disk until it is close enough to load into
+the bounded RAM buffer.
 
 ## Preparation, processed slides and RAM
 

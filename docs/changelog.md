@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.64
+
+- Keep previous/next shortcuts active in the presenter and All slides, even when a
+  menu control consumed the key; notes editing and modified shortcuts keep priority.
+  Restore a wider high-contrast scrollbar at the far right of All slides. Label
+  absent thumbnail frames accurately as preparing, queued, cached on disk or failed
+  instead of claiming every scrolled-to slide is preparing. Linux checks pass with
+  86.38% whole-application coverage; the release binary is rebuilt.
+
 ### 0.1.63
 
 - Aim double-click fit-width zoom at the clicked page position instead of always

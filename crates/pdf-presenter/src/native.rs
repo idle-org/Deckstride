@@ -659,10 +659,34 @@ impl App {
         }
         // Notes editing must never turn typing or Escape into presentation commands.
         // Unsaved text is only discarded through the explicit editor control.
-        if role == Role::Presenter && (s.notes_editor.is_some() || s.notes_import.is_some()) {
+        if s.notes_editor.is_some() || s.notes_import.is_some() {
             return;
         }
-        if modifiers.ctrl || modifiers.alt || modifiers.command || consumed {
+        if modifiers.ctrl || modifiers.alt || modifiers.command {
+            return;
+        }
+        // Keep the live show responsive while an operator is using All slides or
+        // has a presenter menu open. Text editors and modified shortcuts above
+        // retain priority; focused controls may still consume all other keys.
+        match key {
+            Key::Named(NamedKey::Space) if modifiers.shift => {
+                s.execute(Action::Go(s.requested.saturating_sub(1)));
+                self.redraw();
+                return;
+            }
+            Key::Named(NamedKey::ArrowRight | NamedKey::PageDown | NamedKey::Space) => {
+                s.execute(Action::Go(s.requested + 1));
+                self.redraw();
+                return;
+            }
+            Key::Named(NamedKey::ArrowLeft | NamedKey::PageUp) => {
+                s.execute(Action::Go(s.requested.saturating_sub(1)));
+                self.redraw();
+                return;
+            }
+            _ => {}
+        }
+        if consumed {
             return;
         }
         match key {
@@ -696,17 +720,6 @@ impl App {
                     s.displays_open = false;
                     s.menu_open = false;
                 }
-            }
-            Key::Named(NamedKey::Space) if role == Role::Presenter && modifiers.shift => {
-                s.execute(Action::Go(s.requested.saturating_sub(1)))
-            }
-            Key::Named(NamedKey::ArrowRight | NamedKey::PageDown | NamedKey::Space)
-                if role == Role::Presenter =>
-            {
-                s.execute(Action::Go(s.requested + 1))
-            }
-            Key::Named(NamedKey::ArrowLeft | NamedKey::PageUp) if role == Role::Presenter => {
-                s.execute(Action::Go(s.requested.saturating_sub(1)))
             }
             Key::Character(c) if c.eq_ignore_ascii_case("b") => s.execute(Action::Blank),
             _ => {}
@@ -1430,24 +1443,24 @@ mod buffer_tests {
         for (role, consumed, modifiers, expected) in [
             (Role::Presenter, false, egui::Modifiers::NONE, 1),
             (Role::Presenter, false, egui::Modifiers::SHIFT, 0),
-            (Role::Presenter, false, egui::Modifiers::SHIFT, 0),
-            (Role::Presenter, false, egui::Modifiers::NONE, 1),
-            (Role::Presenter, true, egui::Modifiers::SHIFT, 1),
+            (Role::Browser, false, egui::Modifiers::NONE, 1),
+            (Role::Browser, false, egui::Modifiers::SHIFT, 0),
+            (Role::Presenter, true, egui::Modifiers::NONE, 1),
+            (Role::Presenter, true, egui::Modifiers::SHIFT, 0),
             (
                 Role::Presenter,
                 false,
                 egui::Modifiers::SHIFT | egui::Modifiers::CTRL,
-                1,
+                0,
             ),
             (
                 Role::Presenter,
                 false,
                 egui::Modifiers::SHIFT | egui::Modifiers::ALT,
-                1,
+                0,
             ),
-            (Role::Browser, false, egui::Modifiers::SHIFT, 1),
-            (Role::Presentation, false, egui::Modifiers::SHIFT, 1),
-            (Role::Presenter, false, egui::Modifiers::NONE, 2),
+            (Role::Presentation, false, egui::Modifiers::NONE, 0),
+            (Role::Presenter, false, egui::Modifiers::NONE, 1),
             (Role::Presenter, false, egui::Modifiers::NONE, 2),
         ] {
             app.key(role, Key::Named(NamedKey::Space), consumed, modifiers);

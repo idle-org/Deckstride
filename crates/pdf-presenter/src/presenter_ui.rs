@@ -2,7 +2,7 @@ use crate::localization::tr;
 // Native controls for the approved presenter layout and safe slide browser.
 use crate::{
     settings::{Layout, TimerMode, TimerPosition},
-    studio::{Action, Studio},
+    studio::{Action, SlideLoadState, Studio},
 };
 use egui::{Color32, Context, FontId, Pos2, Rect, Sense, TextureHandle, TextureOptions, Ui, Vec2};
 use std::{
@@ -250,10 +250,19 @@ impl UiState {
             ui.painter().text(
                 rect.center(),
                 egui::Align2::CENTER_CENTER,
-                if page < s.count() {
-                    tr(&locale, "Preparing slide…")
-                } else {
+                if page >= s.count() {
                     tr(&locale, "No slide")
+                } else {
+                    tr(
+                        &locale,
+                        match s.slide_load_state(page) {
+                            SlideLoadState::Ready => "Slide ready",
+                            SlideLoadState::Preparing => "Preparing slide…",
+                            SlideLoadState::Cached => "Cached · loads when nearby",
+                            SlideLoadState::Queued => "Queued for preparation",
+                            SlideLoadState::Failed => "Could not load slide",
+                        },
+                    )
                 },
                 FontId::proportional(18.),
                 Color32::GRAY,
@@ -1881,7 +1890,11 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
     // Reserve a stable gutter, so neither thumbnail sizing nor scrollbar placement
     // depends on how much of the last row is populated.
-    ui.spacing_mut().scroll = egui::style::ScrollStyle::solid();
+    let mut scroll_style = egui::style::ScrollStyle::solid();
+    scroll_style.bar_width = 10.;
+    scroll_style.handle_min_length = 36.;
+    scroll_style.foreground_color = true;
+    ui.spacing_mut().scroll = scroll_style;
     let width = (browser_width - ui.spacing().scroll.allocated_width()).max(1.);
     let gap = 16.;
     let cols = ((width + gap) / (s.settings.thumbnail_size + gap))
