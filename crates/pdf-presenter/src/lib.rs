@@ -101,3 +101,6 @@ pub mod cache;
 
 /// Bounded held-input slide navigation.
 pub mod navigation;
+
+/// Optional custom blank-screen picture.
+pub mod blank;

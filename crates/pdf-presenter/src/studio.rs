@@ -22,6 +22,9 @@ pub enum Action {
     Open(PathBuf),
     Pick(bool),
     PickNotes,
+    PickBlankPicture,
+    SetBlankPicture(PathBuf),
+    ClearBlankPicture,
     ImportNotes(PathBuf),
     ApplyNotesImport,
     Go(usize),
@@ -105,6 +108,9 @@ pub struct Studio {
     pub requested: usize,
     pub displayed: Option<usize>,
     pub blanked: bool,
+    pub blank_picture: Option<Arc<Frame>>,
+    pub blank_busy: bool,
+    blank_loader: Bridge,
     pub status: String,
     pub awake_status: String,
     pub generation: u64,
@@ -215,6 +221,9 @@ impl Studio {
             requested: 0,
             displayed: None,
             blanked: false,
+            blank_picture: None,
+            blank_busy: false,
+            blank_loader: Bridge::with_program(Duration::from_secs(15), worker_program.clone()),
             status: "Ready — open a PDF or picture folder, or drop it here.".into(),
             awake_status: "Sleep protection starting…".into(),
             generation: 0,
@@ -423,6 +432,32 @@ impl Studio {
                 self.loading = true;
                 self.pending_open = Some(path);
                 self.status = "Opening document in an isolated worker…".into();
+            }
+            Action::PickBlankPicture => {
+                if self.initialized && !self.dialog_busy && !self.blank_busy {
+                    self.dialog_busy = self.dialog.submit(
+                        0,
+                        2,
+                        Request::PickBlankPicture {
+                            owner: self.dialog_owner,
+                        },
+                    );
+                }
+            }
+            Action::SetBlankPicture(path) => {
+                if self.initialized && !self.blank_busy {
+                    self.load_blank_picture(Some(path));
+                }
+            }
+            Action::ClearBlankPicture => {
+                self.blank_loader =
+                    Bridge::with_program(Duration::from_secs(15), self.worker_program.clone());
+                self.blank_busy = false;
+                self.blank_picture = None;
+                self.settings.blank_picture = false;
+                self.new_output = true;
+                self.pending_save = true;
+                self.status = "Blank presentation uses solid black.".into();
             }
             Action::PickNotes => {
                 if !self.dialog_busy
@@ -895,7 +930,38 @@ impl Studio {
     pub fn remember_cache_policy(&mut self) {
         self.save_preferences();
     }
+    fn load_blank_picture(&mut self, source: Option<PathBuf>) {
+        let path = self.settings_path.with_file_name("blank-picture.rgba");
+        self.blank_busy = self.blank_loader.submit(
+            0,
+            u64::from(source.is_some()),
+            Request::BlankPicture { source, path },
+        );
+        if self.blank_busy {
+            self.status = "Preparing blank presentation picture…".into();
+        }
+    }
     pub fn poll(&mut self) {
+        while let Ok(c) = self.blank_loader.rx.try_recv() {
+            self.blank_busy = false;
+            let result = c.result.and_then(|p| {
+                if let Some(error) = p.reply.error {
+                    return Err(error);
+                }
+                let info = p.reply.frame.ok_or("Missing blank picture")?;
+                Ok(Arc::new(Frame { info, rgba: p.data }))
+            });
+            match result {
+                Ok(frame) => {
+                    self.blank_picture = Some(frame);
+                    self.settings.blank_picture = true;
+                    self.pending_save |= c.tag == 1;
+                    self.new_output = true;
+                    self.status = "Blank presentation picture ready.".into();
+                }
+                Err(error) => self.status = format!("Blank picture: {error}"),
+            }
+        }
         while let Ok(c) = self.cache_io.rx.try_recv() {
             self.cache_busy = false;
             self.cache_status = match c.result {
@@ -991,6 +1057,9 @@ impl Studio {
                         if !self.smoke {
                             self.blanked = !settings.auto_show;
                             self.settings = settings;
+                            if self.settings.blank_picture {
+                                self.load_blank_picture(None);
+                            }
                             self.set_zoom(crate::zoom::View::default());
                             self.layout = self.settings.for_project(&self.project());
                             self.presenter_views.clear();
@@ -1028,7 +1097,9 @@ impl Studio {
             match c.result {
                 Ok(p) => {
                     if let Some(path) = p.reply.picked {
-                        if c.tag == 1 {
+                        if c.tag == 2 {
+                            self.execute(Action::SetBlankPicture(path));
+                        } else if c.tag == 1 {
                             if c.generation == self.generation {
                                 self.execute(Action::ImportNotes(path));
                             }

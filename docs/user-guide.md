@@ -413,3 +413,11 @@ available immediately.
 background. Active decks are protected and may temporarily exceed either limit.
 The cleanup report shows removed and remaining data; deleted slides regenerate
 when reopened. Source documents and presenter notes are preserved.
+
+Choose **Preferences → Blank presentation → Choose picture…** to replace the
+black blanking screen with your own picture on every audience display. The app
+saves a copy, fits the whole image against black, and remembers it across restarts.
+The original may then be moved or removed. Use **Use solid black** to reset.
+Pictures are resized to at most 2048 pixels per edge; animated images use a still
+frame. Slide zoom, annotations and slide background colors do not affect it.
+The existing Blank presentation button and B shortcut still hide/show slides.

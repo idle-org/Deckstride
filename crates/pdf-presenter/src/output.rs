@@ -48,6 +48,8 @@ pub struct HostState {
     pub monitors: Vec<String>,
     pub fullscreen: bool,
     pub blanked: bool,
+    #[serde(default)]
+    pub blank_picture: Option<FrameInfo>,
     pub quit: bool,
 }
 /// Actual size of the reference presentation window, never presenter content.

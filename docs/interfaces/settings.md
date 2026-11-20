@@ -137,3 +137,7 @@ Transient display trials/startup recovery eligibility, reveals, blank/current/se
 Change on click and worker state are not persisted. HTML prototype localStorage is
 separate and is not automatically imported. See `examples/settings-v1.toml` and
 round-trip/invalid-version tests in `tests/settings.rs`.
+
+- `blank_picture`: optional boolean (0.1.77), default false. True selects the
+  managed [blank picture](blank-picture.md); false uses solid black. Missing or
+  invalid assets fall back to black. Existing v1 files migrate by defaulting false.

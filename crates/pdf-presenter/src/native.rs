@@ -233,7 +233,8 @@ impl NativeWindow {
                         setup.route_trial.is_some(),
                     );
                 }
-                if !blank && let Some(frame) = frame {
+                if let Some(frame) = frame {
+                    let setup = if blank { None } else { setup };
                     use std::hash::{Hash, Hasher};
                     let mut hash = std::hash::DefaultHasher::new();
                     frame.info.path.hash(&mut hash);
@@ -289,7 +290,12 @@ impl NativeWindow {
                         ui.max_rect(),
                         tex.id(),
                         [frame.info.width, frame.info.height],
-                        setup.map(|s| s.slide_colors).unwrap_or_default(),
+                        setup
+                            .map(|s| s.slide_colors)
+                            .unwrap_or(crate::settings::SlideColors {
+                                page_background: [0; 3],
+                                fit_padding: [0; 3],
+                            }),
                         crate::zoom::Sync {
                             view,
                             ..setup.map(|s| s.zoom).unwrap_or_default()
@@ -441,6 +447,7 @@ struct Host {
     commands: Receiver<HostState>,
     acks: SyncSender<Ack>,
     state: HostState,
+    blank: crate::blank::Output,
     reader: Bridge,
     reading: Option<std::path::PathBuf>,
     cache: HashMap<std::path::PathBuf, Arc<Frame>>,
@@ -859,7 +866,11 @@ impl App {
             repaint |= !actions.is_empty();
             for action in actions {
                 #[cfg(target_os = "windows")]
-                if matches!(action, Action::Pick(_) | Action::PickNotes) && !s.dialog_busy {
+                if matches!(
+                    action,
+                    Action::Pick(_) | Action::PickNotes | Action::PickBlankPicture
+                ) && !s.dialog_busy
+                {
                     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
                     s.dialog_owner = self
                         .windows
@@ -979,6 +990,7 @@ impl App {
                         monitors: s.routes.presentation.clone(),
                         fullscreen: s.presentation_fullscreen(),
                         blanked: s.blanked,
+                        blank_picture: s.blank_picture.as_ref().map(|f| f.info.clone()),
                         ..Default::default()
                     };
                     if output.tx.try_send(state).is_ok() {
@@ -1091,7 +1103,21 @@ impl App {
                 if state.monitors.is_empty() {
                     host.frame = None;
                 }
+                if host.blank.set(state.blank_picture.as_ref()) {
+                    for w in &mut self.windows {
+                        w.ui.textures.clear();
+                    }
+                }
                 host.state = state;
+            }
+            if let Some(result) = host.blank.poll() {
+                repaint = true;
+                if let Err(error) = result {
+                    let _ = host.acks.try_send(Ack {
+                        status: format!("Blank picture: {error}"),
+                        ..Default::default()
+                    });
+                }
             }
             if host.zoom_pending && host.parent_connected && Instant::now() >= host.next_zoom_ack {
                 let _ = host.acks.try_send(Ack {
@@ -1374,7 +1400,13 @@ impl ApplicationHandler for App {
                 self.windows[index].window.request_redraw()
             }
             WindowEvent::RedrawRequested => {
-                let frame = self.host.as_ref().and_then(|h| h.frame.clone());
+                let frame = self.host.as_ref().and_then(|h| {
+                    if h.state.blanked {
+                        h.blank.picture.clone()
+                    } else {
+                        h.frame.clone()
+                    }
+                });
                 let blank = self.host.as_ref().is_none_or(|h| h.state.blanked);
                 let result = self.windows[index].render(
                     self.studio.as_mut(),
@@ -1598,6 +1630,7 @@ pub fn run_output() -> Result<(), Failure> {
             commands,
             acks,
             state: Default::default(),
+            blank: Default::default(),
             reader: Bridge::new(Duration::from_secs(10)),
             reading: None,
             cache: HashMap::new(),
@@ -1864,6 +1897,7 @@ mod buffer_tests {
                 blanked: false,
                 ..Default::default()
             },
+            blank: Default::default(),
             reader: Bridge::new(Duration::from_secs(10)),
             reading: None,
             cache: HashMap::new(),

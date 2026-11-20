@@ -46,6 +46,13 @@ pub enum Request {
         source_sha: String,
         preview: crate::notes::ImportPreview,
     },
+    PickBlankPicture {
+        owner: Option<isize>,
+    },
+    BlankPicture {
+        source: Option<PathBuf>,
+        path: PathBuf,
+    },
     PickNotes {
         owner: Option<isize>,
     },
@@ -251,6 +258,19 @@ pub fn run() -> Result<(), String> {
                         &source_sha,
                         preview,
                     )?);
+                }
+                Request::PickBlankPicture { owner } => {
+                    reply.picked = picker_dialog(owner)?
+                        .add_filter(
+                            "Picture",
+                            &["png", "jpg", "jpeg", "webp", "bmp", "gif", "tif", "tiff"],
+                        )
+                        .pick_file();
+                }
+                Request::BlankPicture { source, path } => {
+                    let frame = crate::blank::prepare(source.as_deref(), &path)?;
+                    reply.frame = Some(frame.info);
+                    data = frame.rgba;
                 }
                 Request::PickNotes { owner } => {
                     reply.picked = picker_dialog(owner)?

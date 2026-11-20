@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### 0.1.77
+
+- Add an optional custom picture for Blank presentation in Preferences, shared by
+  all audience displays, with a control to restore solid black.
+- Save a bounded managed copy independently of the slide cache; load and decode
+  in supervised workers. Fit it against black without slide zoom or annotations.
+  Failed imports retain the previous choice; unavailable saved pictures fall back
+  to black without exposing slides.
+- Linux workspace/native tests, 13 Python tests, formatting, Clippy, rustdoc and
+  optimized build pass; whole-application line coverage is 84.56%. Windows and
+  physical-display acceptance remain pending for this change.
+
+
 ### 0.1.76
 
 - Give every presenter display its own complete visual layout, presets, local

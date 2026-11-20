@@ -2409,6 +2409,20 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     ui.menu_button(tr(&locale,"Preferences"), |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_width(370.);
+            ui.collapsing(if s.settings.language.french() { "Image de présentation masquée" } else { "Blank presentation" }, |ui| {
+                ui.label(if s.settings.blank_picture {
+                    if s.settings.language.french() { "Image personnalisée sélectionnée" } else { "Custom picture selected" }
+                } else if s.settings.language.french() { "Écran noir" } else { "Solid black" });
+                if ui.add_enabled(s.initialized && !s.dialog_busy && !s.blank_busy, egui::Button::new(if s.settings.language.french() { "Choisir une image…" } else { "Choose picture…" })).clicked() {
+                    s.actions.push(Action::PickBlankPicture);
+                }
+                if ui.add_enabled(s.initialized && !s.dialog_busy && (s.settings.blank_picture || s.blank_busy), egui::Button::new(if s.settings.language.french() { "Utiliser un écran noir" } else { "Use solid black" })).clicked() {
+                    s.actions.push(Action::ClearBlankPicture);
+                }
+                ui.small(if s.settings.language.french() { "Une copie est conservée et ajustée à tous les écrans de présentation, sur fond noir." } else { "A copy is saved and fitted to all presentation displays against a black background." });
+                if s.blank_busy { ui.spinner(); }
+            });
+            ui.separator();
             let mut enabled = s.settings.zoom_enabled;
             if ui.checkbox(&mut enabled, tr(&locale, "Enable page zoom")).changed() { s.enable_zoom(enabled); }
             if ui.checkbox(&mut s.settings.zoom_keep_fitted_area, tr(&locale, "Keep fitted page area when zooming")).changed() {

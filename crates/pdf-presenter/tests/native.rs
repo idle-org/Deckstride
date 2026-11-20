@@ -109,6 +109,11 @@ fn independent_output_acknowledges_frames_and_blanking() {
     }
     let doc = Document::open(temp.path(), temp.path().join("cache")).unwrap();
     let frames: Vec<_> = (0..8).map(|page| doc.render(page, 320).unwrap()).collect();
+    let blank_picture = pdf_presenter::blank::prepare(
+        Some(&temp.path().join("slide0.png")),
+        &temp.path().join("blank-picture.rgba"),
+    )
+    .unwrap();
     struct ChildGuard(std::process::Child);
     impl Drop for ChildGuard {
         fn drop(&mut self) {
@@ -223,6 +228,7 @@ fn independent_output_acknowledges_frames_and_blanking() {
                 monitors: vec![monitor.clone()],
                 fullscreen: false,
                 blanked,
+                blank_picture: Some(blank_picture.info.clone()),
                 ..Default::default()
             },
         )

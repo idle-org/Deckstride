@@ -205,3 +205,12 @@ runs on a dedicated 30-second supervised worker, one outstanding job per present
 The reply adds optional `cleanup` with unsigned `removed_bytes`, `remaining_bytes`,
 `removed_files`, and `skipped_files`. Errors use the existing error field. No frame
 payload is transferred. The same-build private protocol requires no migration.
+
+The optional full HostState field `blank_picture: FrameInfo | null` (0.1.77)
+identifies the managed blank image by path, dimensions and content SHA256.
+Lightweight updates retain it. A separate supervised worker reads it; the output
+validates identity before accepting the pixels. It is never acknowledged as a
+slide, and a failed read leaves blank output black. Worker requests
+`PickBlankPicture { owner }` and `BlankPicture { source, path }` select and
+import/load the asset; source null loads the stored copy. See
+[blank picture](blank-picture.md) for bounds.

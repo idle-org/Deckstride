@@ -1,5 +1,6 @@
 version = 1
 auto_show = true
+blank_picture = false
 zoom_enabled = false
 zoom_keep_fitted_area = false
 theme = "midra"
