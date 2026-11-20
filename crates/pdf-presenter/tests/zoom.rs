@@ -93,12 +93,16 @@ fn settings_default_opt_out_roundtrip_and_warning_threshold() {
     assert!(!Settings::default().zoom_enabled);
     let old: Settings = toml::from_str("version=1").unwrap();
     assert!(!old.zoom_enabled);
+    assert!(!old.zoom_keep_fitted_area);
+    assert!(!Settings::default().zoom_keep_fitted_area);
     let enabled = Settings {
         zoom_enabled: true,
+        zoom_keep_fitted_area: true,
         ..Default::default()
     };
     let restored: Settings = toml::from_str(&toml::to_string(&enabled).unwrap()).unwrap();
     assert!(restored.zoom_enabled);
+    assert!(restored.zoom_keep_fitted_area);
     let mut watch = PerformanceWatch::default();
     assert!(!watch.observe(false, Duration::from_secs(1)));
     assert!(!watch.observe(true, Duration::from_millis(40)));
@@ -221,13 +225,17 @@ fn buffered_zoom_drawing_measurement() {
                         ..Default::default()
                     },
                     |ui| {
-                        pdf_presenter::presenter_ui::paint_slide_zoomed(
+                        pdf_presenter::presenter_ui::paint_slide_adapted(
                             ui.painter(),
                             rect,
                             texture.id(),
-                            [1920, 1080],
+                            [210, 297],
                             Default::default(),
-                            view,
+                            Sync {
+                                enabled: true,
+                                view,
+                                ..Default::default()
+                            },
                         );
                     },
                 );
@@ -438,4 +446,158 @@ fn parallel_crop_bands_have_no_seams_at_fractional_boundaries() {
             );
         }
     }
+}
+
+#[test]
+fn portrait_zoom_fills_screen_without_stretching_or_out_of_bounds_pixels() {
+    use pdf_presenter::presenter_ui::zoom_geometry;
+    for size in [
+        Vec2::new(1920., 1080.),
+        Vec2::new(1080., 1920.),
+        Vec2::new(640., 480.),
+    ] {
+        let rect = Rect::from_min_size(Pos2::new(12., 18.), size);
+        for dimensions in [[210, 297], [297, 210]] {
+            let (fitted, _) = zoom_geometry(rect, dimensions, View::default(), false);
+            for scale in [1., 1.5, 3., 8.] {
+                for center in [[0.5; 2], [0.; 2], [1.; 2]] {
+                    let view = View { scale, center };
+                    let (target, uv) = zoom_geometry(rect, dimensions, view, false);
+                    assert!(rect.contains_rect(target));
+                    assert!(Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)).contains_rect(uv));
+                    let x_scale = target.width() / (uv.width() * dimensions[0] as f32);
+                    let y_scale = target.height() / (uv.height() * dimensions[1] as f32);
+                    assert!((x_scale - y_scale).abs() < 0.001, "page was stretched");
+                    if scale >= 3. {
+                        assert_eq!(target, rect);
+                    }
+                    assert_eq!(zoom_geometry(rect, dimensions, view, true).0, fitted);
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn adapted_portrait_pixels_fill_padding_without_uploading_another_texture() {
+    let ctx = Context::default();
+    let texture = ctx.load_texture(
+        "portrait",
+        egui::ColorImage::filled([21, 30], egui::Color32::RED),
+        TextureOptions::LINEAR,
+    );
+    let rect = Rect::from_min_size(Pos2::ZERO, Vec2::new(320., 180.));
+    let mut renderer = EguiSoftwareRender::new(ColorFieldOrder::Bgra);
+    let mut pixels = vec![0u32; 320 * 180];
+    for (index, (scale, keep_fitted_area)) in [(1., false), (3., false), (3., true)]
+        .into_iter()
+        .enumerate()
+    {
+        let output = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(rect),
+                ..Default::default()
+            },
+            |ui| {
+                pdf_presenter::presenter_ui::paint_slide_adapted(
+                    ui.painter(),
+                    rect,
+                    texture.id(),
+                    [21, 30],
+                    Default::default(),
+                    Sync {
+                        enabled: true,
+                        keep_fitted_area,
+                        view: View {
+                            scale,
+                            center: [0.5; 2],
+                        },
+                        ..Default::default()
+                    },
+                );
+            },
+        );
+        if index > 0 {
+            assert!(output.textures_delta.set.is_empty());
+        }
+        let primitives = ctx.tessellate(output.shapes, output.pixels_per_point);
+        renderer.render(
+            &mut BufferMutRef::new(bytemuck::cast_slice_mut(&mut pixels), 320, 180),
+            &primitives,
+            &output.textures_delta,
+            output.pixels_per_point,
+        );
+        let edge = pixels[90 * 320 + 4] & 0xffffff;
+        let center = pixels[90 * 320 + 160] & 0xffffff;
+        if index == 1 {
+            assert_eq!(edge, center);
+        } else {
+            assert_ne!(edge, center);
+        }
+    }
+}
+#[test]
+fn portrait_screen_adapting_gestures_pan_visible_area_and_reset() {
+    let ctx = Context::default();
+    let target = Rect::from_min_max(Pos2::new(40., 40.), Pos2::new(440., 240.));
+    let mut view = View::default();
+    let mut time = 0.;
+    let mut render = |events: Vec<egui::Event>| {
+        time += 0.04;
+        let _ = ctx.run_ui(
+            RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, Vec2::new(500., 300.))),
+                events,
+                time: Some(time),
+                ..Default::default()
+            },
+            |ui| {
+                view = pdf_presenter::presenter_ui::zoom_gestures_in(
+                    ui,
+                    target,
+                    [210, 297],
+                    view,
+                    false,
+                )
+                .0;
+            },
+        );
+        view
+    };
+    let center = target.center();
+    render(vec![egui::Event::PointerMoved(center)]);
+    render(vec![egui::Event::MouseWheel {
+        unit: egui::MouseWheelUnit::Point,
+        phase: egui::TouchPhase::Move,
+        delta: Vec2::new(0., 300.),
+        modifiers: egui::Modifiers::NONE,
+    }]);
+    let mut zoom = View::default();
+    for _ in 0..30 {
+        zoom = render(vec![]);
+    }
+    assert!(zoom.scale > 1.2);
+    let click = |pos, pressed| egui::Event::PointerButton {
+        pos,
+        button: egui::PointerButton::Primary,
+        pressed,
+        modifiers: egui::Modifiers::NONE,
+    };
+    render(vec![click(center, true)]);
+    let moved = center + Vec2::new(40., 10.);
+    let panned = render(vec![egui::Event::PointerMoved(moved)]);
+    assert!(panned.center[1] < zoom.center[1]);
+    assert_eq!(
+        panned.center[0], 0.5,
+        "page width still fits; horizontal panning should stop"
+    );
+    render(vec![click(moved, false)]);
+    for _ in 0..20 {
+        render(vec![]);
+    }
+    for _ in 0..2 {
+        render(vec![click(moved, true)]);
+        zoom = render(vec![click(moved, false)]);
+    }
+    assert_eq!(zoom, View::default());
 }

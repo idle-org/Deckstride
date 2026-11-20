@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.55
+
+- Let zoom expand portrait/landscape pages into each screen without stretching,
+  instead of trapping them inside the original fitted area. Save an opt-in
+  “Keep fitted page area when zooming” preference. Keep buffered texture reuse,
+  bounded drawing, pointer anchoring and shared zoom/center across outputs.
+  Linux regression checks cover aspect ratio, screen fill, edges, settings and
+  pixel output without new texture uploads. Physical multiscreen testing remains open.
+
 ### 0.1.54
 
 - Add globally saved, default-off page zoom (1×–8×), wheel/pinch zoom, drag panning

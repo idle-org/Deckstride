@@ -41,12 +41,57 @@ pub fn paint_slide_zoomed(
     colors: crate::settings::SlideColors,
     view: crate::zoom::View,
 ) {
-    let target = fitted_slide(rect, dimensions);
+    paint_slide_adapted(
+        painter,
+        rect,
+        texture,
+        dimensions,
+        colors,
+        crate::zoom::Sync {
+            enabled: true,
+            view,
+            keep_fitted_area: true,
+            ..Default::default()
+        },
+    );
+}
+/// Visible page rectangle and texture crop; geometry never exceeds the viewport.
+pub fn zoom_geometry(
+    rect: Rect,
+    dimensions: [u32; 2],
+    view: crate::zoom::View,
+    keep_fitted_area: bool,
+) -> (Rect, Rect) {
+    let view = view.normalized();
+    let fitted = fitted_slide(rect, dimensions);
+    if keep_fitted_area || view.scale == 1. {
+        return (fitted, view.uv());
+    }
+    let enlarged = fitted.size() * view.scale;
+    let size = enlarged.min(rect.size());
+    let span = size / enlarged;
+    let center =
+        Vec2::new(view.center[0], view.center[1]).clamp(span * 0.5, Vec2::splat(1.) - span * 0.5);
+    (
+        Rect::from_center_size(rect.center(), size),
+        Rect::from_center_size(center.to_pos2(), span),
+    )
+}
+/// Adapt to the viewport using the existing buffered texture, with no rerender.
+pub fn paint_slide_adapted(
+    painter: &egui::Painter,
+    rect: Rect,
+    texture: egui::TextureId,
+    dimensions: [u32; 2],
+    colors: crate::settings::SlideColors,
+    zoom: crate::zoom::Sync,
+) {
+    let view = zoom.normalized().view;
+    let (target, uv) = zoom_geometry(rect, dimensions, view, zoom.keep_fitted_area);
     let [r, g, b] = colors.fit_padding;
     painter.rect_filled(rect, 0., Color32::from_rgb(r, g, b));
     let [r, g, b] = colors.page_background;
     painter.rect_filled(target, 0., Color32::from_rgb(r, g, b));
-    let uv = view.uv();
     // Separate clip bands keep large moving crops parallel in the bounded CPU
     // renderer pool. Every band reads the same texture; no image is duplicated.
     let pixels = target.area() * painter.ctx().pixels_per_point().powi(2);
@@ -77,6 +122,26 @@ pub fn zoom_gestures(
     target: Rect,
     view: crate::zoom::View,
 ) -> (crate::zoom::View, egui::Response) {
+    zoom_gestures_in(
+        ui,
+        target,
+        [
+            target.width().max(1.) as u32,
+            target.height().max(1.) as u32,
+        ],
+        view,
+        true,
+    )
+}
+/// Screen-adapted gestures anchor the actual visible crop, including page padding.
+pub fn zoom_gestures_in(
+    ui: &mut Ui,
+    rect: Rect,
+    dimensions: [u32; 2],
+    view: crate::zoom::View,
+    keep_fitted_area: bool,
+) -> (crate::zoom::View, egui::Response) {
+    let (target, uv) = zoom_geometry(rect, dimensions, view, keep_fitted_area);
     let response = ui.interact(target, ui.id().with("page-zoom"), Sense::click_and_drag());
     let mut next = view;
     if response.hovered() {
@@ -85,23 +150,24 @@ pub fn zoom_gestures(
             i.smooth_scroll_delta = Vec2::ZERO;
             scroll
         });
-        if scroll != 0.
-            && let Some(pos) = response.hover_pos()
-        {
-            let anchor = (pos - target.min) / target.size();
-            next = next.zoom_at(
-                next.scale * (scroll * 0.002).clamp(-0.7, 0.7).exp(),
-                [anchor.x, anchor.y],
-            );
-        }
         let pinch = ui.input(|i| i.zoom_delta());
-        if pinch != 1. {
-            next = next.zoom_at(next.scale * pinch, [0.5; 2]);
+        if scroll != 0. || pinch != 1. {
+            next.scale =
+                (view.scale * (scroll * 0.002).clamp(-0.7, 0.7).exp() * pinch).clamp(1., 8.);
+            let pos = response.hover_pos().unwrap_or(target.center());
+            let source = uv.min + (pos - target.min) / target.size() * uv.size();
+            let (new_target, new_uv) = zoom_geometry(rect, dimensions, next, keep_fitted_area);
+            let center = source - (pos - new_target.center()) / new_target.size() * new_uv.size();
+            let half = new_uv.size() * 0.5;
+            let center = center.to_vec2().clamp(half, Vec2::splat(1.) - half);
+            next.center = [center.x, center.y];
         }
     }
     if response.dragged_by(egui::PointerButton::Primary) {
-        let delta = ui.input(|i| i.pointer.delta()) / target.size();
-        next = next.pan([delta.x, delta.y]);
+        let delta = ui.input(|i| i.pointer.delta()) / target.size() * uv.size();
+        let half = uv.size() * 0.5;
+        let center = (uv.center().to_vec2() - delta).clamp(half, Vec2::splat(1.) - half);
+        next.center = [center.x, center.y];
     }
     if response.double_clicked() {
         next = Default::default();
@@ -159,13 +225,13 @@ impl UiState {
                     TextureOptions::LINEAR,
                 )
             });
-            paint_slide_zoomed(
+            paint_slide_adapted(
                 ui.painter(),
                 rect,
                 tex.id(),
                 [frame.info.width, frame.info.height],
                 s.settings.slide_colors,
-                view,
+                crate::zoom::Sync { view, ..s.zoom },
             );
         } else {
             ui.painter().text(
@@ -757,8 +823,13 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     if s.route_trial.is_none()
                         && let Some(frame) = s.frame(page)
                     {
-                        let target = fitted_slide(area, [frame.info.width, frame.info.height]);
-                        let (view, response) = zoom_gestures(ui, target, s.zoom.view);
+                        let (view, response) = zoom_gestures_in(
+                            ui,
+                            area,
+                            [frame.info.width, frame.info.height],
+                            s.zoom.view,
+                            s.zoom.keep_fitted_area,
+                        );
                         response.on_hover_text(tr(
                             &locale,
                             "Scroll to zoom · drag to pan · double-click to reset",
@@ -1979,6 +2050,11 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             ui.set_width(370.);
             let mut enabled = s.settings.zoom_enabled;
             if ui.checkbox(&mut enabled, tr(&locale, "Enable page zoom")).changed() { s.enable_zoom(enabled); }
+            if ui.checkbox(&mut s.settings.zoom_keep_fitted_area, tr(&locale, "Keep fitted page area when zooming")).changed() {
+                s.set_zoom(s.zoom.view);
+                s.save_preferences();
+            }
+            ui.small(tr(&locale, "By default, zoom expands the page to fill the screen without stretching. Enable this option to keep the original page-shaped area."));
             ui.small(tr(&locale, "Zoom reuses buffered images: no extra PDF rendering or image memory. Enlarged slides may look softer. Software drawing can slow down on large or multiple displays."));
             ui.separator();
             if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show presentation automatically when opening a document")).changed() {s.save_preferences();}

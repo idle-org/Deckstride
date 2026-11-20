@@ -39,6 +39,12 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         return text;
     }
     match text {
+        "Keep fitted page area when zooming" => {
+            "Conserver la zone ajustée de la page pendant le zoom"
+        }
+        "By default, zoom expands the page to fill the screen without stretching. Enable this option to keep the original page-shaped area." => {
+            "Par défaut, le zoom agrandit la page pour remplir l’écran sans déformation. Activez cette option pour conserver la zone initiale de la page."
+        }
         "Enable page zoom" => "Activer le zoom des diapositives",
         "Page zoom" => "Zoom de la diapositive",
         "Reset zoom" => "Réinitialiser le zoom",

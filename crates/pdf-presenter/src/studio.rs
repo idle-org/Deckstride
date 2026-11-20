@@ -1118,6 +1118,7 @@ impl Studio {
         (self.generation << 32) | u64::from(self.target_edge)
     }
     pub fn set_zoom(&mut self, view: crate::zoom::View) {
+        self.zoom.keep_fitted_area = self.settings.zoom_keep_fitted_area;
         self.zoom.set(self.settings.zoom_enabled, view);
         self.new_zoom = true;
     }

@@ -226,6 +226,7 @@ pub struct Settings {
     pub buffer_mib: u32,
     pub auto_show: bool,
     pub zoom_enabled: bool,
+    pub zoom_keep_fitted_area: bool,
     pub theme: crate::theme::Theme,
     pub language: crate::localization::Language,
 }
@@ -268,6 +269,7 @@ impl Default for Settings {
             buffer_mib: default_buffer_mib(),
             auto_show: true,
             zoom_enabled: false,
+            zoom_keep_fitted_area: false,
             theme: Default::default(),
             language: Default::default(),
         }

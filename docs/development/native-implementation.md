@@ -337,3 +337,24 @@ unchanged cached primitive; moving crops deliberately invalidate that cache.
 These numbers include egui tessellation and software buffer drawing, exclude native
 surface/compositor/monitor latency, and are not a guaranteed display frame rate.
 The in-app watcher measures the actual native window draw/presentation call.
+
+
+## Screen-adapting zoom — 0.1.55
+
+The default now grows the fitted page by the zoom factor into the entire viewport,
+then derives a clipped texture rectangle. Geometry never exceeds the viewport and
+UVs remain within the original image. No image resampling jobs, uploads or larger
+image buffers are added. The saved `zoom_keep_fitted_area` opt-in retains v0.1.54
+geometry. Each output computes its own aspect-correct crop from shared scale/center;
+input uses the actual visible UV span for anchoring and panning. Tests exercise
+portrait and landscape pages/screens, bounded edge panning and actual software pixels.
+The manual drawing benchmark now uses A4 page proportions on widescreen outputs.
+
+Linux validation: formatting, warnings-denied Clippy/rustdoc, the full workspace
+coverage suite (including native window tests), and 13 Python helper tests pass.
+Whole-application line coverage is 86.25%. The release binary is rebuilt. On the
+same local i5-8500, the A4-proportioned crop benchmark reports moving-frame medians
+of 5.18/4.70 ms at 1080p (4×/8×) and 15.94/15.50 ms at 4K, maximum 16.87 ms.
+The synthetic texture remains 1920×1080; page metadata supplies A4 proportions to
+exercise viewport expansion. These are software-drawing measurements, not physical
+display latency. Windows/macOS were not built or runtime-tested for this change.

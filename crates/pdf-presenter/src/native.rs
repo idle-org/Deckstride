@@ -233,11 +233,13 @@ impl NativeWindow {
                             .as_ref()
                             .is_some_and(|f| f.path == frame.info.path)
                     {
-                        let target = presenter_ui::fitted_slide(
+                        let (next, response) = presenter_ui::zoom_gestures_in(
+                            ui,
                             ui.max_rect(),
                             [frame.info.width, frame.info.height],
+                            view,
+                            setup.zoom.keep_fitted_area,
                         );
-                        let (next, response) = presenter_ui::zoom_gestures(ui, target, view);
                         if setup.setup_controls {
                             response.context_menu(|ui| {
                                 if ui
@@ -254,13 +256,16 @@ impl NativeWindow {
                             view = next;
                         }
                     }
-                    presenter_ui::paint_slide_zoomed(
+                    presenter_ui::paint_slide_adapted(
                         ui.painter(),
                         ui.max_rect(),
                         tex.id(),
                         [frame.info.width, frame.info.height],
                         setup.map(|s| s.slide_colors).unwrap_or_default(),
-                        view,
+                        crate::zoom::Sync {
+                            view,
+                            ..setup.map(|s| s.zoom).unwrap_or_default()
+                        },
                     );
                 }
             }

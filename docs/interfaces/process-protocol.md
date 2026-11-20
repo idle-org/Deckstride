@@ -143,8 +143,10 @@ are private same-executable presenter/worker traffic, never output-host traffic.
 HostState adds `zoom {enabled, view {scale, center}, epoch, serial}` and
 `zoom_only` (false by default). Scale is bounded to 1–8 and center is normalized
 page UV coordinates, clamped to keep the full crop inside the page. Disabled or
-invalid views normalize to a complete fitted page. The viewport keeps the slide's
-aspect ratio and draws a cropped texture rectangle with constant-sized geometry.
+invalid views normalize to a complete fitted page. Since 0.1.55, zoom also carries `keep_fitted_area` (missing defaults false).
+The default preserves page proportions while expanding into each viewport, clipping
+overflow with bounded UVs and geometry. True retains the original fitted rectangle.
+Visible crop/edge clamping is local to each viewport; scale and page center are shared.
 No higher-resolution request, texture upload or image buffer is created by zoom.
 Large crops split into disjoint clip bands on a pool capped at four CPU threads;
 scanline interpolation uses O(viewport width) scratch memory.

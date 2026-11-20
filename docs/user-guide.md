@@ -324,13 +324,21 @@ and [format contract](interfaces/presentation-notes.md#importing-txt-and-markdow
 Zoom is **off by default**. Enable **Menu → Preferences → Enable page zoom**.
 The preference is saved globally; it does not change presentation visibility.
 
+By default, zoom expands the page into the available screen area without stretching.
+For example, an A4 portrait page fills a widescreen display as you zoom in; drag to
+see the cropped top/bottom. Each screen adapts to its own dimensions. To retain
+the original page-shaped area and its margins, enable **Menu → Preferences →
+Keep fitted page area when zooming**. This choice is saved globally. It changes
+the visible area, not the cached image resolution.
+
 - On the **current slide preview** or any **presentation screen**, scroll up/down
   to zoom in/out (1×–8×). The point under the mouse stays anchored when possible.
 - Hold the left mouse button and drag to move the enlarged image. Movement stops
   at the page edges. Double-click to reset to the complete fitted slide.
 - **Menu → Page zoom** also has a zoom slider and **Reset zoom** button. If the
   current preview is hidden, show it in Layout to pan from the presenter.
-- All mirrored presenter/current previews and presentation outputs share the crop.
+- All mirrored presenter/current previews and presentation outputs share zoom and
+  page center; different screen shapes can show different amounts of the page.
   Previous/next previews, All slides thumbnails and browser previews stay unzoomed.
   Moving to another slide or opening another presentation resets zoom. Display
   swaps/fullscreen changes preserve it. Zoom gestures pause during display trials.

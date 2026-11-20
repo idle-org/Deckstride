@@ -63,6 +63,8 @@ impl View {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Sync {
     pub enabled: bool,
+    #[serde(default)]
+    pub keep_fitted_area: bool,
     pub view: View,
     pub epoch: u64,
     pub serial: u64,

@@ -212,6 +212,7 @@ fn independent_output_acknowledges_frames_and_blanking() {
                     },
                     epoch: sequence * 2,
                     serial: 0,
+                    keep_fitted_area: false,
                 },
                 sequence,
                 page,
@@ -251,6 +252,7 @@ fn independent_output_acknowledges_frames_and_blanking() {
                     },
                     epoch: sequence * 2 + 1,
                     serial: 0,
+                    keep_fitted_area: false,
                 },
                 ..Default::default()
             },

@@ -12,6 +12,10 @@ with an error, without rewriting the bad file. Missing files use defaults. Reads
 bounded to 4 MiB. Writes validate then atomically replace using a same-directory
 flushed temporary file. Unknown fields are ignored and not preserved on round trip.
 
+- `zoom_keep_fitted_area`: boolean, default false, added in 0.1.55. Missing fields
+  migrate to screen-adapting zoom: preserve aspect ratio while expanding into the
+  viewport, cropping overflow. True retains the original fitted page area. This
+  global preference does not change cached render resolution or enable zoom.
 - `zoom_enabled`: boolean, default false, added in 0.1.54. Global opt-in for
   presenter/current-slide and output zoom gestures. Missing fields in older v1
   files retain normal non-zoom behavior. Menu → Preferences saves this setting
