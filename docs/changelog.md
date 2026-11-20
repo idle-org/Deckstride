@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.41
+
+- Redesign All slides controls with labeled settings cards, a filled Compact/Large
+  slider, readable monitor names and a prominent Show selected button. Stack cards
+  in narrow windows and explain safe/live browsing alongside its controls.
+
 ### 0.1.40
 
 - Draw header/footer visibility icons directly instead of relying on arrow glyphs.

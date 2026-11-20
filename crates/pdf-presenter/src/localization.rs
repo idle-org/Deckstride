@@ -123,6 +123,17 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Slide preview" => "Aperçu de la diapositive",
         "Preview only — presentation unchanged" => "Aperçu uniquement — présentation inchangée",
         "Show on screen" => "Afficher sur l’écran",
+        "Fit more slides or inspect larger previews." => {
+            "Afficher plus de diapositives ou agrandir les aperçus."
+        }
+        "Choose where this slide browser opens." => "Choisir l’écran où s’ouvre ce navigateur.",
+        "Compact" => "Compact",
+        "Large" => "Grand",
+        "Safe browsing" => "Navigation sans diffusion",
+        "Live browsing" => "Navigation en direct",
+        "Click to select. Double-click to preview. Show selected to present." => {
+            "Cliquer pour sélectionner. Double-cliquer pour prévisualiser. Diffuser la sélection pour présenter."
+        }
         "Preview size" => "Taille des aperçus",
         "Change on click" => "Diffuser au clic",
         "Presenter screen" => "Écran du présentateur",

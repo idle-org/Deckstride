@@ -903,6 +903,68 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         s.displays_open &= open;
     }
 }
+fn browser_preview_settings(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    egui::Frame::group(ui.style())
+        .inner_margin(12.)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.strong(tr(&locale, "Preview size"));
+            ui.small(tr(&locale, "Fit more slides or inspect larger previews."));
+            ui.spacing_mut().slider_width = (ui.available_width() - 4.).max(80.);
+            ui.visuals_mut().slider_trailing_fill = true;
+            ui.add(
+                egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.)
+                    .show_value(false)
+                    .text(""),
+            )
+            .on_hover_text(format!(
+                "{}: {:.0}",
+                tr(&locale, "Preview size"),
+                s.settings.thumbnail_size
+            ));
+            ui.horizontal(|ui| {
+                ui.small(tr(&locale, "Compact"));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.small(tr(&locale, "Large"));
+                });
+            });
+        });
+}
+fn browser_screen_settings(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    egui::Frame::group(ui.style())
+        .inner_margin(12.)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.strong(tr(&locale, "Show on screen"));
+            ui.small(tr(&locale, "Choose where this slide browser opens."));
+            let selected = s
+                .settings
+                .browser_monitor
+                .as_ref()
+                .and_then(|id| s.monitors.iter().find(|m| &m.id == id))
+                .map(|m| m.name.as_str())
+                .unwrap_or(tr(&locale, "Presenter screen"));
+            egui::ComboBox::from_id_salt("browser-monitor")
+                .width(ui.available_width())
+                .selected_text(selected)
+                .show_ui(ui, |ui| {
+                    ui.selectable_value(
+                        &mut s.settings.browser_monitor,
+                        None,
+                        tr(&locale, "Presenter screen"),
+                    );
+                    for monitor in &s.monitors {
+                        ui.selectable_value(
+                            &mut s.settings.browser_monitor,
+                            Some(monitor.id.clone()),
+                            &monitor.name,
+                        );
+                    }
+                });
+        });
+}
 pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let browser_width = ui.available_width();
     let locale = ui.ctx().clone();
@@ -937,67 +999,82 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     &mut s.actions,
                 );
             });
+            ui.add_space(2.);
+            if ui.available_width() >= 680. {
+                ui.columns(2, |columns| {
+                    browser_preview_settings(&mut columns[0], s);
+                    browser_screen_settings(&mut columns[1], s);
+                });
+            } else {
+                browser_preview_settings(ui, s);
+                browser_screen_settings(ui, s);
+            }
             ui.separator();
             ui.horizontal_wrapped(|ui| {
-                ui.add(
-                    egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.)
-                        .text(tr(&locale, "Preview size")),
-                );
-                ui.horizontal(|ui| {
-                    ui.label(tr(&locale, "Show on screen"));
-                    egui::ComboBox::from_id_salt("browser-monitor")
-                        .selected_text(
-                            s.settings
-                                .browser_monitor
-                                .as_deref()
-                                .unwrap_or(tr(&locale, "Presenter screen")),
+                let accent = ui.visuals().selection.bg_fill;
+                let text = ui.visuals().selection.stroke.color;
+                if ui
+                    .add_enabled(
+                        s.count() > 0,
+                        egui::Button::new(
+                            egui::RichText::new(tr(&locale, "Show selected"))
+                                .strong()
+                                .color(text),
                         )
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut s.settings.browser_monitor,
-                                None,
-                                tr(&locale, "Presenter screen"),
-                            );
-                            for monitor in &s.monitors {
-                                ui.selectable_value(
-                                    &mut s.settings.browser_monitor,
-                                    Some(monitor.id.clone()),
-                                    &monitor.name,
-                                );
-                            }
-                        });
-                });
+                        .fill(accent)
+                        .min_size(Vec2::new(160., 38.)),
+                    )
+                    .clicked()
+                {
+                    s.actions.push(Action::Go(s.browser_selected));
+                }
+                ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
             });
             ui.horizontal_wrapped(|ui| {
-                button(
-                    ui,
-                    tr(&locale, "Show selected"),
-                    Action::Go(s.browser_selected),
-                    &mut s.actions,
+                ui.colored_label(
+                    if s.change_on_click {
+                        ui.visuals().warn_fg_color
+                    } else {
+                        ui.visuals().hyperlink_color
+                    },
+                    tr(
+                        &locale,
+                        if s.change_on_click {
+                            "Live browsing"
+                        } else {
+                            "Safe browsing"
+                        },
+                    ),
                 );
-                ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
+                ui.label(tr(
+                    &locale,
+                    if s.change_on_click {
+                        "Click changes presentation"
+                    } else {
+                        "Click to select. Double-click to preview. Show selected to present."
+                    },
+                ));
             });
         });
     ui.add_space(8.);
     ui.label(format!(
-        "{} {} · {} {} · {}",
+        "{} {} · {} {}",
         if s.settings.language.french() {
             "Sélection"
         } else {
             "Selected"
         },
-        s.browser_selected + 1,
+        if s.count() == 0 {
+            0
+        } else {
+            s.browser_selected + 1
+        },
         if s.settings.language.french() {
             "Actuelle"
         } else {
             "Current"
         },
-        s.requested + 1,
-        if s.change_on_click {
-            tr(&locale, "Click changes presentation")
-        } else {
-            tr(&locale, "Click only selects — browse safely")
-        }
+        if s.count() == 0 { 0 } else { s.requested + 1 },
     ));
     if !s.jump.is_empty() {
         ui.label(format!(
