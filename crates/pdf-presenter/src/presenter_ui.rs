@@ -1418,7 +1418,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show presentation automatically when opening a document")).changed() {s.save_preferences();}
             ui.separator();
             ui.label(tr(&locale,"RAM budget per process (presenter + output each use this allowance):"));
-            if ui.add(egui::Slider::new(&mut s.settings.buffer_mib,256..=16384).text("MiB")).changed() {s.remember_buffer_budget();}
+            if ui.add(egui::Slider::new(&mut s.settings.buffer_mib,64..=16384).text("MiB")).changed() {s.remember_buffer_budget();}
             ui.small(tr(&locale,"Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px."));
             ui.separator();
             ui.label(s.preparation_status());

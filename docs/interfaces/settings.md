@@ -55,9 +55,14 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
 - `presenter_fullscreen`, `presentation_fullscreen`: booleans, default true.
 - `browser_monitor`: optional monitor ID; missing/unavailable means presenter screen.
 - `thumbnail_size`: logical width in pixels, finite 100–400; default 220.
-- `buffer_mib`: integer 256–16384, default 1024, added in 0.1.13. Decoded slide RAM
+- `buffer_mib`: integer 64–16384, adaptive default, added in 0.1.13. Decoded slide RAM
   allowance for each presenter/output process; one MiB = 1048576 bytes. Additional
-  worker/texture/UI memory is not included. Older v1 files default to 1024. The menu
+  worker/texture/UI memory is not included. Since 0.1.46, missing budgets use 15% of available physical RAM measured once at
+  process startup, raised toward 512 MiB only within a 20% ceiling. The operational
+  minimum is 64 MiB, maximum 16384 MiB; failed memory detection uses 256 MiB.
+  Explicit saved budgets (including the old 1024 MiB default) remain unchanged.
+  Saving preferences persists the chosen numeric budget; it is not continuously
+  retuned. Older binaries reject budgets below their former 256 MiB minimum. The menu
   persists changes asynchronously. Since 0.1.19, lowering evicts non-active frames
   while reserving room for outstanding renders; increasing allows RAM refill.
 

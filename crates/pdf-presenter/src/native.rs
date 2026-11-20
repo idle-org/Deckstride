@@ -860,7 +860,7 @@ impl App {
                         if host.cache.contains_key(&info.path) {
                             continue;
                         }
-                        let limit = host.state.buffer_mib.max(256) as usize * 1024 * 1024;
+                        let limit = host.state.buffer_mib.max(64) as usize * 1024 * 1024;
                         if make_output_room(
                             &mut host.cache,
                             host.frame.as_ref(),

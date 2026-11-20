@@ -42,8 +42,10 @@ usage, approximate ETA and memory-pressure pause are explicit in the presenter.
 No application slide-file reads, decoding or rasterization occur on prepared navigation.
 OS paging can still occur; configuring enough available physical RAM remains necessary.
 
-The default decoded budget is 1024 MiB per process, adjustable in Menu. Insufficient
-capacity pauses rather than evicts and never reports READY. Worker/texture memory is
+The default decoded budget is 15% of available RAM per process, with a soft
+512 MiB floor constrained to 20% of available RAM (64–16384 MiB operational bounds),
+adjustable in Menu. Insufficient capacity uses rolling eviction of non-active slides
+and never reports the entire deck as RAM-ready. Worker/texture memory is
 additional. See [cache](../interfaces/extraction-cache.md),
 [settings](../interfaces/settings.md) and [private IPC](../interfaces/process-protocol.md).
 

@@ -45,7 +45,7 @@ fn settings_reject_invalid_versions_ranges_and_duplicate_roles() {
     };
     assert!(s.validate().is_err());
     s.version = 1;
-    s.buffer_mib = 128;
+    s.buffer_mib = 63;
     assert!(s.validate().is_err());
     s.buffer_mib = 1024;
     s.layout.clock.size = f32::NAN;
@@ -66,7 +66,10 @@ fn settings_reject_invalid_versions_ranges_and_duplicate_roles() {
     assert!(settings::read(&p).unwrap().layout.header);
     assert!(!settings::read(&p).unwrap().layout.previous.show);
     assert!(!Layout::default().previous.show);
-    assert_eq!(settings::read(&p).unwrap().buffer_mib, 1024);
+    assert_eq!(
+        settings::read(&p).unwrap().buffer_mib,
+        Settings::default().buffer_mib
+    );
     assert!(settings::read(&p).unwrap().auto_show);
 }
 #[test]
@@ -161,5 +164,29 @@ fn slide_colors_migrate_roundtrip_and_reject_invalid_channels() {
             ))
             .is_err()
         );
+    }
+}
+
+#[test]
+fn automatic_buffer_budget_softens_floor_under_memory_pressure() {
+    let budget = |mib: u64| settings::buffer_budget_mib(Some(mib * 1024 * 1024));
+    assert_eq!(budget(8192), 1228); // 15% on a roomy system.
+    assert_eq!(budget(3072), 512); // Soft floor, still below 20%.
+    assert_eq!(budget(2048), 409); // Floor yields to memory pressure.
+    assert_eq!(budget(1024), 204);
+    assert_eq!(budget(256), 64);
+    assert_eq!(budget(0), 64);
+    assert_eq!(budget(1024 * 1024), 16384);
+    assert_eq!(settings::buffer_budget_mib(None), 256);
+    assert_eq!(settings::buffer_budget_mib(Some(u64::MAX)), 16384);
+    let legacy: Settings = toml::from_str("version=1\nbuffer_mib=1024").unwrap();
+    assert_eq!(legacy.buffer_mib, 1024); // Explicit saved budgets remain authoritative.
+    for value in [64, 204, 512, 16384] {
+        Settings {
+            buffer_mib: value,
+            ..Default::default()
+        }
+        .validate()
+        .unwrap();
     }
 }

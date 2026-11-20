@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.46
+
+- Choose unsaved RAM budgets from 15% of available memory, with a soft 512 MiB
+  floor limited to 20% and a 64 MiB operational minimum for constrained systems.
+  Preserve explicit saved budgets and apply the lower limit to both processes.
+
 ### 0.1.45
 
 - Distinguish Theme and Language section headings with smaller, bold, muted text

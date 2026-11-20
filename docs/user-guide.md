@@ -149,7 +149,9 @@ decoding. Raster composition still happens, and the OS can page memory under pre
 The entire deck stays resident when it fits the configured RAM budget.
 
 Menu → Preferences → RAM budget controls the decoded-slide allowance for **each process**, default
-1024 MiB, configurable from 256 to 16384 MiB. Presenter and output can each consume
+15% of available RAM, with a soft 512 MiB minimum that yields when it would
+exceed 20% of available RAM. The adjustable range is 64–16384 MiB. Saved budgets
+are preserved; the automatic default is chosen when no budget has been saved. Presenter and output can each consume
 that allowance; textures, workers and other application memory are additional.
 Preparation reserves capacity for in-flight frames. When the deck cannot fit, the
 **Rolling buffer** frees distant slides and continues preparing the remaining pages.

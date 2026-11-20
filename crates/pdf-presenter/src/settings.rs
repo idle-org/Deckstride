@@ -191,6 +191,30 @@ pub struct Settings {
     pub theme: crate::theme::Theme,
     pub language: crate::localization::Language,
 }
+/// Choose a per-process decoded-frame budget from available physical RAM.
+/// Prefer 15%, with a soft 512 MiB floor that never exceeds 20% (except the
+/// 64 MiB operational minimum). Unknown memory uses a conservative 256 MiB.
+pub fn buffer_budget_mib(available_bytes: Option<u64>) -> u32 {
+    let Some(bytes) = available_bytes else {
+        return 256;
+    };
+    let mib = bytes / (1024 * 1024);
+    (mib.saturating_mul(15) / 100)
+        .max(512)
+        .min(mib / 5)
+        .clamp(64, 16384) as u32
+}
+
+fn default_buffer_mib() -> u32 {
+    // Probe only RAM, once per process: no process enumeration or UI polling.
+    static BUDGET: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *BUDGET.get_or_init(|| {
+        let mut system = sysinfo::System::new();
+        system.refresh_memory_specifics(sysinfo::MemoryRefreshKind::nothing().with_ram());
+        buffer_budget_mib((system.total_memory() > 0).then(|| system.available_memory()))
+    })
+}
+
 impl Default for Settings {
     fn default() -> Self {
         Self {
@@ -203,7 +227,7 @@ impl Default for Settings {
             presentation_fullscreen: true,
             browser_monitor: None,
             thumbnail_size: 220.,
-            buffer_mib: 1024,
+            buffer_mib: default_buffer_mib(),
             auto_show: true,
             theme: Default::default(),
             language: Default::default(),
@@ -215,8 +239,8 @@ impl Settings {
         if self.version != 1 {
             return Err(format!("Unsupported settings version {}", self.version));
         }
-        if !(256..=16384).contains(&self.buffer_mib) {
-            return Err("RAM buffer must be 256–16384 MiB per process".into());
+        if !(64..=16384).contains(&self.buffer_mib) {
+            return Err("RAM buffer must be 64–16384 MiB per process".into());
         }
         if self.projects.len() > 4096 || !(100. ..=400.).contains(&self.thumbnail_size) {
             return Err("Invalid settings limits".into());
