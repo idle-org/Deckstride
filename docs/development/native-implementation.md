@@ -440,3 +440,26 @@ other presenter windows. Physical multi-monitor verification remains open.
 Linux workspace/native tests, 13 Python helper tests, formatting and warnings-denied
 Clippy/rustdoc pass. Whole-application coverage is 84.56% (75% floor). The Linux
 release binary is rebuilt; Windows/macOS builds and publication were not performed.
+
+
+## 0.1.76 display-bound presenter layouts
+
+Native presenter rendering takes a PresenterView by monitor ID from shared Studio
+session state. Each view owns its visual Layout and menu/layout-panel visibility;
+no temporary substitution of shared Studio layout state is used during rendering.
+The shared timer still reads the shared project/global timer configuration, and
+navigation/output/recovery state remain shared. Scoped save actions carry both
+monitor ID and a layout snapshot so another window rendering before dispatch cannot
+redirect a save. Settings persistence remains on the existing supervised worker.
+
+The additive v1 display_layouts contract, bounds, fallback precedence and examples
+are documented in settings.md. Explicit saves persist per-display project/default
+profiles. Session edits survive ordinary hotplug; successful source/settings loads
+resolve profiles afresh. Per-window Escape dismisses only its local panels, while
+trial recovery retains priority. Native smoke exercises the actual display-scoped
+panels, and headless multi-context tests exercise save origin and isolation.
+
+Validation: Linux workspace/native tests, 13 Python helper tests, formatting and
+warnings-denied Clippy/rustdoc pass. Whole-application coverage is 84.78% against
+the 75% floor. The Linux release binary is rebuilt. Windows/macOS builds and
+physical multi-presenter customization/reconnect acceptance remain open.

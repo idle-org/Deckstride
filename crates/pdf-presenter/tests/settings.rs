@@ -235,3 +235,71 @@ fn timer_and_progress_settings_migrate_validate_and_roundtrip() {
     }
     assert!(toml::from_str::<Settings>("[layout]\ntimer_mode='unknown'").is_err());
 }
+
+#[test]
+fn display_layout_profiles_roundtrip_migrate_and_validate() {
+    use settings::DisplayLayouts;
+    let mut s: Settings =
+        toml::from_str("version=1\n[layout.notes]\nshow=true\nsize=40.0").unwrap();
+    assert!(s.display_layouts.is_empty());
+    let mut legacy_project = s.layout.clone();
+    legacy_project.notes.size = 55.;
+    s.projects.insert("show".into(), legacy_project.clone());
+    assert_eq!(s.for_display("main#1", "show"), legacy_project);
+    let mut alternate = Layout::default();
+    alternate.current.size = 180.;
+    alternate.notes.show = false;
+    alternate.header = false;
+    alternate.clock_position = settings::TimerPosition::RightOfSlides;
+    let mut project = alternate.clone();
+    project.slide_progress = true;
+    s.display_layouts.insert(
+        "Side screen#1".into(),
+        DisplayLayouts {
+            layout: alternate.clone(),
+            projects: [("show".into(), project.clone())].into(),
+        },
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("settings.toml");
+    settings::write(&path, &s).unwrap();
+    let loaded = settings::read(&path).unwrap();
+    assert_eq!(loaded.for_display("Side screen#1", "show"), project);
+    assert_eq!(loaded.for_display("Side screen#1", "other"), alternate);
+    assert_eq!(loaded.for_display("main#1", "show"), legacy_project);
+    let mut bad = loaded.clone();
+    bad.display_layouts
+        .get_mut("Side screen#1")
+        .unwrap()
+        .layout
+        .notes
+        .size = f32::NAN;
+    assert!(bad.validate().is_err());
+    bad = loaded.clone();
+    bad.display_layouts
+        .get_mut("Side screen#1")
+        .unwrap()
+        .projects
+        .get_mut("show")
+        .unwrap()
+        .current
+        .size = 0.;
+    assert!(bad.validate().is_err());
+    bad = loaded.clone();
+    bad.display_layouts.insert("".into(), Default::default());
+    assert!(bad.validate().is_err());
+    bad = loaded.clone();
+    for i in 0..128 {
+        bad.display_layouts
+            .insert(format!("display-{i}"), Default::default());
+    }
+    assert!(bad.validate().is_err());
+    bad = loaded;
+    bad.display_layouts
+        .get_mut("Side screen#1")
+        .unwrap()
+        .projects = (0..4097)
+        .map(|i| (format!("project-{i}"), Layout::default()))
+        .collect();
+    assert!(bad.validate().is_err());
+}

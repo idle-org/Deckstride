@@ -211,6 +211,13 @@ impl Default for SlideColors {
         }
     }
 }
+/// Saved visual layouts for one monitor; shared timer behavior uses legacy layouts.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct DisplayLayouts {
+    pub layout: Layout,
+    pub projects: BTreeMap<String, Layout>,
+}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
@@ -218,6 +225,7 @@ pub struct Settings {
     pub slide_colors: SlideColors,
     pub layout: Layout,
     pub projects: BTreeMap<String, Layout>,
+    pub display_layouts: BTreeMap<String, DisplayLayouts>,
     pub routes: Routes,
     pub presenter_fullscreen: bool,
     pub presentation_fullscreen: bool,
@@ -262,6 +270,7 @@ impl Default for Settings {
             slide_colors: SlideColors::default(),
             layout: Layout::default(),
             projects: BTreeMap::new(),
+            display_layouts: BTreeMap::new(),
             routes: Routes::default(),
             presenter_fullscreen: true,
             presentation_fullscreen: true,
@@ -289,12 +298,43 @@ impl Settings {
         if self.projects.len() > 4096 || !(100. ..=400.).contains(&self.thumbnail_size) {
             return Err("Invalid settings limits".into());
         }
+        if self.display_layouts.len() > 128
+            || self
+                .display_layouts
+                .values()
+                .map(|profile| profile.projects.len())
+                .sum::<usize>()
+                > 4096
+        {
+            return Err("Too many display layouts".into());
+        }
+        for (display, profile) in &self.display_layouts {
+            if display.is_empty() || display.len() > 1024 {
+                return Err("Invalid display layout identifier".into());
+            }
+            profile.layout.validate()?;
+            for layout in profile.projects.values() {
+                layout.validate()?;
+            }
+        }
         self.routes.validate()?;
         self.layout.validate()?;
         for layout in self.projects.values() {
             layout.validate()?;
         }
         Ok(())
+    }
+    pub fn for_display(&self, display: &str, project: &str) -> Layout {
+        self.display_layouts.get(display).map_or_else(
+            || self.for_project(project),
+            |profile| {
+                profile
+                    .projects
+                    .get(project)
+                    .unwrap_or(&profile.layout)
+                    .clone()
+            },
+        )
     }
     pub fn for_project(&self, key: &str) -> Layout {
         self.projects.get(key).unwrap_or(&self.layout).clone()

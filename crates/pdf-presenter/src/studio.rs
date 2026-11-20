@@ -25,9 +25,18 @@ pub enum Action {
     ImportNotes(PathBuf),
     ApplyNotesImport,
     Go(usize),
-    Navigate { delta: i32, repeated: bool },
+    Navigate {
+        delta: i32,
+        repeated: bool,
+    },
     FinishNavigation,
     Blank,
+    SaveDisplayLayout {
+        display: String,
+        project: bool,
+        layout: Layout,
+    },
+    UseDisplayDefault(String),
     SaveProject,
     SaveGlobal,
     UseGlobal,
@@ -74,9 +83,16 @@ pub struct RouteTrial {
     presenter_fullscreen: bool,
     presentation_fullscreen: bool,
 }
+#[derive(Default)]
+pub struct PresenterView {
+    pub layout: Layout,
+    pub layout_open: bool,
+    pub menu_open: bool,
+}
 pub struct Studio {
     pub settings: Settings,
     pub layout: Layout,
+    pub presenter_views: HashMap<String, PresenterView>,
     pub monitors: Vec<Monitor>,
     pub routes: Routes,
     pub draft_routes: Routes,
@@ -186,6 +202,7 @@ impl Studio {
         Self {
             settings: Settings::default(),
             layout: Layout::default(),
+            presenter_views: HashMap::new(),
             monitors: vec![],
             routes: Routes::default(),
             draft_routes: Routes::default(),
@@ -345,6 +362,39 @@ impl Studio {
                 "Screen setup ready."
             }
             .into();
+        }
+    }
+    fn ensure_display_profile(&mut self, display: &str) -> bool {
+        if display.is_empty()
+            || display.len() > 1024
+            || (self.settings.display_layouts.len() >= 128
+                && !self.settings.display_layouts.contains_key(display))
+        {
+            self.status = "Cannot save another display layout.".into();
+            return false;
+        }
+        let layout = self.settings.layout.clone();
+        self.settings
+            .display_layouts
+            .entry(display.into())
+            .or_insert_with(|| settings::DisplayLayouts {
+                layout,
+                projects: Default::default(),
+            });
+        true
+    }
+    pub fn take_presenter_view(&mut self, display: &str) -> PresenterView {
+        if let Some(view) = self.presenter_views.remove(display) {
+            return view;
+        }
+        // Retain disconnected screens during ordinary hotplug, with bounded session state.
+        if self.presenter_views.len() >= 128 {
+            self.presenter_views
+                .retain(|id, _| self.routes.presenter.contains(id));
+        }
+        PresenterView {
+            layout: self.settings.for_display(display, &self.project()),
+            ..Default::default()
         }
     }
     pub fn timer_limit(&self) -> Option<Duration> {
@@ -530,6 +580,70 @@ impl Studio {
                     self.presentation_started = true;
                 }
                 self.new_output = true;
+            }
+            Action::SaveDisplayLayout {
+                display,
+                project,
+                mut layout,
+            } => {
+                if !self.ensure_display_profile(&display) {
+                    return;
+                }
+                let key = self.project();
+                // Timer behavior remains shared; only its appearance belongs to a monitor.
+                layout.timer_mode = self.layout.timer_mode;
+                layout.countdown_seconds = self.layout.countdown_seconds;
+                layout.timer_autostart = self.layout.timer_autostart;
+                if project {
+                    let total: usize = self
+                        .settings
+                        .display_layouts
+                        .values()
+                        .map(|p| p.projects.len())
+                        .sum();
+                    if total >= 4096
+                        && !self.settings.display_layouts[&display]
+                            .projects
+                            .contains_key(&key)
+                    {
+                        self.status = "Too many saved display/project layouts.".into();
+                        return;
+                    }
+                    let mut shared = self.settings.for_project(&key);
+                    shared.timer_mode = layout.timer_mode;
+                    shared.countdown_seconds = layout.countdown_seconds;
+                    shared.timer_autostart = layout.timer_autostart;
+                    self.settings.projects.insert(key.clone(), shared);
+                    self.settings
+                        .display_layouts
+                        .get_mut(&display)
+                        .unwrap()
+                        .projects
+                        .insert(key, layout);
+                } else {
+                    self.settings.layout.timer_mode = layout.timer_mode;
+                    self.settings.layout.countdown_seconds = layout.countdown_seconds;
+                    self.settings.layout.timer_autostart = layout.timer_autostart;
+                    self.settings
+                        .display_layouts
+                        .get_mut(&display)
+                        .unwrap()
+                        .layout = layout;
+                }
+                self.pending_save = true;
+            }
+            Action::UseDisplayDefault(display) => {
+                if !self.ensure_display_profile(&display) {
+                    return;
+                }
+                let key = self.project();
+                let profile = self.settings.display_layouts.get_mut(&display).unwrap();
+                profile.projects.remove(&key);
+                let layout = profile.layout.clone();
+                if let Some(view) = self.presenter_views.get_mut(&display) {
+                    view.layout = layout;
+                }
+                self.pending_save = true;
             }
             Action::SaveProject => {
                 let key = self.project();
@@ -879,6 +993,7 @@ impl Studio {
                             self.settings = settings;
                             self.set_zoom(crate::zoom::View::default());
                             self.layout = self.settings.for_project(&self.project());
+                            self.presenter_views.clear();
                             self.routes = Routes::default();
                         }
                         self.dirty_routes = true;
@@ -1002,6 +1117,7 @@ impl Studio {
                             self.timer = crate::timer::Timer::default();
                             self.displayed = None;
                             self.layout = self.settings.for_project(&info.key);
+                            self.presenter_views.clear();
                             self.status = info.warnings.first().cloned().unwrap_or_else(|| {
                                 format!(
                                     "Opened {} slides. Preparing first slide…",

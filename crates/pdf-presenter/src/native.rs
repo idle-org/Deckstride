@@ -216,9 +216,12 @@ impl NativeWindow {
         let display_action = &mut self.display_action;
         let zoom_change = &mut self.zoom_change;
         let output = ctx.run_ui(input, |ui| match role {
-            Role::Presenter => {
-                presenter_ui::presenter(ui, studio.as_deref_mut().unwrap(), ui_state)
-            }
+            Role::Presenter => presenter_ui::presenter_on_display(
+                ui,
+                studio.as_deref_mut().unwrap(),
+                ui_state,
+                &self.monitor,
+            ),
             Role::Browser => presenter_ui::browser(ui, studio.as_deref_mut().unwrap(), ui_state),
             Role::Presentation => {
                 ui.painter()
@@ -1337,7 +1340,34 @@ impl ApplicationHandler for App {
                             crate::navigation::Hold::new(direction, Instant::now()),
                         ));
                     }
-                    self.key(role, event.logical_key, consumed, modifiers);
+                    let local_dismissed = matches!(event.logical_key, Key::Named(NamedKey::Escape))
+                        && !modifiers.ctrl
+                        && !modifiers.alt
+                        && !modifiers.command
+                        && role == Role::Presenter
+                        && self.studio.as_mut().is_some_and(|s| {
+                            if s.route_trial.is_some()
+                                || s.notes_editor.is_some()
+                                || s.notes_import.is_some()
+                                || !s.jump.is_empty()
+                            {
+                                return false;
+                            }
+                            let Some(view) =
+                                s.presenter_views.get_mut(&self.windows[index].monitor)
+                            else {
+                                return false;
+                            };
+                            let open = view.layout_open || view.menu_open;
+                            view.layout_open = false;
+                            view.menu_open = false;
+                            open
+                        });
+                    if local_dismissed {
+                        self.redraw();
+                    } else {
+                        self.key(role, event.logical_key, consumed, modifiers);
+                    }
                 }
             }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
@@ -1455,9 +1485,15 @@ impl ApplicationHandler for App {
             && let Some(s) = &mut self.studio
         {
             match self.smoke_stage {
-                0 => s.layout_open = true,
+                0 => {
+                    for view in s.presenter_views.values_mut() {
+                        view.layout_open = true;
+                    }
+                }
                 1 => {
-                    s.layout_open = false;
+                    for view in s.presenter_views.values_mut() {
+                        view.layout_open = false;
+                    }
                     s.displays_open = true;
                 }
                 2 => {
@@ -1466,11 +1502,15 @@ impl ApplicationHandler for App {
                 }
                 3 => s.execute(Action::CloseBrowser),
                 4 => {
-                    s.layout.header = false;
-                    s.layout.footer = false;
+                    for view in s.presenter_views.values_mut() {
+                        view.layout.header = false;
+                        view.layout.footer = false;
+                    }
                 }
                 5 => {
-                    s.layout = Default::default();
+                    for view in s.presenter_views.values_mut() {
+                        view.layout = Default::default();
+                    }
                     // Escape dismisses transient UI; fullscreen is an explicit control.
                 }
                 6 => {

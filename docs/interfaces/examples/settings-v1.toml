@@ -35,3 +35,16 @@ footer = false
 [layout.current]
 show = false
 size = 60.0
+
+# Optional per-display visual profiles (0.1.76+).
+[display_layouts."Secondary#1".layout]
+header = false
+clock_position = "left_of_slides"
+
+[display_layouts."Secondary#1".layout.notes]
+show = false
+size = 35.0
+
+[display_layouts."Secondary#1".projects."0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]
+slide_progress = true
+slide_progress_height = 40.0

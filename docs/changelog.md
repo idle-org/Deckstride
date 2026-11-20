@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 0.1.76
+
+- Give every presenter display its own complete visual layout, presets, local
+  customization panel/menu and saved project/all-project profiles. Profiles follow
+  monitor IDs through reconnects; existing settings remain the fallback.
+- Keep slide navigation, output confirmation and timer behavior shared, while
+  widget visibility, sizing, placement and bars are independent. Scoped saves
+  retain their originating display even when another presenter renders first.
+- Add bounded, backward-compatible v1 display layout profiles with examples,
+  validation/round-trip tests and multi-presenter save/reconnect regression coverage.
+  Linux workspace/native tests, 13 Python tests, formatting and warnings-denied
+  Clippy/rustdoc pass; whole-application coverage is 84.78% (75% floor). The Linux
+  release binary is rebuilt. Windows/macOS builds and physical display testing
+  remain open; no release was published.
+
 ### 0.1.75
 
 - Prepare the 0.1.75 preview release with Linux/Windows x86_64 packages and a

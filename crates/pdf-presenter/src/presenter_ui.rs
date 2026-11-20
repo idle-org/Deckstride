@@ -675,23 +675,23 @@ fn timer_position(ui: &mut Ui, id: &str, position: &mut TimerPosition) {
             }
         });
 }
-fn timer_height(s: &Studio, position: TimerPosition) -> f32 {
+fn timer_height(layout: &Layout, position: TimerPosition) -> f32 {
     [
-        (&s.layout.elapsed, s.layout.elapsed_position),
-        (&s.layout.clock, s.layout.clock_position),
+        (&layout.elapsed, layout.elapsed_position),
+        (&layout.clock, layout.clock_position),
     ]
     .into_iter()
     .filter(|(w, p)| w.show && *p == position)
     .map(|(w, _)| w.size * 1.3 + 36.)
     .fold(0., f32::max)
 }
-fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
+fn timers(ui: &mut Ui, s: &Studio, layout: &Layout, position: TimerPosition) {
     let locale = ui.ctx().clone();
     let secs = s.timer.seconds(Instant::now(), s.timer_limit());
     let entries = [
         (
-            &s.layout.elapsed,
-            s.layout.elapsed_position,
+            &layout.elapsed,
+            layout.elapsed_position,
             if s.layout.timer_mode == TimerMode::Countdown {
                 "Countdown"
             } else {
@@ -700,8 +700,8 @@ fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
             format!("{:02}:{:02}", secs / 60, secs % 60),
         ),
         (
-            &s.layout.clock,
-            s.layout.clock_position,
+            &layout.clock,
+            layout.clock_position,
             "Time · HH:MM",
             chrono::Local::now().format("%H:%M").to_string(),
         ),
@@ -784,13 +784,14 @@ fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
 fn side_timers(
     ui: &mut Ui,
     s: &Studio,
+    layout: &Layout,
     rect: &mut Rect,
     left: TimerPosition,
     right: TimerPosition,
 ) {
     let original = *rect;
     for (position, is_left) in [(left, true), (right, false)] {
-        let size = timer_height(s, position);
+        let size = timer_height(layout, position);
         if size == 0. || !original.is_positive() {
             continue;
         }
@@ -817,13 +818,40 @@ fn side_timers(
                 .layout(egui::Layout::top_down(egui::Align::Min)),
             |ui| {
                 ui.set_clip_rect(ui.clip_rect().intersect(column));
-                timers(ui, s, position);
+                timers(ui, s, layout, position);
             },
         );
     }
 }
 
+/// Render a legacy/default view (also used by headless UI callers).
 pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
+    let mut view = crate::studio::PresenterView {
+        layout: s.layout.clone(),
+        layout_open: s.layout_open,
+        menu_open: s.menu_open,
+    };
+    presenter_view(ui, s, native, &mut view, None);
+    view.layout.timer_mode = s.layout.timer_mode;
+    view.layout.countdown_seconds = s.layout.countdown_seconds;
+    view.layout.timer_autostart = s.layout.timer_autostart;
+    s.layout = view.layout;
+    s.layout_open = view.layout_open;
+    s.menu_open = view.menu_open;
+}
+/// A native presenter always edits and renders the layout of its own monitor.
+pub fn presenter_on_display(ui: &mut Ui, s: &mut Studio, native: &mut UiState, display: &str) {
+    let mut view = s.take_presenter_view(display);
+    presenter_view(ui, s, native, &mut view, Some(display));
+    s.presenter_views.insert(display.into(), view);
+}
+fn presenter_view(
+    ui: &mut Ui,
+    s: &mut Studio,
+    native: &mut UiState,
+    view: &mut crate::studio::PresenterView,
+    display: Option<&str>,
+) {
     let locale = ui.ctx().clone();
     native.trim(s);
     let ctx = ui.ctx().clone();
@@ -838,8 +866,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     if pointer.is_some_and(|p| p.y > screen.bottom() - 72.) {
         native.footer_until = now + Duration::from_millis(700);
     }
-    let header = s.layout.header || native.header_until > now || s.menu_open;
-    let footer = s.layout.footer || native.footer_until > now;
+    let header = view.layout.header || native.header_until > now || view.menu_open;
+    let footer = view.layout.footer || native.footer_until > now;
     if native.navigation_hold.is_some() && (!footer || !ctx.input(|i| i.focused)) {
         native.navigation_hold = None;
         s.actions.push(Action::FinishNavigation);
@@ -864,19 +892,19 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             s.actions.push(Action::RevertRoutes);
             ui.close();
         }
-        ui.checkbox(&mut s.layout.header, tr(&locale, "Keep header visible"));
-        ui.checkbox(&mut s.layout.footer, tr(&locale, "Keep footer visible"));
+        ui.checkbox(&mut view.layout.header, tr(&locale, "Keep header visible"));
+        ui.checkbox(&mut view.layout.footer, tr(&locale, "Keep footer visible"));
         if ui.button(tr(&locale, "Show both")).clicked() {
-            s.layout.header = true;
-            s.layout.footer = true;
+            view.layout.header = true;
+            view.layout.footer = true;
             ui.close();
         }
         if ui.button(tr(&locale, "Layout…")).clicked() {
-            s.layout_open = true;
+            view.layout_open = true;
             ui.close();
         }
     });
-    let header_timer_height = timer_height(s, TimerPosition::Header);
+    let header_timer_height = timer_height(&view.layout, TimerPosition::Header);
     let separate_header_timers =
         header_timer_height > 100. || (header_timer_height > 0. && screen.width() < 1400.);
     let header_controls_height = if screen.width() < 1100. { 76. } else { 44. };
@@ -890,14 +918,14 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     .max(header_controls_height + 20.)
     .min(screen.height() * 0.35);
     let mut body = screen.shrink(16.);
-    if s.layout.header {
+    if view.layout.header {
         body.min.y += header_height;
     }
-    if s.layout.footer {
+    if view.layout.footer {
         body.max.y -= 90.;
     }
-    if s.layout.slide_progress {
-        let height = s
+    if view.layout.slide_progress {
+        let height = view
             .layout
             .slide_progress_height
             .min(body.height().max(0.) * 0.25);
@@ -923,7 +951,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         });
     }
     for position in [TimerPosition::AboveSlides, TimerPosition::BelowNotes] {
-        let height = timer_height(s, position).min(body.height().max(0.) * 0.35);
+        let height = timer_height(&view.layout, position).min(body.height().max(0.) * 0.35);
         if height > 0. {
             let top = if position == TimerPosition::AboveSlides {
                 body.top()
@@ -941,14 +969,15 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 egui::UiBuilder::new()
                     .max_rect(rect)
                     .layout(egui::Layout::left_to_right(egui::Align::Center)),
-                |ui| timers(ui, s, position),
+                |ui| timers(ui, s, &view.layout, position),
             );
         }
     }
-    let preview_visible = s.layout.previous.show || s.layout.current.show || s.layout.next.show;
-    let notes_h = if s.layout.notes.show {
+    let preview_visible =
+        view.layout.previous.show || view.layout.current.show || view.layout.next.show;
+    let notes_h = if view.layout.notes.show {
         if preview_visible {
-            body.height() * s.layout.notes.size / 100.
+            body.height() * view.layout.notes.size / 100.
         } else {
             body.height()
         }
@@ -974,12 +1003,13 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     if !preview_visible {
         preview = body;
     }
-    if !s.layout.notes.show {
+    if !view.layout.notes.show {
         notes_rect = body;
     }
     side_timers(
         ui,
         s,
+        &view.layout,
         &mut preview,
         TimerPosition::LeftOfSlides,
         TimerPosition::RightOfSlides,
@@ -987,17 +1017,18 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     if !preview_visible {
         notes_rect = preview;
     }
-    if !s.layout.notes.show {
+    if !view.layout.notes.show {
         notes_rect = preview;
     }
     side_timers(
         ui,
         s,
+        &view.layout,
         &mut notes_rect,
         TimerPosition::LeftOfNotes,
         TimerPosition::RightOfNotes,
     );
-    if !s.layout.notes.show {
+    if !view.layout.notes.show {
         preview = notes_rect;
     }
     if preview_visible {
@@ -1005,17 +1036,17 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             (
                 tr(&locale, "PREVIOUS"),
                 s.requested.checked_sub(1),
-                s.layout.previous.clone(),
+                view.layout.previous.clone(),
             ),
             (
                 tr(&locale, "CURRENT"),
                 Some(s.requested),
-                s.layout.current.clone(),
+                view.layout.current.clone(),
             ),
             (
                 tr(&locale, "NEXT"),
                 (s.requested + 1 < s.count()).then_some(s.requested + 1),
-                s.layout.next.clone(),
+                view.layout.next.clone(),
             ),
         ];
         let total: f32 = items
@@ -1102,7 +1133,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             x = rect.right() + 14.;
         }
     }
-    if s.layout.notes.show {
+    if view.layout.notes.show {
         let rect = notes_rect;
         let response = ui.interact(rect, ui.id().with("presenter-notes"), Sense::click());
         response
@@ -1183,15 +1214,15 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.with_layout(
                 egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true),
                 |ui| {
-                    if bar_visibility_button(ui, s.layout.header, true).clicked() {
-                        s.layout.header = !s.layout.header;
+                    if bar_visibility_button(ui, view.layout.header, true).clicked() {
+                        view.layout.header = !view.layout.header;
                         native.header_until = now;
                     }
                     let trigger = ui.button(tr(&locale, "Menu"));
                     let mut menu_open = if trigger.clicked() {
-                        !s.menu_open
+                        !view.menu_open
                     } else {
-                        s.menu_open
+                        view.menu_open
                     };
                     // Settings controls and nested selectors must not dismiss their parent menu.
                     egui::Popup::menu(&trigger)
@@ -1205,7 +1236,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                 )
                                 .show(ui, |ui| menu(ui, s));
                         });
-                    s.menu_open = menu_open;
+                    view.menu_open = menu_open;
                     ui.add_sized(
                         [100., 20.],
                         egui::Label::new(
@@ -1225,7 +1256,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         &mut s.actions,
                     );
                     if ui.button(tr(&locale, "Layout")).clicked() {
-                        s.layout_open = !s.layout_open;
+                        view.layout_open = !view.layout_open;
                     }
                     if ui.button(tr(&locale, "Tools")).clicked() {
                         s.toolbox.open = !s.toolbox.open;
@@ -1258,7 +1289,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         s.actions.push(Action::Blank);
                     }
                     if !separate_header_timers {
-                        timers(ui, s, TimerPosition::Header);
+                        timers(ui, s, &view.layout, TimerPosition::Header);
                     }
                 },
             );
@@ -1272,7 +1303,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 egui::UiBuilder::new()
                     .max_rect(timer_rect)
                     .layout(egui::Layout::left_to_right(egui::Align::Center)),
-                |ui| timers(ui, s, TimerPosition::Header),
+                |ui| timers(ui, s, &view.layout, TimerPosition::Header),
             );
         }
     }
@@ -1284,8 +1315,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(8.)), |ui| {
             ui.horizontal(|ui| {
-                if bar_visibility_button(ui, s.layout.footer, false).clicked() {
-                    s.layout.footer = !s.layout.footer;
+                if bar_visibility_button(ui, view.layout.footer, false).clicked() {
+                    view.layout.footer = !view.layout.footer;
                     native.footer_until = now;
                 }
                 navigation_button(ui, s, native, tr(&locale, "Previous"), -1);
@@ -1427,7 +1458,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         });
     }
-    if s.layout_open {
+    if view.layout_open {
         let mut open = true;
         egui::Window::new(tr(&locale, "Your presenter view"))
             .id(egui::Id::new("layout-window"))
@@ -1441,6 +1472,16 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 ui.spacing_mut().button_padding = Vec2::new(12., 7.);
                 ui.spacing_mut().interact_size.y = 30.;
                 ui.visuals_mut().slider_trailing_fill = true;
+                if let Some(display) = display {
+                    if let Some((index, monitor)) = s.monitors.iter().enumerate().find(|(_, m)| m.id == display) {
+                        ui.strong(format!("{} {} · {}", if s.settings.language.french() { "Écran" } else { "Display" }, index + 1, monitor.name));
+                    }
+                    ui.label(if s.settings.language.french() {
+                        "Disposition et sauvegardes propres à cet écran. Le fonctionnement du minuteur reste partagé."
+                    } else {
+                        "Layout and saves apply to this display. Timer behavior is shared."
+                    });
+                }
                 ui.label(tr(
                     &locale,
                     "Changes appear immediately. Save to reuse this layout.",
@@ -1461,20 +1502,20 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         layout_section(ui, tr(&locale, "Start with a preset"), |ui| {
                             ui.horizontal_wrapped(|ui| {
                                 if ui.button(tr(&locale, "Balanced")).clicked() {
-                                    s.layout = Layout::default();
+                                    view.layout = Layout::default();
                                 }
                                 if ui.button(tr(&locale, "Slide focus")).clicked() {
-                                    s.layout = Layout::default();
-                                    s.layout.previous.show = false;
-                                    s.layout.next.show = false;
-                                    s.layout.notes.show = false;
-                                    s.layout.elapsed.show = false;
-                                    s.layout.clock.show = false;
+                                    view.layout = Layout::default();
+                                    view.layout.previous.show = false;
+                                    view.layout.next.show = false;
+                                    view.layout.notes.show = false;
+                                    view.layout.elapsed.show = false;
+                                    view.layout.clock.show = false;
                                 }
                                 if ui.button(tr(&locale, "Notes first")).clicked() {
-                                    s.layout.notes.show = true;
-                                    s.layout.notes.size = 60.;
-                                    s.layout.previous.show = false;
+                                    view.layout.notes.show = true;
+                                    view.layout.notes.size = 60.;
+                                    view.layout.previous.show = false;
                                 }
                             });
                         });
@@ -1486,7 +1527,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             widget(
                                 ui,
                                 tr(&locale, "Previous slide"),
-                                &mut s.layout.previous,
+                                &mut view.layout.previous,
                                 30.,
                                 160.,
                                 "Relative size",
@@ -1494,7 +1535,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             widget(
                                 ui,
                                 tr(&locale, "Current slide"),
-                                &mut s.layout.current,
+                                &mut view.layout.current,
                                 60.,
                                 200.,
                                 "Relative size",
@@ -1502,7 +1543,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             widget(
                                 ui,
                                 tr(&locale, "Next slide"),
-                                &mut s.layout.next,
+                                &mut view.layout.next,
                                 30.,
                                 160.,
                                 "Relative size",
@@ -1511,7 +1552,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             widget(
                                 ui,
                                 tr(&locale, "Notes"),
-                                &mut s.layout.notes,
+                                &mut view.layout.notes,
                                 12.,
                                 65.,
                                 "Space (%)",
@@ -1523,18 +1564,18 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             widget(
                                 ui,
                                 tr(&locale, "Elapsed time"),
-                                &mut s.layout.elapsed,
+                                &mut view.layout.elapsed,
                                 16.,
                                 320.,
                                 "Text size",
                             );
-                            ui.add_enabled_ui(s.layout.elapsed.show, |ui| {
+                            ui.add_enabled_ui(view.layout.elapsed.show, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(tr(&locale, "Elapsed time position"));
                                     timer_position(
                                         ui,
                                         "elapsed-position",
-                                        &mut s.layout.elapsed_position,
+                                        &mut view.layout.elapsed_position,
                                     );
                                 });
                             });
@@ -1542,40 +1583,40 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             widget(
                                 ui,
                                 tr(&locale, "Time · HH:MM"),
-                                &mut s.layout.clock,
+                                &mut view.layout.clock,
                                 16.,
                                 320.,
                                 "Text size",
                             );
-                            ui.add_enabled_ui(s.layout.clock.show, |ui| {
+                            ui.add_enabled_ui(view.layout.clock.show, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     ui.label(tr(&locale, "Clock position"));
                                     timer_position(
                                         ui,
                                         "clock-position",
-                                        &mut s.layout.clock_position,
+                                        &mut view.layout.clock_position,
                                     );
                                 });
                             });
                             ui.separator();
                             ui.checkbox(
-                                &mut s.layout.slide_progress,
+                                &mut view.layout.slide_progress,
                                 tr(&locale, "Slide progress bar"),
                             );
                             ui.add_enabled(
-                                s.layout.slide_progress,
-                                egui::Slider::new(&mut s.layout.slide_progress_height, 8. ..=120.)
+                                view.layout.slide_progress,
+                                egui::Slider::new(&mut view.layout.slide_progress_height, 8. ..=120.)
                                     .text(tr(&locale, "Bar height")),
                             );
                         });
                         layout_section(ui, tr(&locale, "Header and footer"), |ui| {
                             ui.horizontal_wrapped(|ui| {
                                 ui.checkbox(
-                                    &mut s.layout.header,
+                                    &mut view.layout.header,
                                     tr(&locale, "Keep header visible"),
                                 );
                                 ui.checkbox(
-                                    &mut s.layout.footer,
+                                    &mut view.layout.footer,
                                     tr(&locale, "Keep footer visible"),
                                 );
                             });
@@ -1592,14 +1633,14 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         button(
                             ui,
                             tr(&locale, "Save layout · This project"),
-                            Action::SaveProject,
+                            display.map_or(Action::SaveProject, |display| Action::SaveDisplayLayout { display: display.into(), project: true, layout: view.layout.clone() }),
                             &mut s.actions,
                         );
                     });
                     button(
                         ui,
                         tr(&locale, "Save layout · All projects"),
-                        Action::SaveGlobal,
+                        display.map_or(Action::SaveGlobal, |display| Action::SaveDisplayLayout { display: display.into(), project: false, layout: view.layout.clone() }),
                         &mut s.actions,
                     );
                 });
@@ -1608,14 +1649,14 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                         button(
                             ui,
                             tr(&locale, "Use all-projects default"),
-                            Action::UseGlobal,
+                            display.map_or(Action::UseGlobal, |display| Action::UseDisplayDefault(display.into())),
                             &mut s.actions,
                         );
                     });
                     ui.small(tr(&locale, "Project layouts override the default."));
                 });
             });
-        s.layout_open = open;
+        view.layout_open = open;
     }
     if s.displays_open {
         let mut open = true;

@@ -1056,6 +1056,15 @@ fn progress_bar_height_changes_rendered_geometry() {
             output.shapes.iter().any(|s| contains_bar(&s.shape, height)),
             "Missing bar at height {height}"
         );
+        let display = format!("display-{height}");
+        let mut view = s.take_presenter_view(&display);
+        view.layout = s.layout.clone();
+        s.presenter_views.insert(display.clone(), view);
+        s.layout.slide_progress_height = 32.; // Shared fallback must not set this display's height.
+        let output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+            presenter_ui::presenter_on_display(ui, &mut s, &mut native, &display)
+        });
+        assert!(output.shapes.iter().any(|s| contains_bar(&s.shape, height)));
     }
 }
 
@@ -1586,4 +1595,108 @@ fn one_presenter_confirmation_dismisses_both_presenters_on_three_monitors() {
         s.execute(Action::RevertRoutes); // An obsolete second dialog cannot undo confirmation.
         assert_eq!(s.routes, expected);
     }
+}
+
+#[test]
+fn presenter_layouts_are_display_scoped_and_save_actions_keep_the_origin() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    let mut s = studio();
+    s.routes.presenter = vec!["one".into(), "two".into()];
+    s.routes.presentation.clear();
+    s.settings.routes = s.routes.clone();
+    let main = s.take_presenter_view("one");
+    let main_layout = main.layout.clone();
+    s.presenter_views.insert("one".into(), main);
+    let mut second = s.take_presenter_view("two");
+    second.layout_open = true;
+    second.layout.notes.show = false;
+    second.layout.current.size = 180.;
+    second.layout.clock_position = pdf_presenter::settings::TimerPosition::LeftOfSlides;
+    s.presenter_views.insert("two".into(), second);
+    s.layout.timer_mode = pdf_presenter::settings::TimerMode::Countdown;
+    s.layout.countdown_seconds = 99;
+    let contexts = [Context::default(), Context::default()];
+    let mut natives = [UiState::default(), UiState::default()];
+    let size = Vec2::new(1400., 1000.);
+    // Only the second presenter's Layout panel is open.
+    let main_output = contexts[0].run_ui(input(size), |ui| {
+        presenter_ui::presenter_on_display(ui, &mut s, &mut natives[0], "one")
+    });
+    assert!(
+        main_output
+            .shapes
+            .iter()
+            .all(|shape| find(&shape.shape, "Save layout · All projects").is_none())
+    );
+    let mut output = contexts[1].run_ui(input(size), |ui| {
+        presenter_ui::presenter_on_display(ui, &mut s, &mut natives[1], "two")
+    });
+    for _ in 0..2 {
+        output = contexts[1].run_ui(input(size), |ui| {
+            presenter_ui::presenter_on_display(ui, &mut s, &mut natives[1], "two")
+        });
+    }
+    let pos = output
+        .shapes
+        .iter()
+        .find_map(|shape| find(&shape.shape, "Save layout · All projects"))
+        .unwrap();
+    for pressed in [true, false] {
+        let mut raw = input(size);
+        raw.events = vec![
+            egui::Event::PointerMoved(pos),
+            egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            },
+        ];
+        let _ = contexts[1].run_ui(raw, |ui| {
+            presenter_ui::presenter_on_display(ui, &mut s, &mut natives[1], "two")
+        });
+    }
+    assert!(
+        s.actions
+            .iter()
+            .any(|a| matches!(a, Action::SaveDisplayLayout { display, .. } if display == "two"))
+    );
+    // Another presenter renders before the queued save: it cannot steal the save's scope.
+    let _ = contexts[0].run_ui(input(size), |ui| {
+        presenter_ui::presenter_on_display(ui, &mut s, &mut natives[0], "one")
+    });
+    for action in std::mem::take(&mut s.actions) {
+        s.execute(action);
+    }
+    assert_eq!(s.presenter_views["one"].layout, main_layout);
+    assert!(!s.settings.for_display("two", "demo").notes.show);
+    assert!(s.settings.for_display("one", "demo").notes.show);
+    assert_eq!(s.settings.layout.countdown_seconds, 99);
+    assert_eq!(s.timer_limit(), Some(std::time::Duration::from_secs(99)));
+    assert!(!s.settings.display_layouts.contains_key("one"));
+    let mut project_layout = s.presenter_views["two"].layout.clone();
+    project_layout.notes.show = true;
+    s.execute(Action::SaveDisplayLayout {
+        display: "two".into(),
+        project: true,
+        layout: project_layout.clone(),
+    });
+    assert!(s.settings.for_display("two", "demo").notes.show);
+    assert!(!s.settings.for_display("two", "other").notes.show);
+    s.execute(Action::UseDisplayDefault("two".into()));
+    assert!(!s.presenter_views["two"].layout.notes.show);
+    let all = s.monitors.clone();
+    s.set_monitors(vec![all[0].clone()], 0);
+    s.set_monitors(all, 0);
+    assert!(!s.presenter_views["two"].layout.notes.show);
+    // Restart/source change discards transient views but keeps the display profiles.
+    let restored = s.settings.for_display("two", "demo");
+    s.presenter_views.clear();
+    assert_eq!(s.take_presenter_view("two").layout, restored);
 }

@@ -77,7 +77,35 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   Start after expiry restarts the configured duration immediately.
 - `projects`: at most 4096 SHA-256 canonical-path keys mapping to full layouts.
   Path identity uses OS encoded bytes, not source content. Moving files or switching
-  platforms may therefore select a different layout. Project overrides win globally.
+  platforms may therefore select a different layout. These remain the shared timer
+  settings and the legacy visual fallback for displays without profiles.
+- `display_layouts`: optional map added in 0.1.76; keys are the same monitor IDs
+  used by routes (`native-name#occurrence`), not presenter indexes or primary status.
+  At most 128 profiles; keys are nonempty UTF-8 strings of at most 1024 bytes.
+  Each profile contains `layout` (all-project visual default) and `projects`
+  (canonical-path SHA keys to visual overrides). At most 4096 display/project
+  overrides in total. All nested Layout fields use the existing units, ranges and
+  validation above, including finite sizes. Missing maps are empty; old v1 files
+  require no rewrite/migration. Older binaries ignore these additive profiles and
+  discard them on resave.
+  Resolution is display/project override → display default → legacy project/global
+  layout if there is no display profile. The first save creates a profile whose
+  default is copied from the legacy global layout; Save all projects replaces that
+  display default, Save this project stores only that display's project override,
+  and Use all-project layout removes only that display's project override.
+  The three timer-behavior fields (`timer_mode`, `countdown_seconds`,
+  `timer_autostart`) in display layouts are compatibility copies, not independent
+  timers. Their authoritative values remain the shared legacy project/global
+  layout; scoped saves also save those shared timer fields. Timer visibility, size
+  and position are independent per display. Use all-project layout only resets the
+  current display's visuals and leaves shared timer behavior unchanged.
+  Runtime edits are retained by display ID across ordinary window recreation and
+  hotplug, but only explicit Save persists them. Successful source/settings loads
+  resolve saved profiles afresh; failed source loads preserve current edits.
+  Session view state is bounded to 128 retained displays, pruning disconnected
+  entries when that limit is reached. Menus/panel visibility are per presenter and
+  transient. Reordering monitors/roles does not copy a layout to another ID;
+  indistinguishable native names still share the existing route identifier limits.
 - `routes.presenter` and `routes.presentation`: arrays of monitor identifiers
   (`native-name#occurrence`), disjoint and unique, at most 32 entries combined.
   Saved preferences are not overwritten by temporary missing-monitor fallback.

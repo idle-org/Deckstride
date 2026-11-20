@@ -113,6 +113,10 @@ navigation or zoom.
 
 ## Layout and notes
 
+Each presenter display has its own Layout controls and saved layout. Open Layout
+on the display you want to customize; the panel identifies that display. Presets,
+widget visibility/sizes/positions and header/footer settings affect only that screen.
+
 Layout independently enables and sizes previous/current/next slides, notes, elapsed
 time and the local HH:MM clock. Hidden widgets release their space. Notes wrap and
 automatically shrink to fit; extremely long notes can become too small to read.
@@ -121,9 +125,13 @@ when you want it. Saved layouts keep their chosen visibility.
 The header's **Reset timer** button returns elapsed time to zero and arms it for the next presentation action. Bundled UI fonts cover their supplied
 character sets; broad CJK text coverage remains a packaging acceptance item.
 
-Save layout (this project) stores an override for the canonical document/folder path.
-Save layout (all projects) changes the default; existing project overrides win.
-Use all-project layout removes this project's override. Project settings live in the
+Save layout (this project) stores an override for this display and the canonical
+document/folder path. Save layout (all projects) changes this display's default;
+its existing project overrides win. Use all-project layout removes only this
+display's override. Other presenter layouts are unaffected. Timer mode, duration,
+automatic start and start/pause/reset stay shared; timer appearance is per display.
+Layouts follow the same display identities as the routing settings on reconnect.
+Existing layouts remain the fallback until you save a display-specific profile. Project settings live in the
 user configuration, not in or beside the source document. Moving the source changes
 its project identity. The menu shows the configuration location.
 
