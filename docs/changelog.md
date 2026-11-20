@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.36
+
+- Give All slides a padded toolbar with separate title, preview/display settings,
+  and presentation-action rows. Enlarge control spacing and label the browser
+  screen selector; rows still wrap in narrower windows.
+
 ### 0.1.35
 
 - Hide the previous-slide preview by default; enable it in Layout. Preserve explicit

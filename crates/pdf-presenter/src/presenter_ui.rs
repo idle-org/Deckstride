@@ -902,47 +902,64 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             "Open a PDF or picture folder to browse slides.",
         ));
     }
-    ui.horizontal_wrapped(|ui| {
-        ui.heading(tr(&locale, "All slides"));
-        button(
-            ui,
-            tr(&locale, "Close"),
-            Action::CloseBrowser,
-            &mut s.actions,
-        );
-        ui.add(
-            egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.)
-                .text(tr(&locale, "Preview size")),
-        );
-        ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
-        egui::ComboBox::from_id_salt("browser-monitor")
-            .selected_text(
-                s.settings
-                    .browser_monitor
-                    .as_deref()
-                    .unwrap_or(tr(&locale, "Presenter screen")),
-            )
-            .show_ui(ui, |ui| {
-                ui.selectable_value(
-                    &mut s.settings.browser_monitor,
-                    None,
-                    tr(&locale, "Presenter screen"),
+    egui::Frame::group(ui.style())
+        .inner_margin(12.)
+        .show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.spacing_mut().item_spacing = Vec2::new(16., 10.);
+            ui.spacing_mut().button_padding = Vec2::new(12., 7.);
+            ui.spacing_mut().interact_size.y = 30.;
+            ui.horizontal_wrapped(|ui| {
+                ui.heading(tr(&locale, "All slides"));
+                button(
+                    ui,
+                    tr(&locale, "Close"),
+                    Action::CloseBrowser,
+                    &mut s.actions,
                 );
-                for monitor in &s.monitors {
-                    ui.selectable_value(
-                        &mut s.settings.browser_monitor,
-                        Some(monitor.id.clone()),
-                        &monitor.name,
-                    );
-                }
             });
-        button(
-            ui,
-            tr(&locale, "Show selected"),
-            Action::Go(s.browser_selected),
-            &mut s.actions,
-        );
-    });
+            ui.separator();
+            ui.horizontal_wrapped(|ui| {
+                ui.add(
+                    egui::Slider::new(&mut s.settings.thumbnail_size, 100. ..=400.)
+                        .text(tr(&locale, "Preview size")),
+                );
+                ui.horizontal(|ui| {
+                    ui.label(tr(&locale, "Browser screen"));
+                    egui::ComboBox::from_id_salt("browser-monitor")
+                        .selected_text(
+                            s.settings
+                                .browser_monitor
+                                .as_deref()
+                                .unwrap_or(tr(&locale, "Presenter screen")),
+                        )
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut s.settings.browser_monitor,
+                                None,
+                                tr(&locale, "Presenter screen"),
+                            );
+                            for monitor in &s.monitors {
+                                ui.selectable_value(
+                                    &mut s.settings.browser_monitor,
+                                    Some(monitor.id.clone()),
+                                    &monitor.name,
+                                );
+                            }
+                        });
+                });
+            });
+            ui.horizontal_wrapped(|ui| {
+                button(
+                    ui,
+                    tr(&locale, "Show selected"),
+                    Action::Go(s.browser_selected),
+                    &mut s.actions,
+                );
+                ui.checkbox(&mut s.change_on_click, tr(&locale, "Change on click"));
+            });
+        });
+    ui.add_space(8.);
     ui.label(format!(
         "{} {} · {} {} · {}",
         if s.settings.language.french() {
