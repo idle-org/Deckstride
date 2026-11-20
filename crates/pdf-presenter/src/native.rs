@@ -267,6 +267,15 @@ impl NativeWindow {
                             ..setup.map(|s| s.zoom).unwrap_or_default()
                         },
                     );
+                    if let Some(setup) = setup {
+                        let (target, uv) = presenter_ui::zoom_geometry(
+                            ui.max_rect(),
+                            [frame.info.width, frame.info.height],
+                            view,
+                            setup.zoom.keep_fitted_area,
+                        );
+                        crate::tools::paint(ui.painter(), target, uv, &setup.overlay);
+                    }
                 }
             }
         });
@@ -715,11 +724,35 @@ impl App {
                     if s.browser_preview.take().is_none() {
                         s.execute(Action::CloseBrowser);
                     }
-                } else if s.layout_open || s.displays_open || s.menu_open {
+                } else if s.layout_open || s.displays_open || s.menu_open || s.toolbox.open {
                     s.layout_open = false;
                     s.displays_open = false;
                     s.menu_open = false;
+                    s.toolbox.open = false;
                 }
+            }
+            Key::Character(c) if c.eq_ignore_ascii_case("p") => {
+                let tool = if s.toolbox.tool == crate::tools::Tool::Pointer {
+                    crate::tools::Tool::Off
+                } else {
+                    crate::tools::Tool::Pointer
+                };
+                if s.toolbox.select(tool) {
+                    s.new_overlay = true;
+                }
+                s.toolbox.open = true;
+            }
+            Key::Character(c) if c.eq_ignore_ascii_case("a") => {
+                if s.toolbox.select(crate::tools::Tool::Arrow) {
+                    s.new_overlay = true;
+                }
+                s.toolbox.open = true;
+            }
+            Key::Character(c) if c.eq_ignore_ascii_case("h") => {
+                if s.toolbox.select(crate::tools::Tool::Highlighter) {
+                    s.new_overlay = true;
+                }
+                s.toolbox.open = true;
             }
             Key::Character(c) if c.eq_ignore_ascii_case("b") => s.execute(Action::Blank),
             _ => {}
@@ -729,7 +762,7 @@ impl App {
     fn poll(&mut self, el: &ActiveEventLoop) {
         let mut repaint = false;
         if let Some(s) = &mut self.studio {
-            repaint |= s.new_zoom;
+            repaint |= s.new_zoom || s.new_overlay;
             let before = (
                 s.generation,
                 s.frames.len(),
@@ -840,6 +873,7 @@ impl App {
                     s.output_sequence += 1;
                     let state = HostState {
                         zoom: s.zoom,
+                        overlay: s.toolbox.overlay.clone(),
                         setup_controls: !s.presentation_started,
                         route_trial: s.route_trial.as_ref().map(|t| t.id),
                         sequence: s.output_sequence,
@@ -869,24 +903,28 @@ impl App {
                     if output.tx.try_send(state).is_ok() {
                         s.new_output = false;
                         s.new_zoom = false;
+                        s.new_overlay = false;
                     } else {
                         s.output_sequence -= 1;
                     }
                 }
             }
-            if s.new_zoom
+            if (s.new_zoom || s.new_overlay)
                 && !s.new_output
                 && let Some(output) = &self.output
             {
                 let state = HostState {
-                    zoom_only: true,
+                    zoom_only: s.new_zoom,
                     zoom: s.zoom,
+                    overlay_only: s.new_overlay,
+                    overlay: s.toolbox.overlay.clone(),
                     generation: s.buffer_generation(),
                     page: s.requested,
                     ..Default::default()
                 };
                 if output.tx.try_send(state).is_ok() {
                     s.new_zoom = false;
+                    s.new_overlay = false;
                 }
             }
             if s.close_requested {
@@ -915,18 +953,26 @@ impl App {
                         break;
                     }
                 };
-                if state.zoom_only {
+                if state.zoom_only || state.overlay_only {
                     if state.generation == host.state.generation && state.page == host.state.page {
-                        let before = host.state.zoom;
-                        host.state.zoom.accept_presenter(state.zoom);
-                        host.zoom_pending = host.state.zoom != state.zoom.normalized();
-                        repaint |= before != host.state.zoom;
+                        if state.zoom_only {
+                            let before = host.state.zoom;
+                            host.state.zoom.accept_presenter(state.zoom);
+                            host.zoom_pending = host.state.zoom != state.zoom.normalized();
+                            repaint |= before != host.state.zoom;
+                        }
+                        if state.overlay_only {
+                            let overlay = state.overlay.normalized();
+                            repaint |= host.state.overlay != overlay;
+                            host.state.overlay = overlay;
+                        }
                     }
                     continue;
                 }
                 host.state.zoom.accept_presenter(state.zoom);
                 host.zoom_pending = host.state.zoom != state.zoom.normalized();
                 state.zoom = host.state.zoom;
+                state.overlay = state.overlay.normalized();
                 if !state.blanked {
                     host.close_requested = false;
                 }

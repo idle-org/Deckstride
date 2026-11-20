@@ -3,6 +3,7 @@ use crate::localization::tr;
 use crate::{
     settings::{Layout, TimerMode, TimerPosition},
     studio::{Action, SlideLoadState, Studio},
+    tools::Tool,
 };
 use egui::{Color32, Context, FontId, Pos2, Rect, Sense, TextureHandle, TextureOptions, Ui, Vec2};
 use std::{
@@ -322,6 +323,143 @@ fn fullscreen_button(ui: &mut Ui, s: &mut Studio) {
         .clicked()
     {
         s.actions.push(Action::ToggleFullscreen);
+    }
+}
+
+fn tool_button(ui: &mut Ui, toolbox: &mut crate::tools::Toolbox, tool: Tool, label: &str) {
+    if ui.selectable_label(toolbox.tool == tool, label).clicked() {
+        toolbox.select(tool);
+    }
+}
+
+fn toolbox_window(ctx: &Context, s: &mut Studio) {
+    if !s.toolbox.open {
+        return;
+    }
+    let mut open = true;
+    let before = (s.toolbox.overlay.pointer, s.toolbox.overlay.marks.len());
+    egui::Window::new(tr(ctx, "Tools"))
+        .id(egui::Id::new("presentation-tools"))
+        .open(&mut open)
+        .default_pos(ctx.content_rect().right_top() + Vec2::new(-330., 72.))
+        .default_width(300.)
+        .resizable(false)
+        .show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                tool_button(ui, &mut s.toolbox, Tool::Off, tr(ctx, "Off"));
+                tool_button(ui, &mut s.toolbox, Tool::Pointer, tr(ctx, "Pointer"));
+                tool_button(ui, &mut s.toolbox, Tool::Arrow, tr(ctx, "Arrow"));
+                tool_button(
+                    ui,
+                    &mut s.toolbox,
+                    Tool::Highlighter,
+                    tr(ctx, "Highlighter"),
+                );
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
+                ui.label(tr(ctx, "Color"));
+                for color in [
+                    [244, 67, 54],
+                    [255, 214, 0],
+                    [0, 210, 255],
+                    [255, 255, 255],
+                ] {
+                    let (rect, response) = ui.allocate_exact_size(Vec2::splat(28.), Sense::click());
+                    ui.painter().circle_filled(
+                        rect.center(),
+                        9.,
+                        Color32::from_rgb(color[0], color[1], color[2]),
+                    );
+                    if color == s.toolbox.color {
+                        ui.painter().circle_stroke(
+                            rect.center(),
+                            12.,
+                            egui::Stroke::new(2_f32, ui.visuals().hyperlink_color),
+                        );
+                    }
+                    if response.clicked() {
+                        s.toolbox.color = color;
+                    }
+                }
+            });
+            ui.add(egui::Slider::new(&mut s.toolbox.size, 4. ..=32.).text(tr(ctx, "Size")));
+            ui.horizontal(|ui| {
+                if ui
+                    .add_enabled(!s.toolbox.overlay.marks.is_empty(), egui::Button::new(tr(ctx, "Undo")))
+                    .clicked()
+                {
+                    s.toolbox.undo();
+                }
+                if ui
+                    .add_enabled(
+                        s.toolbox.overlay.pointer.is_some() || !s.toolbox.overlay.marks.is_empty(),
+                        egui::Button::new(tr(ctx, "Clear")),
+                    )
+                    .clicked()
+                {
+                    s.toolbox.clear();
+                }
+            });
+            ui.small(tr(
+                ctx,
+                "Pointer follows the current slide. Drag to place arrows or highlights. Up to 64 vector marks; slide images are never rerendered.",
+            ));
+        });
+    s.toolbox.open = open;
+    if (s.toolbox.overlay.pointer, s.toolbox.overlay.marks.len()) != before {
+        s.new_overlay = true;
+    }
+}
+
+fn slide_tools(ui: &mut Ui, s: &mut Studio, area: Rect, dimensions: [u32; 2]) {
+    let (target, uv) = zoom_geometry(area, dimensions, s.zoom.view, s.zoom.keep_fitted_area);
+    let sense = match s.toolbox.tool {
+        Tool::Arrow | Tool::Highlighter => Sense::click_and_drag(),
+        Tool::Pointer => Sense::hover(),
+        Tool::Off => Sense::hover(),
+    };
+    let response = ui.interact(target, ui.id().with("slide-tools"), sense);
+    let mut changed = false;
+    match s.toolbox.tool {
+        Tool::Off => changed |= s.toolbox.set_pointer(None),
+        Tool::Pointer => {
+            let point = response
+                .hover_pos()
+                .map(|point| crate::tools::screen_to_page(target, uv, point));
+            changed |= s.toolbox.set_pointer(point);
+            if response.hovered() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
+            }
+        }
+        Tool::Arrow | Tool::Highlighter => {
+            changed |= s.toolbox.set_pointer(None);
+            if response.drag_started()
+                && let Some(point) = response.interact_pointer_pos()
+            {
+                changed |= s
+                    .toolbox
+                    .begin_mark(crate::tools::screen_to_page(target, uv, point));
+            }
+            if response.dragged()
+                && let Some(point) = response.interact_pointer_pos()
+            {
+                changed |= s
+                    .toolbox
+                    .update_mark(crate::tools::screen_to_page(target, uv, point));
+            }
+            if response.drag_stopped() {
+                s.toolbox.end_mark();
+            }
+            if response.hovered() || response.dragged() {
+                ui.ctx().set_cursor_icon(egui::CursorIcon::Crosshair);
+            }
+        }
+    }
+    crate::tools::paint(ui.painter(), target, uv, &s.toolbox.overlay);
+    if changed {
+        s.presentation_action();
+        s.new_overlay = true;
     }
 }
 
@@ -860,7 +998,11 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             );
             if let Some(page) = page {
                 let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
-                if index == 1 && s.settings.zoom_enabled {
+                if index == 1
+                    && (s.settings.zoom_enabled
+                        || s.toolbox.tool != Tool::Off
+                        || !s.toolbox.overlay.marks.is_empty())
+                {
                     // Mirror the output aspect, not the independently sized presenter pane.
                     // This makes the shared zoom/center produce the same visible page crop.
                     let area = s
@@ -870,20 +1012,24 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     if s.route_trial.is_none()
                         && let Some(frame) = s.frame(page)
                     {
-                        let (view, response) = zoom_gestures_in(
-                            ui,
-                            area,
-                            [frame.info.width, frame.info.height],
-                            s.zoom.view,
-                            s.zoom.keep_fitted_area,
-                        );
-                        response.on_hover_text(tr(
-                            &locale,
-                            "Scroll to zoom · drag to pan · double-click to fit width / reset",
-                        ));
-                        if view != s.zoom.view {
-                            s.set_zoom_from_action(view);
+                        let dimensions = [frame.info.width, frame.info.height];
+                        if s.toolbox.tool == Tool::Off && s.settings.zoom_enabled {
+                            let (view, response) = zoom_gestures_in(
+                                ui,
+                                area,
+                                dimensions,
+                                s.zoom.view,
+                                s.zoom.keep_fitted_area,
+                            );
+                            response.on_hover_text(tr(
+                                &locale,
+                                "Scroll to zoom · drag to pan · double-click to fit width / reset",
+                            ));
+                            if view != s.zoom.view {
+                                s.set_zoom_from_action(view);
+                            }
                         }
+                        slide_tools(ui, s, area, dimensions);
                     }
                 } else {
                     native.image(ui, s, page, area);
@@ -1032,6 +1178,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     );
                     if ui.button(tr(&locale, "Layout")).clicked() {
                         s.layout_open = !s.layout_open;
+                    }
+                    if ui.button(tr(&locale, "Tools")).clicked() {
+                        s.toolbox.open = !s.toolbox.open;
                     }
                     fullscreen_button(ui, s);
                     timer_buttons(ui, s);
@@ -1547,6 +1696,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         s.displays_open &= open;
     }
+    toolbox_window(&ctx, s);
     if s.settings.zoom_enabled && s.zoom_warning && !s.zoom_warning_dismissed {
         egui::Window::new(tr(&ctx, "Zoom performance"))
             .collapsible(false).resizable(false).show(&ctx, |ui| {

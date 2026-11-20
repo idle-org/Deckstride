@@ -140,6 +140,8 @@ pub struct Studio {
     pub new_zoom: bool,
     pub zoom_warning: bool,
     pub zoom_warning_dismissed: bool,
+    pub toolbox: crate::tools::Toolbox,
+    pub new_overlay: bool,
     pub new_output: bool,
     pub close_requested: bool,
     failed: HashSet<(usize, u32)>,
@@ -242,6 +244,8 @@ impl Studio {
             new_zoom: false,
             zoom_warning: false,
             zoom_warning_dismissed: false,
+            toolbox: Default::default(),
+            new_overlay: false,
             new_output: true,
             close_requested: false,
             failed: HashSet::new(),
@@ -460,6 +464,8 @@ impl Studio {
                     self.presentation_started = true;
                     if self.requested != page {
                         self.set_zoom(crate::zoom::View::default());
+                        self.toolbox.clear();
+                        self.new_overlay = true;
                         self.presentation_action();
                     }
                     self.requested = page;
@@ -898,6 +904,8 @@ impl Studio {
                             self.ram_blocked = false;
                             self.failed.clear();
                             self.set_zoom(crate::zoom::View::default());
+                            self.toolbox.clear();
+                            self.new_overlay = true;
                             self.requested = 0;
                             self.presentation_started = false;
                             self.timer = crate::timer::Timer::default();

@@ -28,6 +28,10 @@ pub struct HostState {
     #[serde(default)]
     pub zoom_only: bool,
     #[serde(default)]
+    pub overlay: crate::tools::Overlay,
+    #[serde(default)]
+    pub overlay_only: bool,
+    #[serde(default)]
     pub slide_colors: crate::settings::SlideColors,
     #[serde(default)]
     pub setup_controls: bool,
@@ -77,13 +81,21 @@ pub struct Ack {
     #[serde(default)]
     pub buffered: usize,
 }
-/// A lightweight crop update must never discard queued frame/routing state.
+/// Lightweight crop/annotation updates must never discard queued frame/routing state.
 pub fn coalesce(latest: &mut Option<HostState>, command: HostState) {
-    if command.zoom_only
+    if (command.zoom_only || command.overlay_only)
         && let Some(previous) = latest
     {
         if previous.generation == command.generation && previous.page == command.page {
-            previous.zoom.accept_presenter(command.zoom);
+            let previous_is_lightweight = previous.zoom_only || previous.overlay_only;
+            if command.zoom_only {
+                previous.zoom.accept_presenter(command.zoom);
+                previous.zoom_only |= previous_is_lightweight;
+            }
+            if command.overlay_only {
+                previous.overlay = command.overlay.normalized();
+                previous.overlay_only |= previous_is_lightweight;
+            }
         }
     } else {
         *latest = Some(command);

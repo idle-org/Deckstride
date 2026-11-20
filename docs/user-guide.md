@@ -85,6 +85,23 @@ editors and Ctrl/Alt/Command combinations retain keyboard priority. Type a 1-bas
 number then Enter to jump; Backspace edits and Escape cancels. Out-of-range numbers
 do not navigate. Output windows accept B/Escape for emergency blanking.
 
+## Pointer and drawing tools
+
+Choose **Tools** in the presenter header. **Pointer** follows the mouse over the
+current-slide preview and appears at the same normalized page position on every
+presentation output. **Arrow** and **Highlighter** add one straight vector mark per
+drag. Choose a color and size, then use **Undo** or **Clear** as needed. P toggles the
+pointer, A selects the arrow and H selects the highlighter when no text editor or
+modified shortcut has priority. Marks clear when you change slides and are not saved
+to the source document or settings.
+
+The toolbox is off by default. It keeps at most 64 marks and draws them over the
+already buffered slide texture. Pointer movement uses the bounded output-state queue;
+it does not rerender the PDF, decode an image or read a slide from disk. Selecting a
+drawing tool temporarily gives dragging to that tool; select **Off** to pan a
+zoomed slide again. A first pointer or drawing action starts an armed timer just like
+navigation or zoom.
+
 ## Layout and notes
 
 Layout independently enables and sizes previous/current/next slides, notes, elapsed

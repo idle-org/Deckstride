@@ -171,6 +171,23 @@ The performance watcher counts three consecutive zoomed window draws above 33 ms
 including software drawing/presentation. The presenter shows the warning locally;
 output hosts report only a boolean. It does not alter visibility or navigation.
 
+## Bounded presentation overlays in 0.1.67
+
+HostState adds `overlay` and default-false `overlay_only`. The overlay contains an
+optional normalized page-coordinate pointer and at most 64 normalized straight
+arrow/highlighter marks with RGB color and bounded logical width. Invalid points are
+dropped, coordinates and widths are clamped, and excess marks are discarded. No
+notes, source paths or operator UI text enter this payload.
+
+Overlay-only messages carry page/generation identity and absolute current overlay
+state. They share the two-slot presenter queue with zoom updates: coalescing merges
+same-page overlay and zoom fields into a pending full state without replacing frame,
+preload, routing, fullscreen or visibility data. The host rejects stale page or
+generation updates. Full state carries the overlay for host recovery. Drawing uses
+the existing buffered texture plus bounded vector shapes; it performs no PDF render,
+image decode, texture upload or slide-file access. This remains private same-build
+IPC.
+
 
 Since 0.1.60, output heartbeats may include `viewport {monitor, size, fullscreen}`.
 `size` is the actual reference output window’s physical client size `[width, height]`.

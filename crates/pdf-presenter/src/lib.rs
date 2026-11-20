@@ -88,6 +88,9 @@ mod artwork;
 /// Monotonic elapsed/countdown timer.
 pub mod timer;
 
+/// Bounded vector pointer and presentation annotations.
+pub mod tools;
+
 /// Editable presentation notes sidecars.
 pub mod notes;
 

@@ -96,6 +96,17 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "No slide" => "Aucune diapositive",
         "End of slides" => "Fin des diapositives",
         "Size" => "Taille",
+        "Tools" => "Outils",
+        "Off" => "Désactivé",
+        "Pointer" => "Pointeur",
+        "Arrow" => "Flèche",
+        "Highlighter" => "Surligneur",
+        "Color" => "Couleur",
+        "Undo" => "Annuler",
+        "Clear" => "Effacer",
+        "Pointer follows the current slide. Drag to place arrows or highlights. Up to 64 vector marks; slide images are never rerendered." => {
+            "Le pointeur suit la diapositive actuelle. Glissez pour placer des flèches ou des surlignages. Jusqu’à 64 tracés vectoriels ; les images ne sont jamais recalculées."
+        }
         "Keep header visible" => "Garder l’en-tête visible",
         "Keep footer visible" => "Garder le pied de page visible",
         "Show both" => "Afficher les deux",

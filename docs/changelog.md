@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.67
+
+- Add a presenter toolbox with a low-latency pointer, straight arrows and
+  translucent highlighter strokes. Send normalized vector overlays through a
+  bounded, coalesced output update without rerendering slides or reading files;
+  cap each slide view at 64 marks and provide size, color, undo and clear controls.
+  Pointer/mark activity can start an armed presentation timer. Linux checks pass
+  with 84.30% whole-application coverage; the release binary is rebuilt. Physical
+  output latency and appearance remain separate acceptance checks.
+
 ### 0.1.66
 
 - Run the optional Linux desktop-launcher installation test only on Linux workers;
