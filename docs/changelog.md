@@ -4,6 +4,9 @@
 
 ### 0.1.71
 
+- Prepare the 0.1.71 preview release with Linux/Windows x86_64 packages; see
+  [release notes](development/release-notes/v0.1.71.md).
+
 - Run automatic disk-cache cleanup once at startup, after initial document/notes
   loading and slide preparation finish, instead of every minute. Preferences edits
   no longer trigger scans; manual expunge remains available. Startup cleanup uses
