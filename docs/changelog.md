@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.63
+
+- Aim double-click fit-width zoom at the clicked page position instead of always
+  centering the page. Clamp the crop at page edges as a best effort; a second
+  double-click still resets to the whole page. Keep shared presenter/output zoom.
+  Linux checks pass with 86.42% whole-application coverage; the release binary
+  is rebuilt. Physical pointer/display acceptance remains separate.
+
 ### 0.1.62
 
 - Keep the default timer at zero when a deck's initial slide is merely displayed.

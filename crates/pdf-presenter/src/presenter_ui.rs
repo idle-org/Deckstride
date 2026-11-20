@@ -172,9 +172,16 @@ pub fn zoom_gestures_in(
     if response.double_clicked() {
         next = Default::default();
         if view.normalized().scale == 1. {
+            let source = response.hover_pos().map_or(Pos2::new(0.5, 0.5), |pos| {
+                uv.min + (pos - target.min) / target.size() * uv.size()
+            });
             let fitted = fitted_slide(rect, dimensions);
             if fitted.width() > 0. {
                 next.scale = (rect.width() / fitted.width()).clamp(1., 8.);
+                let (_, fitted_uv) = zoom_geometry(rect, dimensions, next, keep_fitted_area);
+                let half = fitted_uv.size() * 0.5;
+                let center = source.to_vec2().clamp(half, Vec2::splat(1.) - half);
+                next.center = [center.x, center.y];
             }
         }
     }

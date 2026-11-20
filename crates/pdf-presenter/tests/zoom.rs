@@ -603,12 +603,13 @@ fn portrait_screen_adapting_gestures_pan_visible_area_and_reset() {
 }
 
 #[test]
-fn double_click_fits_width_then_resets_without_stretching() {
+fn double_click_fits_width_near_target_then_resets_without_stretching() {
     use pdf_presenter::presenter_ui::{zoom_geometry, zoom_gestures_in};
     for (dimensions, expected) in [([210, 297], 2.8285716), ([400, 100], 1.), ([10, 1000], 8.)] {
         let ctx = Context::default();
         let target = Rect::from_min_size(Pos2::new(40., 40.), Vec2::new(400., 200.));
-        let center = target.center();
+        let page = pdf_presenter::presenter_ui::fitted_slide(target, dimensions);
+        let click_position = Pos2::new(page.center().x, page.top() + page.height() * 0.95);
         let mut view = View::default();
         let mut time = 0.;
         let mut render = |events| {
@@ -626,8 +627,8 @@ fn double_click_fits_width_then_resets_without_stretching() {
             );
             view
         };
-        render(vec![egui::Event::PointerMoved(center)]);
-        for expected_scale in [expected, 1.] {
+        render(vec![egui::Event::PointerMoved(click_position)]);
+        for (index, expected_scale) in [expected, 1.].into_iter().enumerate() {
             for _ in 0..20 {
                 render(vec![]);
             }
@@ -635,7 +636,7 @@ fn double_click_fits_width_then_resets_without_stretching() {
             for _ in 0..2 {
                 for pressed in [true, false] {
                     actual = render(vec![egui::Event::PointerButton {
-                        pos: center,
+                        pos: click_position,
                         button: egui::PointerButton::Primary,
                         pressed,
                         modifiers: Default::default(),
@@ -643,7 +644,14 @@ fn double_click_fits_width_then_resets_without_stretching() {
                 }
             }
             assert!((actual.scale - expected_scale).abs() < 0.0001);
-            assert_eq!(actual.center, [0.5; 2]);
+            if index == 0 && expected_scale > 1. {
+                let (_, uv) = zoom_geometry(target, dimensions, actual, false);
+                let expected_y = 0.95_f32.min(1. - uv.height() * 0.5);
+                assert!((actual.center[1] - expected_y).abs() < 0.0001);
+                assert_eq!(actual.center[0], 0.5);
+            } else {
+                assert_eq!(actual.center, [0.5; 2]);
+            }
             if actual.scale > 1. && actual.scale < 8. {
                 let (draw, uv) = zoom_geometry(target, dimensions, actual, false);
                 assert!((draw.width() - target.width()).abs() < 0.001);
