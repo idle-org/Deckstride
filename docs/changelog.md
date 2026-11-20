@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.83
+
+- Scale pointers, highlights, arrow shafts and arrow heads in Presenter previews to
+  match their relative size on the reference Slides screen. Account for the Slides
+  window's DPI scale and preserve the lightweight vector overlay path.
+
 ### 0.1.82
 
 - Disclose the project's MIT license, LLM-generated or LLM-assisted development,

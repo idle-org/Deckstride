@@ -188,6 +188,18 @@ fn page_to_screen(target: Rect, uv: Rect, point: [f32; 2]) -> Option<Pos2> {
 }
 
 pub fn paint(painter: &egui::Painter, target: Rect, uv: Rect, overlay: &Overlay) {
+    paint_scaled(painter, target, uv, overlay, 1.);
+}
+
+/// Scale fixed-width marks so a smaller Presenter preview resembles the Slides view.
+pub fn paint_scaled(
+    painter: &egui::Painter,
+    target: Rect,
+    uv: Rect,
+    overlay: &Overlay,
+    scale: f32,
+) {
+    let scale = finite_clamp(scale, 0.05, 4., 1.);
     for mark in overlay.marks.iter().take(MAX_MARKS) {
         let (Some(from), Some(to)) = (
             page_to_screen(target, uv, mark.from),
@@ -201,9 +213,9 @@ pub fn paint(painter: &egui::Painter, target: Rect, uv: Rect, overlay: &Overlay)
                 Color32::from_rgba_unmultiplied(mark.color[0], mark.color[1], mark.color[2], 105)
             }
         };
-        let width = mark.width;
+        let width = mark.width * scale;
         if mark.kind == MarkKind::Arrow
-            && let Some((shaft_end, head)) = arrow_geometry(from, to, width)
+            && let Some((shaft_end, head)) = arrow_geometry(from, to, mark.width, scale)
         {
             painter.line_segment([from, shaft_end], Stroke::new(width, color));
             painter.add(egui::Shape::convex_polygon(
@@ -224,26 +236,37 @@ pub fn paint(painter: &egui::Painter, target: Rect, uv: Rect, overlay: &Overlay)
             overlay.pointer_color[1],
             overlay.pointer_color[2],
         );
-        painter.circle_filled(point, overlay.pointer_size, color);
+        painter.circle_filled(point, overlay.pointer_size * scale, color);
         painter.circle_stroke(
             point,
-            overlay.pointer_size + 2.,
-            Stroke::new(2_f32, Color32::WHITE),
+            (overlay.pointer_size + 2.) * scale,
+            Stroke::new(2. * scale, Color32::WHITE),
         );
     }
 }
 
+pub fn preview_paint_scale(target: Rect, slides_target: Rect) -> f32 {
+    let ratio = (target.width() / slides_target.width().max(f32::EPSILON))
+        .min(target.height() / slides_target.height().max(f32::EPSILON));
+    finite_clamp(ratio, 0.05, 4., 1.)
+}
+
 /// A filled head avoids the three overlapping thick strokes that deform large arrows.
-fn arrow_geometry(from: Pos2, to: Pos2, width: f32) -> Option<(Pos2, [Pos2; 3])> {
+fn arrow_geometry(from: Pos2, to: Pos2, width: f32, scale: f32) -> Option<(Pos2, [Pos2; 3])> {
     let vector = to - from;
     let distance = vector.length();
-    if distance <= 2. {
+    if distance <= 2. * scale {
         return None;
     }
     let direction = vector / distance;
     let normal = Vec2::new(-direction.y, direction.x);
-    let head_length = (width * 1.8).clamp(10., 56.).min(distance * 0.45);
-    let head_half_width = (width * 0.9).clamp(6., 30.).min(head_length * 0.75);
+    let width = width * scale;
+    let head_length = (width * 1.8)
+        .clamp(10. * scale, 56. * scale)
+        .min(distance * 0.45);
+    let head_half_width = (width * 0.9)
+        .clamp(6. * scale, 30. * scale)
+        .min(head_length * 0.75);
     let base = to - direction * head_length;
     let shaft_end = base + direction * (width * 0.12).min(head_length * 0.12);
     Some((
@@ -264,13 +287,24 @@ mod tests {
     fn large_arrow_has_a_bounded_filled_head_and_shortened_shaft() {
         let from = Pos2::new(0., 0.);
         let to = Pos2::new(0., 200.);
-        let (shaft_end, head) = arrow_geometry(from, to, 48.).unwrap();
+        let (shaft_end, head) = arrow_geometry(from, to, 48., 1.).unwrap();
         assert!(shaft_end.y < to.y);
         assert_eq!(head[0], to);
         assert!(head[1].distance(head[2]) <= 60.);
         assert!(to.distance(head[1]) < 70.);
 
-        let (_, short_head) = arrow_geometry(from, Pos2::new(20., 0.), 48.).unwrap();
+        let (_, short_head) = arrow_geometry(from, Pos2::new(20., 0.), 48., 1.).unwrap();
         assert!(short_head[0].distance(short_head[1]) < 15.);
+    }
+
+    #[test]
+    fn preview_scale_keeps_arrow_head_proportional() {
+        let slides = Rect::from_min_size(Pos2::ZERO, Vec2::new(1600., 900.));
+        let preview = Rect::from_min_size(Pos2::ZERO, Vec2::new(400., 225.));
+        assert_eq!(preview_paint_scale(preview, slides), 0.25);
+
+        let (_, full) = arrow_geometry(Pos2::ZERO, Pos2::new(400., 0.), 32., 1.).unwrap();
+        let (_, small) = arrow_geometry(Pos2::ZERO, Pos2::new(100., 0.), 32., 0.25).unwrap();
+        assert!((full[1].distance(full[2]) * 0.25 - small[1].distance(small[2])).abs() < 0.01);
     }
 }

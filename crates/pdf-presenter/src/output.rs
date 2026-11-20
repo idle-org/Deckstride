@@ -58,6 +58,13 @@ pub struct OutputViewport {
     pub monitor: String,
     pub size: [u32; 2],
     pub fullscreen: bool,
+    /// Native pixels per egui point on this Slides window.
+    #[serde(default = "default_pixels_per_point")]
+    pub pixels_per_point: f32,
+}
+
+fn default_pixels_per_point() -> f32 {
+    1.
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Ack {

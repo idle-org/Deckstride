@@ -458,7 +458,13 @@ fn slide_tools(ui: &mut Ui, s: &mut Studio, area: Rect, dimensions: [u32; 2]) {
             }
         }
     }
-    crate::tools::paint(ui.painter(), target, uv, &s.toolbox.overlay);
+    let paint_scale = s.presentation_viewport_points().map_or(1., |size| {
+        let slides = Rect::from_min_size(Pos2::ZERO, Vec2::new(size[0], size[1]));
+        let (slides_target, _) =
+            zoom_geometry(slides, dimensions, s.zoom.view, s.zoom.keep_fitted_area);
+        crate::tools::preview_paint_scale(target, slides_target)
+    });
+    crate::tools::paint_scaled(ui.painter(), target, uv, &s.toolbox.overlay, paint_scale);
     if changed {
         s.presentation_action();
         s.new_overlay = true;

@@ -2245,7 +2245,7 @@ dependencies = [
 
 [[package]]
 name = "pdf-presenter"
-version = "0.1.82"
+version = "0.1.83"
 dependencies = [
  "bytemuck",
  "chrono",

@@ -1733,6 +1733,7 @@ impl ApplicationHandler for App {
                                 monitor: id.clone(),
                                 size: [size.width, size.height],
                                 fullscreen: host.state.fullscreen,
+                                pixels_per_point: w.window.scale_factor() as f32,
                             }
                         })
                 });
