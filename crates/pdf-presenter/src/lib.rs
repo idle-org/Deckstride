@@ -66,6 +66,8 @@ pub mod poc;
 pub mod document;
 /// Native persistent configuration.
 pub mod settings;
+/// Optional per-user Windows shell integration for the portable executable.
+pub mod windows_integration;
 /// Isolated background processes.
 pub mod worker;
 

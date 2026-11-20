@@ -10,6 +10,7 @@ use egui_software_backend::{BufferMutRef, ColorFieldOrder, EguiSoftwareRender};
 use std::{
     collections::{HashMap, HashSet},
     num::NonZeroU32,
+    path::PathBuf,
     rc::Rc,
     sync::{
         Arc,
@@ -50,10 +51,38 @@ enum Role {
     Browser,
     Presentation,
 }
+const OUTPUT_BASE_CACHE_MAX_PIXELS: usize = 4096 * 4096;
+
+#[derive(Clone, Debug, PartialEq)]
+struct PresentationBaseKey {
+    size: [u32; 2],
+    pixels_per_point: f32,
+    frame: Option<(PathBuf, String, u32, u32)>,
+    blank: bool,
+    colors: crate::settings::SlideColors,
+    zoom: crate::zoom::Sync,
+}
+
+struct PresentationBase {
+    key: PresentationBaseKey,
+    pixels: Vec<u32>,
+}
+
+impl PresentationBase {
+    fn restore(&self, key: &PresentationBaseKey, pixels: &mut [u32]) -> bool {
+        if self.key != *key || self.pixels.len() != pixels.len() {
+            return false;
+        }
+        pixels.copy_from_slice(&self.pixels);
+        true
+    }
+}
+
 struct NativeWindow {
     surface: softbuffer::Surface<Rc<Window>, Rc<Window>>,
     window: Rc<Window>,
     ctx: egui::Context,
+    overlay_ctx: egui::Context,
     input: egui_winit::State,
     painter: EguiSoftwareRender,
     ui: UiState,
@@ -67,6 +96,7 @@ struct NativeWindow {
     zoom_change: Option<crate::zoom::View>,
     zoom_watch: crate::zoom::PerformanceWatch,
     zoom_slow: bool,
+    presentation_base: Option<PresentationBase>,
     #[cfg(target_os = "linux")]
     browser_parent: Option<WindowId>,
 }
@@ -85,6 +115,7 @@ impl NativeWindow {
                 winit::window::WindowLevel::Normal
             })
             .with_visible(false)
+            .with_active(role != Role::Presentation)
             .with_inner_size(PhysicalSize::new(1100, 750));
         #[cfg(target_os = "linux")]
         let attributes = if role == Role::Browser {
@@ -97,6 +128,7 @@ impl NativeWindow {
         let surface =
             softbuffer::Surface::new(&softbuffer::Context::new(window.clone())?, window.clone())?;
         let ctx = egui::Context::default();
+        let overlay_ctx = egui::Context::default();
         presenter_ui::theme(&ctx);
         let input = egui_winit::State::new(
             ctx.clone(),
@@ -110,6 +142,7 @@ impl NativeWindow {
             surface,
             window,
             ctx,
+            overlay_ctx,
             input,
             painter: EguiSoftwareRender::new(ColorFieldOrder::Bgra),
             ui: UiState::default(),
@@ -123,6 +156,7 @@ impl NativeWindow {
             zoom_change: None,
             zoom_watch: Default::default(),
             zoom_slow: false,
+            presentation_base: None,
             #[cfg(target_os = "linux")]
             browser_parent: None,
         })
@@ -164,7 +198,7 @@ impl NativeWindow {
             ));
         }
         self.window.set_visible(true);
-        if self.role == Role::Browser {
+        if self.role != Role::Presentation {
             self.window.focus_window();
         }
         self.window
@@ -215,6 +249,8 @@ impl NativeWindow {
         let ctx = self.ctx.clone();
         let display_action = &mut self.display_action;
         let zoom_change = &mut self.zoom_change;
+        let mut presentation_view = setup.map(|s| s.zoom.view).unwrap_or_default();
+        let mut overlay_rects = None;
         let output = ctx.run_ui(input, |ui| match role {
             Role::Presenter => presenter_ui::presenter_on_display(
                 ui,
@@ -253,7 +289,7 @@ impl NativeWindow {
                             egui::TextureOptions::LINEAR,
                         )
                     });
-                    let mut view = setup.map(|s| s.zoom.view).unwrap_or_default();
+                    let mut view = presentation_view;
                     if let Some(setup) = setup
                         && setup.zoom.enabled
                         && setup.route_trial.is_none()
@@ -285,6 +321,7 @@ impl NativeWindow {
                             view = next;
                         }
                     }
+                    presentation_view = view;
                     presenter_ui::paint_slide_adapted(
                         ui.painter(),
                         ui.max_rect(),
@@ -308,7 +345,7 @@ impl NativeWindow {
                             view,
                             setup.zoom.keep_fitted_area,
                         );
-                        crate::tools::paint(ui.painter(), target, uv, &setup.overlay);
+                        overlay_rects = Some((ui.max_rect(), target, uv));
                     }
                 }
             }
@@ -328,17 +365,85 @@ impl NativeWindow {
             NonZeroU32::new(size.height).unwrap(),
         )?;
         let mut buffer = self.surface.buffer_mut()?;
-        buffer.fill(0);
-        self.painter.render(
-            &mut BufferMutRef::new(
-                bytemuck::cast_slice_mut(&mut buffer),
-                size.width as usize,
-                size.height as usize,
-            ),
-            &primitives,
-            &output.textures_delta,
-            output.pixels_per_point,
-        );
+        let pixel_count = size.width as usize * size.height as usize;
+        let cache_key = (role == Role::Presentation
+            && pixel_count <= OUTPUT_BASE_CACHE_MAX_PIXELS
+            && setup.is_some_and(|s| !s.setup_controls && s.route_trial.is_none()))
+        .then(|| PresentationBaseKey {
+            size: [size.width, size.height],
+            pixels_per_point: output.pixels_per_point,
+            frame: frame.map(|frame| {
+                (
+                    frame.info.path.clone(),
+                    frame.info.sha256.clone(),
+                    frame.info.width,
+                    frame.info.height,
+                )
+            }),
+            blank,
+            colors: setup.map(|s| s.slide_colors).unwrap_or_default(),
+            zoom: crate::zoom::Sync {
+                view: presentation_view,
+                ..setup.map(|s| s.zoom).unwrap_or_default()
+            },
+        });
+        let restored = cache_key.as_ref().is_some_and(|key| {
+            self.presentation_base
+                .as_ref()
+                .is_some_and(|cached| cached.restore(key, &mut buffer))
+        });
+        if !restored {
+            buffer.fill(0);
+            self.painter.render(
+                &mut BufferMutRef::new(
+                    bytemuck::cast_slice_mut(&mut buffer),
+                    size.width as usize,
+                    size.height as usize,
+                ),
+                &primitives,
+                &output.textures_delta,
+                output.pixels_per_point,
+            );
+            self.presentation_base = cache_key.map(|key| PresentationBase {
+                key,
+                pixels: buffer.to_vec(),
+            });
+        } else if !output.textures_delta.is_empty() {
+            self.painter.render(
+                &mut BufferMutRef::new(
+                    bytemuck::cast_slice_mut(&mut buffer),
+                    size.width as usize,
+                    size.height as usize,
+                ),
+                &[],
+                &output.textures_delta,
+                output.pixels_per_point,
+            );
+        }
+        if let (Some(setup), Some((screen, target, uv))) = (setup, overlay_rects)
+            && (setup.overlay.pointer.is_some() || !setup.overlay.marks.is_empty())
+        {
+            let overlay = self.overlay_ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(screen),
+                    ..Default::default()
+                },
+                |ui| crate::tools::paint(ui.painter(), target, uv, &setup.overlay),
+            );
+            let overlay_primitives = self
+                .overlay_ctx
+                .tessellate(overlay.shapes, output.pixels_per_point);
+            self.painter.render(
+                &mut BufferMutRef::new(
+                    bytemuck::cast_slice_mut(&mut buffer),
+                    size.width as usize,
+                    size.height as usize,
+                ),
+                &overlay_primitives,
+                &overlay.textures_delta,
+                output.pixels_per_point,
+            );
+        }
         self.window.pre_present_notify();
         buffer.present()?;
         self.frames += 1;
@@ -1666,6 +1771,27 @@ pub fn run_output() -> Result<(), Failure> {
 #[cfg(test)]
 mod buffer_tests {
     use super::*;
+    #[test]
+    fn presentation_base_restores_only_an_exact_frame() {
+        let key = PresentationBaseKey {
+            size: [2, 2],
+            pixels_per_point: 1.,
+            frame: Some(("slide.rgba".into(), "sha".into(), 2, 2)),
+            blank: false,
+            colors: Default::default(),
+            zoom: Default::default(),
+        };
+        let cached = PresentationBase {
+            key: key.clone(),
+            pixels: vec![1, 2, 3, 4],
+        };
+        let mut pixels = vec![0; 4];
+        assert!(cached.restore(&key, &mut pixels));
+        assert_eq!(pixels, [1, 2, 3, 4]);
+        let changed = PresentationBaseKey { blank: true, ..key };
+        assert!(!cached.restore(&changed, &mut pixels));
+        assert!(!cached.restore(&cached.key, &mut [0; 3]));
+    }
     #[test]
     fn repaint_deadlines_bound_animation_and_leave_idle_windows_asleep() {
         let now = Instant::now();

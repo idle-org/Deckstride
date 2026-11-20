@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### 0.1.78
+
+- Reuse one bounded base framebuffer per presentation window for pointer and
+  annotation updates instead of scaling and rasterizing the full slide again.
+  Slide, zoom, color, DPI, blanking and resize changes invalidate the cache;
+  interactive display recovery bypasses it. The cache is capped at 64 MiB per
+  output window.
+- Build the Windows release executable as a GUI application so it does not open a
+  terminal, create presentation windows without activation, and explicitly focus
+  the presenter when its initial placement becomes visible.
+- Add an optional per-user Windows PDF-app registration from Preferences. It points
+  the document icon and open command at the portable executable, refreshes Explorer,
+  and opens Default Apps for the user-controlled confirmation.
+- Linux all-feature tests, formatting, Clippy, rustdoc, Python tests and the
+  optimized build pass; headless whole-application line coverage is 68.39%. Full
+  GUI coverage could not run because Xvfb is unavailable, and the local Windows
+  cross-check stops at the existing icon build step because MinGW windres is absent.
+  Windows multi-monitor latency, initial focus and association behavior remain
+  physical acceptance checks.
+
 ### 0.1.77
 
 - Add an optional custom picture for Blank presentation in Preferences, shared by

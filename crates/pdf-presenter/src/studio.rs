@@ -25,6 +25,8 @@ pub enum Action {
     PickBlankPicture,
     SetBlankPicture(PathBuf),
     ClearBlankPicture,
+    #[cfg(target_os = "windows")]
+    RegisterPdfAssociation,
     ImportNotes(PathBuf),
     ApplyNotesImport,
     Go(usize),
@@ -458,6 +460,13 @@ impl Studio {
                 self.new_output = true;
                 self.pending_save = true;
                 self.status = "Blank presentation uses solid black.".into();
+            }
+            #[cfg(target_os = "windows")]
+            Action::RegisterPdfAssociation => {
+                self.status = match crate::windows_integration::register_pdf_association() {
+                    Ok(()) => "Choose PDF Presenter for .pdf in Windows Default Apps. PDF files will then use its icon.".into(),
+                    Err(error) => format!("Could not register PDF Presenter: {error}"),
+                };
             }
             Action::PickNotes => {
                 if !self.dialog_busy

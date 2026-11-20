@@ -2423,6 +2423,16 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
                 if s.blank_busy { ui.spinner(); }
             });
             ui.separator();
+            #[cfg(target_os = "windows")]
+            ui.collapsing(if s.settings.language.french() { "Intégration Windows" } else { "Windows integration" }, |ui| {
+                ui.label(if s.settings.language.french() { "Enregistre l’application et son icône pour les fichiers PDF, sans droits administrateur." } else { "Register the app and its icon for PDF files without administrator rights." });
+                if ui.button(if s.settings.language.french() { "Choisir comme application PDF…" } else { "Choose as PDF app…" }).clicked() {
+                    s.actions.push(Action::RegisterPdfAssociation);
+                }
+                ui.small(if s.settings.language.french() { "Windows ouvre Applications par défaut pour confirmer votre choix." } else { "Windows opens Default Apps so you can confirm the choice." });
+            });
+            #[cfg(target_os = "windows")]
+            ui.separator();
             let mut enabled = s.settings.zoom_enabled;
             if ui.checkbox(&mut enabled, tr(&locale, "Enable page zoom")).changed() { s.enable_zoom(enabled); }
             if ui.checkbox(&mut s.settings.zoom_keep_fitted_area, tr(&locale, "Keep fitted page area when zooming")).changed() {
