@@ -19,14 +19,30 @@ pub enum TimerPosition {
     Header,
     AboveSlides,
     BelowNotes,
+    LeftOfNotes,
+    RightOfNotes,
+    LeftOfSlides,
+    RightOfSlides,
 }
 impl TimerPosition {
-    pub const ALL: [Self; 3] = [Self::Header, Self::AboveSlides, Self::BelowNotes];
+    pub const ALL: [Self; 7] = [
+        Self::Header,
+        Self::AboveSlides,
+        Self::BelowNotes,
+        Self::LeftOfNotes,
+        Self::RightOfNotes,
+        Self::LeftOfSlides,
+        Self::RightOfSlides,
+    ];
     pub fn label(self) -> &'static str {
         match self {
             Self::Header => "Header",
             Self::AboveSlides => "Above slides",
             Self::BelowNotes => "Below notes",
+            Self::LeftOfNotes => "Left of notes",
+            Self::RightOfNotes => "Right of notes",
+            Self::LeftOfSlides => "Left of slides",
+            Self::RightOfSlides => "Right of slides",
         }
     }
 }
@@ -87,8 +103,8 @@ impl Layout {
             (&self.current, 60., 200.),
             (&self.next, 30., 160.),
             (&self.notes, 12., 65.),
-            (&self.elapsed, 16., 72.),
-            (&self.clock, 16., 72.),
+            (&self.elapsed, 16., 320.),
+            (&self.clock, 16., 320.),
         ] {
             if !w.size.is_finite() || w.size < min || w.size > max {
                 return Err("Invalid layout size".into());

@@ -223,7 +223,7 @@ fn timer_height(s: &Studio, position: TimerPosition) -> f32 {
 fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
     let locale = ui.ctx().clone();
     let secs = s.started.elapsed().as_secs();
-    for (w, p, label, value) in [
+    let entries = [
         (
             &s.layout.elapsed,
             s.layout.elapsed_position,
@@ -236,18 +236,124 @@ fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
             "Time · HH:MM",
             chrono::Local::now().format("%H:%M").to_string(),
         ),
-    ] {
-        if w.show && p == position {
-            ui.add_space(16.);
-            egui::Frame::group(ui.style()).show(ui, |ui| {
-                ui.vertical(|ui| {
-                    ui.small(tr(&locale, label));
-                    ui.label(egui::RichText::new(value).size(w.size));
-                });
-            });
+    ];
+    let count = entries
+        .iter()
+        .filter(|(w, p, _, _)| w.show && *p == position)
+        .count();
+    if count == 0 {
+        return;
+    }
+    let stacked = matches!(
+        position,
+        TimerPosition::LeftOfNotes
+            | TimerPosition::RightOfNotes
+            | TimerPosition::LeftOfSlides
+            | TimerPosition::RightOfSlides
+    );
+    let available = ui.available_size();
+    let width = if stacked {
+        available.x
+    } else {
+        (available.x - (12. + ui.spacing().item_spacing.x) * count.saturating_sub(1) as f32)
+            / count as f32
+    }
+    .max(1.);
+    let height = if stacked {
+        (available.y - (12. + ui.spacing().item_spacing.y) * count.saturating_sub(1) as f32)
+            / count as f32
+    } else {
+        available.y
+    }
+    .max(1.);
+    for (index, (w, _, label, value)) in entries
+        .into_iter()
+        .filter(|(w, p, _, _)| w.show && *p == position)
+        .enumerate()
+    {
+        if index > 0 {
+            ui.add_space(12.);
+        }
+        let desired = ui.painter().layout_no_wrap(
+            value.clone(),
+            FontId::proportional(w.size),
+            ui.visuals().text_color(),
+        );
+        let size = if stacked {
+            Vec2::new(width, height)
+        } else {
+            Vec2::new(
+                (desired.size().x + 24.).min(width),
+                (w.size * 1.3 + 36.).min(height),
+            )
+        };
+        let (rect, _) = ui.allocate_exact_size(size, Sense::hover());
+        let painter = ui.painter().with_clip_rect(rect);
+        painter.rect_filled(rect, 6., ui.visuals().extreme_bg_color);
+        painter.text(
+            rect.min + Vec2::splat(8.),
+            egui::Align2::LEFT_TOP,
+            tr(&locale, label),
+            FontId::proportional(12.),
+            ui.visuals().weak_text_color(),
+        );
+        let area = Rect::from_min_max(rect.min + Vec2::new(8., 28.), rect.max - Vec2::splat(8.));
+        if area.is_positive() {
+            let scale = (area.width() / desired.size().x)
+                .min(area.height() / desired.size().y)
+                .min(1.);
+            painter.text(
+                area.center(),
+                egui::Align2::CENTER_CENTER,
+                value,
+                FontId::proportional((w.size * scale).max(1.)),
+                ui.visuals().text_color(),
+            );
         }
     }
 }
+fn side_timers(
+    ui: &mut Ui,
+    s: &Studio,
+    rect: &mut Rect,
+    left: TimerPosition,
+    right: TimerPosition,
+) {
+    let original = *rect;
+    for (position, is_left) in [(left, true), (right, false)] {
+        let size = timer_height(s, position);
+        if size == 0. || !original.is_positive() {
+            continue;
+        }
+        let width = ((size - 32.) * 3.6 + 24.).min(original.width() * 0.32);
+        let column = if is_left {
+            Rect::from_min_max(
+                original.min,
+                Pos2::new(original.left() + width, original.bottom()),
+            )
+        } else {
+            Rect::from_min_max(
+                Pos2::new(original.right() - width, original.top()),
+                original.max,
+            )
+        };
+        if is_left {
+            rect.min.x = column.right() + 8.;
+        } else {
+            rect.max.x = column.left() - 8.;
+        }
+        ui.scope_builder(
+            egui::UiBuilder::new()
+                .max_rect(column)
+                .layout(egui::Layout::top_down(egui::Align::Min)),
+            |ui| {
+                ui.set_clip_rect(ui.clip_rect().intersect(column));
+                timers(ui, s, position);
+            },
+        );
+    }
+}
+
 pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let locale = ui.ctx().clone();
     native.trim(s);
@@ -296,7 +402,9 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.close();
         }
     });
-    let header_height = (timer_height(s, TimerPosition::Header) + 20.).max(64.);
+    let header_height = (timer_height(s, TimerPosition::Header) + 20.)
+        .max(64.)
+        .min(screen.height() * 0.35);
     let mut body = screen.shrink(16.);
     if s.layout.header {
         body.min.y += header_height;
@@ -326,7 +434,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         });
     }
     for position in [TimerPosition::AboveSlides, TimerPosition::BelowNotes] {
-        let height = timer_height(s, position);
+        let height = timer_height(s, position).min(body.height().max(0.) * 0.35);
         if height > 0. {
             let top = if position == TimerPosition::AboveSlides {
                 body.top()
@@ -355,7 +463,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     } else {
         0.
     };
-    let preview = Rect::from_min_max(
+    let mut preview = Rect::from_min_max(
         body.min,
         Pos2::new(
             body.max.x,
@@ -368,6 +476,38 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 },
         ),
     );
+    let mut notes_rect =
+        Rect::from_min_max(Pos2::new(body.left(), body.bottom() - notes_h), body.max);
+    // When a pane is hidden, use the remaining body so enabled timers stay accessible.
+    if !preview_visible {
+        preview = body;
+    }
+    if !s.layout.notes.show {
+        notes_rect = body;
+    }
+    side_timers(
+        ui,
+        s,
+        &mut preview,
+        TimerPosition::LeftOfSlides,
+        TimerPosition::RightOfSlides,
+    );
+    if !preview_visible {
+        notes_rect = preview;
+    }
+    if !s.layout.notes.show {
+        notes_rect = preview;
+    }
+    side_timers(
+        ui,
+        s,
+        &mut notes_rect,
+        TimerPosition::LeftOfNotes,
+        TimerPosition::RightOfNotes,
+    );
+    if !s.layout.notes.show {
+        preview = notes_rect;
+    }
     if preview_visible {
         let items = [
             (
@@ -440,7 +580,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         }
     }
     if s.layout.notes.show {
-        let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - notes_h), body.max);
+        let rect = notes_rect;
         ui.painter().rect_filled(rect, 8., ui.visuals().window_fill);
         ui.painter().text(
             rect.min + Vec2::splat(14.),
@@ -823,7 +963,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                 tr(&locale, "Elapsed time"),
                                 &mut s.layout.elapsed,
                                 16.,
-                                72.,
+                                320.,
                                 "Text size",
                             );
                             ui.add_enabled_ui(s.layout.elapsed.show, |ui| {
@@ -842,7 +982,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                                 tr(&locale, "Time · HH:MM"),
                                 &mut s.layout.clock,
                                 16.,
-                                72.,
+                                320.,
                                 "Text size",
                             );
                             ui.add_enabled_ui(s.layout.clock.show, |ui| {

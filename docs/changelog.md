@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.48
+
+- Add independent left/right of notes/slides timer positions and raise clock/elapsed
+  text size to 320 logical pixels. Reserve side columns, stack shared-side timers,
+  fit large timer text to its panel and refit notes in the remaining space.
+
 ### 0.1.47
 
 - Escape in the presenter dismisses transient UI without leaving fullscreen or

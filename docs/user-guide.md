@@ -220,7 +220,9 @@ Window-manager focus restrictions may still require clicking the browser on some
 ### Timer placement and slide progress
 
 In Layout, set **Elapsed time position** and **Clock position** independently to
-Header, Above slides or Below notes. Timers have separate labeled boxes; size and
+Header, Above slides, Below notes, or left/right of the notes or slides.
+Timer text can be set up to 320 logical pixels; it scales down only to fit its
+allocated space. Timers on the same side stack vertically. Timers have separate labeled boxes; size and
 visibility controls still apply. Body positions remain visible when bars are hidden.
 Enable **Slide progress bar** for a presenter-only current slide / total indicator
 at the bottom of the content area. It starts disabled and tracks requested slide

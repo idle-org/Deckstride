@@ -190,3 +190,19 @@ fn automatic_buffer_budget_softens_floor_under_memory_pressure() {
         .unwrap();
     }
 }
+
+#[test]
+fn side_timer_positions_and_large_sizes_roundtrip() {
+    for position in settings::TimerPosition::ALL {
+        let mut s = Settings::default();
+        s.layout.elapsed_position = position;
+        s.layout.clock_position = position;
+        s.layout.elapsed.size = 320.;
+        s.layout.clock.size = 320.;
+        s.validate().unwrap();
+        let restored: Settings = toml::from_str(&toml::to_string(&s).unwrap()).unwrap();
+        assert_eq!(restored.layout, s.layout);
+        s.layout.elapsed.size = 321.;
+        assert!(s.validate().is_err());
+    }
+}

@@ -596,6 +596,38 @@ fn timer_presets_reserve_space_and_progress_tracks_navigation() {
         let progress = text_rect(&output.shapes, &format!("Slide {} / 30", page + 1)).unwrap();
         assert!(progress.top() > text_rect(&output.shapes, "Time · HH:MM").unwrap().bottom());
     }
+    s.requested = 0;
+    s.layout.elapsed.size = 320.;
+    s.layout.clock.size = 320.;
+    for (left, right, anchor) in [
+        (
+            TimerPosition::LeftOfSlides,
+            TimerPosition::RightOfSlides,
+            "CURRENT  1 / 30",
+        ),
+        (
+            TimerPosition::LeftOfNotes,
+            TimerPosition::RightOfNotes,
+            "PRESENTER NOTES · AUTO-FIT",
+        ),
+    ] {
+        s.layout.elapsed_position = left;
+        s.layout.clock_position = right;
+        let output = render(&mut s);
+        let elapsed = text_rect(&output.shapes, "Elapsed time").unwrap();
+        let clock = text_rect(&output.shapes, "Time · HH:MM").unwrap();
+        let pane = text_rect(&output.shapes, anchor).unwrap();
+        assert!(elapsed.right() < pane.left());
+        assert!(clock.left() > pane.right());
+        assert!(text_rect(&output.shapes, "00:00").unwrap().height() > 72.);
+        // Sharing a side stacks the controls without overlapping their labels.
+        s.layout.clock_position = left;
+        let output = render(&mut s);
+        let elapsed = text_rect(&output.shapes, "Elapsed time").unwrap();
+        let clock = text_rect(&output.shapes, "Time · HH:MM").unwrap();
+        assert!(clock.top() > elapsed.bottom());
+        assert!((clock.left() - elapsed.left()).abs() < 1.);
+    }
     s.deck = None;
     assert!(text_rect(&render(&mut s).shapes, "Slide 0 / 0").is_some());
     s.layout.elapsed.show = false;
