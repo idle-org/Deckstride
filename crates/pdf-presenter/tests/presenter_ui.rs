@@ -530,7 +530,14 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
     assert!(s.menu_open);
     click(&mut s, "Restart timer");
     assert!(s.timer.running(std::time::Instant::now(), s.timer_limit()));
-    assert!(!s.menu_open, "Commands should dismiss the dropdown");
+    assert!(
+        !s.menu_open,
+        "Clicking the header command should dismiss the dropdown"
+    );
+    click(&mut s, "Pause timer");
+    assert!(!s.timer.running(std::time::Instant::now(), s.timer_limit()));
+    click(&mut s, "Start timer");
+    assert!(s.timer.running(std::time::Instant::now(), s.timer_limit()));
     click(&mut s, "Menu");
     click(&mut s, "Demo");
     assert!(!s.menu_open, "Outside click should dismiss the dropdown");

@@ -366,33 +366,30 @@ fn widget(
         );
     });
 }
-fn timer_controls(ui: &mut Ui, s: &mut Studio, close: bool) {
+fn timer_buttons(ui: &mut Ui, s: &mut Studio) {
     let locale = ui.ctx().clone();
     let running = s.timer.running(Instant::now(), s.timer_limit());
-    ui.horizontal_wrapped(|ui| {
-        if ui
-            .button(tr(
-                &locale,
-                if running {
-                    "Pause timer"
-                } else {
-                    "Start timer"
-                },
-            ))
-            .clicked()
-        {
-            s.execute(Action::ToggleTimer);
-            if close {
-                ui.close();
-            }
-        }
-        if ui.button(tr(&locale, "Restart timer")).clicked() {
-            s.execute(Action::RestartTimer);
-            if close {
-                ui.close();
-            }
-        }
-    });
+    if ui
+        .button(tr(
+            &locale,
+            if running {
+                "Pause timer"
+            } else {
+                "Start timer"
+            },
+        ))
+        .clicked()
+    {
+        s.execute(Action::ToggleTimer);
+    }
+    if ui.button(tr(&locale, "Restart timer")).clicked() {
+        s.execute(Action::RestartTimer);
+    }
+}
+fn timer_controls(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    ui.horizontal_wrapped(|ui| timer_buttons(ui, s));
+    let running = s.timer.running(Instant::now(), s.timer_limit());
     let state = if running {
         "Running"
     } else if s.timer.waiting_for_slide && s.layout.timer_autostart {
@@ -458,7 +455,7 @@ fn timer_settings(ui: &mut Ui, s: &mut Studio) {
     {
         s.timer = crate::timer::Timer::default();
     }
-    timer_controls(ui, s, false);
+    timer_controls(ui, s);
 }
 
 fn timer_position(ui: &mut Ui, id: &str, position: &mut TimerPosition) {
@@ -669,8 +666,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     });
     let header_timer_height = timer_height(s, TimerPosition::Header);
     let separate_header_timers =
-        header_timer_height > 100. || (header_timer_height > 0. && screen.width() < 1100.);
-    let header_controls_height = 44.;
+        header_timer_height > 100. || (header_timer_height > 0. && screen.width() < 1400.);
+    let header_controls_height = if screen.width() < 1100. { 76. } else { 44. };
     let header_height = (header_timer_height
         + 20.
         + if separate_header_timers {
@@ -678,7 +675,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         } else {
             0.
         })
-    .max(64.)
+    .max(header_controls_height + 20.)
     .min(screen.height() * 0.35);
     let mut body = screen.shrink(16.);
     if s.layout.header {
@@ -963,76 +960,85 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             controls.max.y = controls.min.y + header_controls_height - 8.;
         }
         ui.scope_builder(egui::UiBuilder::new().max_rect(controls), |ui| {
-            ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                if bar_visibility_button(ui, s.layout.header, true).clicked() {
-                    s.layout.header = !s.layout.header;
-                    native.header_until = now;
-                }
-                let trigger = ui.button(tr(&locale, "Menu"));
-                let mut menu_open = if trigger.clicked() {
-                    !s.menu_open
-                } else {
-                    s.menu_open
-                };
-                // Settings controls and nested selectors must not dismiss their parent menu.
-                egui::Popup::menu(&trigger)
-                    .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
-                    .open_bool(&mut menu_open)
-                    .show(|ui| {
-                        egui::ScrollArea::vertical()
-                            .max_height(
-                                (screen.bottom() - trigger.rect.bottom() - 16.).clamp(80., 720.),
-                            )
-                            .show(ui, |ui| menu(ui, s));
-                    });
-                s.menu_open = menu_open;
-                ui.label(
-                    s.deck
-                        .as_ref()
-                        .map_or("PDF Presenter", |d| d.title.as_str()),
-                );
-                if ui.button(tr(&locale, "Displays")).clicked() {
-                    s.begin_display_edit();
-                }
-                button(
-                    ui,
-                    tr(&locale, "All slides"),
-                    Action::OpenBrowser,
-                    &mut s.actions,
-                );
-                if ui.button(tr(&locale, "Layout")).clicked() {
-                    s.layout_open = !s.layout_open;
-                }
-                fullscreen_button(ui, s);
-                let inactive = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
-                let color = if inactive {
-                    ui.visuals().error_fg_color
-                } else {
-                    ui.visuals().hyperlink_color
-                };
-                let (indicator, _) = ui.allocate_exact_size(Vec2::splat(12.), Sense::hover());
-                ui.painter().circle_filled(indicator.center(), 5., color);
-                if ui
-                    .button(
-                        egui::RichText::new(if s.blanked {
-                            tr(&locale, "Show presentation")
-                        } else {
-                            tr(&locale, "Blank presentation")
-                        })
-                        .color(if s.blanked {
-                            ui.visuals().error_fg_color
-                        } else {
-                            ui.visuals().hyperlink_color
-                        }),
-                    )
-                    .clicked()
-                {
-                    s.actions.push(Action::Blank);
-                }
-                if !separate_header_timers {
-                    timers(ui, s, TimerPosition::Header);
-                }
-            });
+            ui.with_layout(
+                egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true),
+                |ui| {
+                    if bar_visibility_button(ui, s.layout.header, true).clicked() {
+                        s.layout.header = !s.layout.header;
+                        native.header_until = now;
+                    }
+                    let trigger = ui.button(tr(&locale, "Menu"));
+                    let mut menu_open = if trigger.clicked() {
+                        !s.menu_open
+                    } else {
+                        s.menu_open
+                    };
+                    // Settings controls and nested selectors must not dismiss their parent menu.
+                    egui::Popup::menu(&trigger)
+                        .close_behavior(egui::PopupCloseBehavior::CloseOnClickOutside)
+                        .open_bool(&mut menu_open)
+                        .show(|ui| {
+                            egui::ScrollArea::vertical()
+                                .max_height(
+                                    (screen.bottom() - trigger.rect.bottom() - 16.)
+                                        .clamp(80., 720.),
+                                )
+                                .show(ui, |ui| menu(ui, s));
+                        });
+                    s.menu_open = menu_open;
+                    ui.add_sized(
+                        [100., 20.],
+                        egui::Label::new(
+                            s.deck
+                                .as_ref()
+                                .map_or("PDF Presenter", |d| d.title.as_str()),
+                        )
+                        .truncate(),
+                    );
+                    if ui.button(tr(&locale, "Displays")).clicked() {
+                        s.begin_display_edit();
+                    }
+                    button(
+                        ui,
+                        tr(&locale, "All slides"),
+                        Action::OpenBrowser,
+                        &mut s.actions,
+                    );
+                    if ui.button(tr(&locale, "Layout")).clicked() {
+                        s.layout_open = !s.layout_open;
+                    }
+                    fullscreen_button(ui, s);
+                    timer_buttons(ui, s);
+                    let inactive = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
+                    let color = if inactive {
+                        ui.visuals().error_fg_color
+                    } else {
+                        ui.visuals().hyperlink_color
+                    };
+                    let (indicator, _) = ui.allocate_exact_size(Vec2::splat(12.), Sense::hover());
+                    ui.painter().circle_filled(indicator.center(), 5., color);
+                    if ui
+                        .button(
+                            egui::RichText::new(if s.blanked {
+                                tr(&locale, "Show presentation")
+                            } else {
+                                tr(&locale, "Blank presentation")
+                            })
+                            .color(if s.blanked {
+                                ui.visuals().error_fg_color
+                            } else {
+                                ui.visuals().hyperlink_color
+                            }),
+                        )
+                        .clicked()
+                    {
+                        s.actions.push(Action::Blank);
+                    }
+                    if !separate_header_timers {
+                        timers(ui, s, TimerPosition::Header);
+                    }
+                },
+            );
         });
         if separate_header_timers {
             let timer_rect = Rect::from_min_max(
@@ -2020,14 +2026,6 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         Action::OpenBrowser,
         &mut s.actions,
     );
-    if ui.button(tr(&locale, "Displays")).clicked() {
-        s.begin_display_edit();
-        ui.close();
-    }
-    if ui.button(tr(&locale, "Layout")).clicked() {
-        s.layout_open = true;
-        ui.close();
-    }
     ui.menu_button(tr(&locale, "Appearance"), |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_min_width(250.);
@@ -2126,8 +2124,6 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         });
     }
     ui.separator();
-    timer_controls(ui, s, true);
-    fullscreen_button(ui, s);
     button(ui, tr(&locale, "Quit"), Action::Exit, &mut s.actions);
     if s.actions.len() != actions_before {
         ui.close();

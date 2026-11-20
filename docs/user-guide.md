@@ -75,7 +75,7 @@ usable frame. The footer distinguishes requested and acknowledged displayed slid
 it remains visible when the footer is hidden. Preparing output has a separate status.
 Escape cancels a pending slide number/menu or closes the browser; it does not
 leave presenter fullscreen or blank the presentation. Use **Enter fullscreen /
-Exit fullscreen** in the header or Menu to toggle both display roles. Like other
+Exit fullscreen** in the header to toggle both display roles. Like other
 display changes, this previews the change with Keep/Revert confirmation. While the presenter is connected, closing a presentation window blanks it; close a
 presenter or choose Menu → Quit to end the application.
 
@@ -91,7 +91,7 @@ time and the local HH:MM clock. Hidden widgets release their space. Notes wrap a
 automatically shrink to fit; extremely long notes can become too small to read.
 The previous-slide preview is off by default; enable **Previous slide** in Layout
 when you want it. Saved layouts keep their chosen visibility.
-Menu → Reset timer starts elapsed time again. Bundled UI fonts cover their supplied
+The header’s **Restart timer** button starts elapsed time again. Bundled UI fonts cover their supplied
 character sets; broad CJK text coverage remains a packaging acceptance item.
 
 Save layout (this project) stores an override for the canonical document/folder path.
@@ -224,7 +224,7 @@ Header, Above slides, Below notes, or left/right of the notes or slides.
 Timer text can be set up to 320 logical pixels; it scales down only to fit its
 allocated space. Timers on the same side stack vertically. Timers have separate labeled boxes; size and
 visibility controls still apply. Body positions remain visible when bars are hidden.
-Use **Start timer**, **Pause timer** and **Restart timer** in Menu or Layout.
+Use **Start timer**, **Pause timer** and **Restart timer** in the presenter header or Layout.
 Pause preserves the time; Restart resets and starts immediately. Under Layout →
 Timers and progress, choose **Elapsed time** or **Countdown** and set a countdown
 in minutes and seconds (up to 24 hours). **Start on first slide** is enabled by

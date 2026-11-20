@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.61
+
+- Keep Displays, Layout and fullscreen as header buttons and remove their Menu
+  duplicates. Add direct Start/Pause and Restart timer header buttons; remove
+  timer controls from Menu while retaining them in Layout's timer settings.
+  Wrap controls on narrow windows and reserve a separate row for header clocks.
+
 ### 0.1.60
 
 - Match the zoom-enabled current preview to the first connected presentation
