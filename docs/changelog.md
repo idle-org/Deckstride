@@ -10,6 +10,8 @@
   while preserving the lightweight vector overlay path.
 - Prepare the 0.1.83 Linux/Windows and one-off Apple Silicon macOS preview release; see the
   [release notes](development/release-notes/v0.1.83.md).
+- Pin the memory-budget probe to a Rust 1.93-compatible `sysinfo` release so the
+  one-off macOS target builds with the release tool's pinned Apple toolchain.
 
 ### 0.1.82
 
