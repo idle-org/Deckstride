@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.40
+
+- Draw header/footer visibility icons directly instead of relying on arrow glyphs.
+  Use explicit Auto-hide header/footer tooltips and accessible names, switching to
+  Keep header/footer visible when the bar is already auto-hidden.
+
 ### 0.1.39
 
 - Rename the All slides screen selector to “Show on screen” (French: “Afficher

@@ -121,6 +121,40 @@ fn button(ui: &mut Ui, label: &str, action: Action, actions: &mut Vec<Action>) {
         actions.push(action);
     }
 }
+// Paint the bar/chevron directly: visibility controls must not depend on font glyphs.
+fn bar_visibility_button(ui: &mut Ui, pinned: bool, header: bool) -> egui::Response {
+    let label = tr(
+        ui.ctx(),
+        match (header, pinned) {
+            (true, true) => "Auto-hide header",
+            (false, true) => "Auto-hide footer",
+            (true, false) => "Keep header visible",
+            (false, false) => "Keep footer visible",
+        },
+    )
+    .to_owned();
+    let response = ui.add(egui::Button::new("").min_size(Vec2::splat(28.)));
+    response.widget_info(|| {
+        egui::WidgetInfo::labeled(egui::WidgetType::Button, ui.is_enabled(), &label)
+    });
+    let center = response.rect.center();
+    let stroke = egui::Stroke::new(2_f32, ui.style().interact(&response).fg_stroke.color);
+    let edge = if header { -7. } else { 7. };
+    ui.painter().line_segment(
+        [center + Vec2::new(-7., edge), center + Vec2::new(7., edge)],
+        stroke,
+    );
+    let direction = if header == pinned { -1. } else { 1. };
+    ui.painter().add(egui::Shape::line(
+        vec![
+            center + Vec2::new(-5., -2. * direction),
+            center + Vec2::new(0., 3. * direction),
+            center + Vec2::new(5., -2. * direction),
+        ],
+        stroke,
+    ));
+    response.on_hover_text(label)
+}
 fn widget(ui: &mut Ui, label: &str, w: &mut crate::settings::Widget, min: f32, max: f32) {
     let locale = ui.ctx().clone();
     ui.checkbox(&mut w.show, label);
@@ -437,18 +471,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(10.)), |ui| {
             ui.horizontal(|ui| {
-                if ui
-                    .add(
-                        egui::Button::new(if s.layout.header { "↑" } else { "↓" })
-                            .min_size(Vec2::splat(24.)),
-                    )
-                    .on_hover_text(if s.layout.header {
-                        tr(&locale, "Hide")
-                    } else {
-                        tr(&locale, "Pin")
-                    })
-                    .clicked()
-                {
+                if bar_visibility_button(ui, s.layout.header, true).clicked() {
                     s.layout.header = !s.layout.header;
                     native.header_until = now;
                 }
@@ -522,18 +545,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(8.)), |ui| {
             ui.horizontal(|ui| {
-                if ui
-                    .add(
-                        egui::Button::new(if s.layout.footer { "↓" } else { "↑" })
-                            .min_size(Vec2::splat(24.)),
-                    )
-                    .on_hover_text(if s.layout.footer {
-                        tr(&locale, "Hide")
-                    } else {
-                        tr(&locale, "Pin")
-                    })
-                    .clicked()
-                {
+                if bar_visibility_button(ui, s.layout.footer, false).clicked() {
                     s.layout.footer = !s.layout.footer;
                     native.footer_until = now;
                 }
