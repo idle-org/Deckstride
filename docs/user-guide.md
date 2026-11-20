@@ -41,11 +41,11 @@ fullscreen for the session. `--list-monitors` lists CLI display numbers.
 Both roles default to fullscreen. Displays lists connected screens: assign each
 Unused, Presenter or Presentation, including several screens per role. Swap groups
 exchanges the draft roles. **Apply changes** previews the assignments
-and fullscreen choices with output blanked. **Keep changes** confirms and saves;
+and fullscreen choices while preserving the current output visibility. **Keep changes** confirms and saves;
 **Revert now**, Escape, or doing nothing for 15 seconds restores the previous setup.
 Confirmation controls appear on presenter and output windows so either screen can
 recover the change. Unconfirmed choices are never saved, and a disconnect cancels
-the trial. Navigation/show controls are held until the trial is resolved.
+the trial. Navigation is held until the trial is resolved; explicit blank/show controls remain available.
 
 Disabling either fullscreen option shows a positioning warning. Window placement
 can be unreliable in windowed mode, especially on Linux; switch back to fullscreen
@@ -58,10 +58,10 @@ showing its first slide does not disable startup recovery. Once you start naviga
 or explicitly showing slides, the output startup menu disappears; use Displays on
 the presenter for later changes. Startup swap exchanges whole role groups, including
 mirrors. Trial output controls contain no notes, paths or presenter content.
-Output remains blank after either confirmation or rollback until explicitly shown.
+Confirmation and rollback preserve output visibility, including an explicit manual blank.
 Unavailable screens fall back to surviving assignments and available distinct screens;
 the preferred saved setup remains available for reconnection. Review the setup after
-connecting/disconnecting displays: output is blanked until you explicitly show it.
+connecting/disconnecting displays: output visibility is preserved on available outputs.
 If the operator screen disappears and only previous presentation screens remain, the
 presenter is withheld to protect notes. Reconnect an operator screen, or restart in
 windowed rehearsal after verifying privacy. Duplicate monitor names are distinguished
@@ -174,7 +174,7 @@ After a host restart or resolution change, wait for READY again for RAM-only pla
 Rendering, notes, file dialogs and settings I/O run in supervised child processes of
 the same executable. A stuck renderer is terminated after its deadline; the UI and
 last output remain available. Reopen the source to retry failed pages. A presentation
-host failure restarts blanked with a status message, up to three starts. If the
+host failure restarts with the current output visibility and a status message, up to three starts. If the
 presenter crashes, the output process holds its last frame. B can blank it; Escape or
 its normal window Close control exits the disconnected output. Closing the presenter
 normally shuts down the output process too, with a separate termination fallback if

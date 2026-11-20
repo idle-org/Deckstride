@@ -117,8 +117,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Presenter fullscreen" => "Présentateur en plein écran",
         "Presentation fullscreen" => "Présentation en plein écran",
         "Apply and remember" => "Appliquer et mémoriser",
-        "Applying a setup blanks output. Show when destinations are verified." => {
-            "Appliquer masque la sortie. Vérifiez les destinations avant de la réactiver."
+        "Output visibility is preserved while previewing display changes." => {
+            "La visibilité de la sortie est conservée pendant l’aperçu des changements."
         }
         "Open a PDF or picture folder to browse slides." => {
             "Ouvrez un PDF ou un dossier d’images pour parcourir les diapositives."

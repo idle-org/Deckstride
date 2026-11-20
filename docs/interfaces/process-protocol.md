@@ -23,7 +23,7 @@ Presentation HostState contains sequence, page, verified frame paths, neighbour
 preloads, monitor IDs, fullscreen and blank flags. It contains no notes or operator
 UI text. ACKs report only frames submitted successfully to all active output windows;
 this is not optical proof that a projector displayed a frame. Heartbeats detect a
-stopped host after 8 s; at most three starts, recovery blanked. A presenter crash
+stopped host after 8 s; at most three starts, recovery preserves the presenter’s output visibility. A presenter crash
 leaves the independent host displaying its last frame. Normal exit sends quit and
 allows bounded shutdown outside the UI loop. Reconnection to an orphan is pending.
 
@@ -102,3 +102,13 @@ HostState carries `slide_colors` with `page_background` and `fit_padding` RGB by
 triples (default white/black). Color updates use the existing state sequence and
 repaint existing textures without changing buffer generation or reading slide files.
 Blank output remains black. Same-executable protocol only.
+
+## Output visibility in 0.1.51
+
+`Ack.request_blank` is a boolean, default false for older messages. Only explicit
+output keyboard blank/close actions set it; diagnostic `status` messages never
+change output visibility. The presenter sends fresh state after host failure,
+including its current blank flag. Fullscreen/routing trials, confirmation,
+rollback and monitor topology changes preserve that flag. Missing outputs and
+operator privacy holds still suppress unavailable windows; no presenter content
+is sent to the output host.

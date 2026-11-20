@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.51
+
+- Preserve shown/manually blanked output through fullscreen and routing trials,
+  confirmation, rollback, hotplug and host recovery. Separate explicit output
+  blank requests from diagnostic status, retaining presenter privacy protections.
+
 ### 0.1.50
 
 - Compact All slides controls into two short rows on wide windows. Move explanatory

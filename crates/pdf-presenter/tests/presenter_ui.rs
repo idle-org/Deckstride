@@ -140,14 +140,14 @@ fn shared_actions_preserve_blanking_and_save_scope() {
     s.execute(Action::ToggleFullscreen);
     assert!(!s.presenter_fullscreen());
     s.execute(Action::KeepRoutes);
-    assert!(s.blanked);
+    assert!(!s.blanked);
     assert!(!s.settings.presenter_fullscreen);
     s.draft_routes.presenter.clear();
     s.execute(Action::ApplyRoutes);
     assert!(s.status.contains("presenter"));
     s.draft_routes = s.routes.clone();
     s.execute(Action::ApplyRoutes);
-    assert!(s.blanked);
+    assert!(!s.blanked);
     s.execute(Action::Refresh);
     assert!(s.dirty_routes);
     s.execute(Action::Exit);
@@ -161,7 +161,7 @@ fn lost_operator_screen_never_becomes_notes_on_previous_public_output() {
     s.set_monitors(vec![s.monitors[1].clone()], 0);
     assert!(s.routes.presenter.is_empty());
     assert!(s.privacy_hold);
-    assert!(s.blanked);
+    assert!(!s.blanked);
     let monitors = studio().monitors;
     s.set_monitors(monitors, 0);
     assert!(!s.privacy_hold);
@@ -203,14 +203,14 @@ fn palettes_and_languages_apply_to_presenter_browser_and_popups() {
     }
 }
 #[test]
-fn startup_output_is_enabled_but_disconnect_still_blanks() {
+fn startup_output_is_enabled_and_disconnect_preserves_visibility() {
     let mut s = Studio::new(true, None);
     assert!(!s.blanked);
     let monitors = studio().monitors;
     s.set_monitors(monitors.clone(), 0);
     assert!(!s.blanked);
     s.set_monitors(vec![monitors[0].clone()], 0);
-    assert!(s.blanked);
+    assert!(!s.blanked);
     let mut opt_out = Studio::new(true, None);
     opt_out.settings.auto_show = false;
     opt_out.set_monitors(monitors, 0);
@@ -286,7 +286,7 @@ fn display_changes_require_confirmation_and_timeout_restores_previous_setup() {
     assert_eq!(s.settings.routes, original);
     assert!(s.settings.presenter_fullscreen);
     assert!(!s.presenter_fullscreen());
-    assert!(s.blanked);
+    assert!(!s.blanked);
     s.execute(Action::Blank);
     s.execute(Action::Go(5));
     assert!(s.blanked);
@@ -364,7 +364,7 @@ fn hotplug_cancels_a_display_trial_without_saving_the_proposal() {
     s.set_monitors(vec![s.monitors[0].clone()], 0);
     assert!(s.route_trial.is_none());
     assert_eq!(s.settings.routes, saved);
-    assert!(s.blanked);
+    assert!(!s.blanked);
     assert!(!s.routes.presentation.contains(&"two".to_owned()));
 }
 
@@ -943,5 +943,37 @@ fn progress_bar_height_changes_rendered_geometry() {
             output.shapes.iter().any(|s| contains_bar(&s.shape, height)),
             "Missing bar at height {height}"
         );
+    }
+}
+
+#[test]
+fn fullscreen_and_routing_changes_preserve_explicit_output_visibility() {
+    for blanked in [false, true] {
+        for confirm in [false, true] {
+            let mut s = studio();
+            s.blanked = blanked;
+            for _ in 0..2 {
+                s.execute(Action::ToggleFullscreen);
+                assert_eq!(s.blanked, blanked);
+                s.execute(if confirm {
+                    Action::KeepRoutes
+                } else {
+                    Action::RevertRoutes
+                });
+                assert_eq!(s.blanked, blanked);
+            }
+            s.begin_display_edit();
+            std::mem::swap(
+                &mut s.draft_routes.presenter,
+                &mut s.draft_routes.presentation,
+            );
+            s.execute(Action::ApplyRoutes);
+            assert_eq!(s.blanked, blanked);
+            s.route_trial.as_mut().unwrap().deadline = std::time::Instant::now();
+            s.poll();
+            assert_eq!(s.blanked, blanked);
+            s.set_monitors(vec![s.monitors[0].clone()], 0);
+            assert_eq!(s.blanked, blanked);
+        }
     }
 }

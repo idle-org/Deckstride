@@ -477,7 +477,6 @@ impl App {
             }
         }
         if changed && let Some(host) = &mut self.host {
-            host.state.blanked = true;
             host.presented.clear();
             for w in &self.windows {
                 if !self.handles.iter().any(|(m, _)| m.id == w.monitor) {
@@ -582,6 +581,7 @@ impl App {
                     h.state.blanked = true;
                     h.close_requested = matches!(key, Key::Named(NamedKey::Escape));
                     let _ = h.acks.try_send(Ack {
+                        request_blank: true,
                         status: "Presentation blanked from output keyboard.".into(),
                         ..Default::default()
                     });
@@ -726,6 +726,9 @@ impl App {
                     if !ack.status.is_empty() {
                         s.status = ack.status;
                         s.output_buffered = 0;
+                        s.new_output = true;
+                    }
+                    if ack.request_blank {
                         s.blanked = true;
                         s.new_output = true;
                     }
@@ -993,6 +996,7 @@ impl ApplicationHandler for App {
                     h.close_requested = true;
                     h.state.blanked = true;
                     let _ = h.acks.try_send(Ack {
+                        request_blank: true,
                         status: "Presentation blanked from output window.".into(),
                         ..Default::default()
                     });

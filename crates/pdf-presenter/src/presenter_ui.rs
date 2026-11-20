@@ -1272,7 +1272,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 );
                 ui.small(tr(
                     &locale,
-                    "Applying a setup blanks output. Show when destinations are verified.",
+                    "Output visibility is preserved while previewing display changes.",
                 ));
                 if !s.draft_presenter_fullscreen || !s.draft_presentation_fullscreen {
                     ui.colored_label(

@@ -22,7 +22,8 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   project layouts, or manual/emergency black blanking.
 - `auto_show`: boolean, default true (0.1.14). Enables output on startup and successful
   document open; false starts/opens blanked. Manual navigation preserves blanking.
-  Display topology changes, safe fullscreen exit and host recovery still blank output.
+  Since 0.1.51, display topology/fullscreen changes and host recovery preserve
+  the current output visibility; only explicit blank controls change it.
 - `theme`: built-in palette enum in snake_case, default `midra` (0.1.14). Values:
   `midra`, `high_contrast`, `foxified_dark`, `corporate_light`, `bluecore`,
   `dupont_monsanto`, `eden_green`, `foxified_light`, `hci`, `iron_docks`, `peaceframe`,

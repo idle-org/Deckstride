@@ -63,8 +63,10 @@ Audience outputs must never show operator notes, source paths or general operato
 dialogs/controls. The user-authorized exception is minimal startup display-swap
 and timed Keep/Revert recovery controls; disable the startup menu after explicit
 navigation/show and never send presenter content to implement this exception. Show presentation output automatically on startup/document open by default, with a
-saved opt-out. Preserve manual blanking during navigation; topology changes and host
-failure recovery still blank explicitly and must show an unmistakable operator warning.
+saved opt-out. Preserve the operator’s output visibility during navigation, fullscreen/routing
+changes, topology changes and host recovery. Only explicit blank controls should
+blank output; diagnostic messages must not change visibility. Report unavailable
+outputs clearly while retaining operator-content privacy protections.
 Display disconnects must not move operator content onto an audience output.
 Never claim physical multiscreen acceptance from headless unit tests.
 

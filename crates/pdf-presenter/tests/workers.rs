@@ -94,3 +94,18 @@ fn supervisor_kills_a_stuck_worker_and_recovers() {
     assert!(c.result.is_ok());
     assert_eq!((c.generation, c.tag), (8, 2));
 }
+
+#[test]
+fn output_diagnostics_are_distinct_from_explicit_blanking() {
+    use pdf_presenter::output::Ack;
+    let old: Ack =
+        serde_json::from_str(r#"{"sequence":0,"page":null,"status":"host restarted","awake":""}"#)
+            .unwrap();
+    assert!(!old.request_blank);
+    let explicit = Ack {
+        request_blank: true,
+        ..Default::default()
+    };
+    let restored: Ack = serde_json::from_str(&serde_json::to_string(&explicit).unwrap()).unwrap();
+    assert!(restored.request_blank);
+}

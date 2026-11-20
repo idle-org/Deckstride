@@ -259,10 +259,12 @@ impl Studio {
             self.privacy_hold = recovering && self.routes.presenter.is_empty();
             self.draft_routes = self.routes.clone();
             self.dirty_routes = true;
-            self.blanked = recovering || !self.settings.auto_show;
+            if !recovering {
+                self.blanked = !self.settings.auto_show;
+            }
             self.new_output = true;
             self.status = if recovering {
-                "Screen setup changed. Output blanked; review destinations before showing."
+                "Screen setup changed. Output visibility preserved; review destinations."
             } else {
                 "Screen setup ready."
             }
@@ -331,9 +333,6 @@ impl Studio {
                 }
             }
             Action::Blank => {
-                if self.route_trial.is_some() {
-                    return;
-                }
                 self.blanked = !self.blanked;
                 if !self.blanked {
                     self.presentation_started = true;
@@ -401,7 +400,6 @@ impl Studio {
                     self.routes = self.draft_routes.clone();
                     self.dirty_routes = true;
                     self.displays_open = false;
-                    self.blanked = true;
                     self.new_output = true;
                 }
             }
@@ -417,8 +415,7 @@ impl Studio {
                     self.settings.presentation_fullscreen = trial.presentation_fullscreen;
                     self.pending_save = true;
                     self.new_output = true;
-                    self.status =
-                        "Display setup confirmed. Output remains blank until shown.".into();
+                    self.status = "Display setup confirmed. Output visibility preserved.".into();
                 }
             }
             Action::RevertRoutes => {
@@ -427,10 +424,8 @@ impl Studio {
                     self.begin_display_edit();
                     self.displays_open = false;
                     self.dirty_routes = true;
-                    self.blanked = true;
                     self.new_output = true;
-                    self.status =
-                        "Display change reverted. Output remains blank until shown.".into();
+                    self.status = "Display change reverted. Output visibility preserved.".into();
                 }
             }
             Action::OpenBrowser => {

@@ -15,7 +15,7 @@ apply. The [user guide](../user-guide.md) describes actual controls and limitati
 - N-monitor role groups, mirroring, group swap, fullscreen defaults, standard-location
   global preferences, missing-monitor fallback and runtime operator-screen privacy hold.
 - Independent presentation process with acknowledged frame submission, blanking,
-  neighbour preloading, heartbeat supervision and bounded blanked restarts. Last frame
+  neighbour preloading, heartbeat supervision and bounded restarts preserving output visibility. Last frame
   survives presenter failure. Slow work is isolated from both native event loops.
 - Same-executable workers for rendering, notes, dialogs, config and frame reads;
   bounded pipes and deadlines, source generations, foreground supersession, corruption
@@ -135,7 +135,7 @@ Menu is an anchored dropdown with Appearance and Preferences submenus. Displays 
 numbered screen cards and direct role selection. The independent windowed slide
 browser requests topmost placement/focus; reopening restores/focuses it. Output is
 enabled by default on successful document open, with a globally saved opt-out.
-Emergency/topology blanking still applies, and NO OUTPUT DISPLAYED is explicit even
+Explicit emergency blanking still applies, and NO OUTPUT DISPLAYED is explicit even
 with a hidden footer. Appearance contains all 20 Canvas Pilot built-in palettes and
 System/English/French. Additional languages and external packs remain unimplemented;
 worker/OS diagnostics are preserved verbatim. This repository remains standalone.
@@ -242,8 +242,8 @@ multiscreen/runtime acceptance remains separate from these regression checks.
 Display edits now stage both routes and fullscreen choices in a 15-second trial.
 The presenter owns a monotonic deadline and restores the prior setup on timeout,
 Revert, Escape or hotplug. Only Keep updates saved preferences; unrelated saves
-cannot persist candidate display values. Output remains blank through the trial
-and afterward until explicitly shown. Navigation/show actions are held during trials.
+cannot persist candidate display values. Since 0.1.51, output visibility is preserved through trials and afterward.
+Navigation is held during trials; explicit blank/show actions remain available.
 
 Startup right-click swap is available from either role until explicit navigation
 or Show presentation. Opening a source alone does not end startup recovery. Pending

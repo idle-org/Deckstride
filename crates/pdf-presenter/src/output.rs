@@ -44,6 +44,9 @@ pub struct HostState {
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Ack {
+    /// Explicit operator blanking, separate from diagnostic status messages.
+    #[serde(default)]
+    pub request_blank: bool,
     #[serde(default)]
     pub display_action: Option<DisplayAction>,
     #[serde(default)]
@@ -151,8 +154,13 @@ impl OutputLink {
                     std::thread::sleep(Duration::from_millis(4));
                 }
                 terminate_output(&managed_child);
-                let _=results.try_send(Ack{status:"Presentation host stopped. Output will restart blanked; review screens before resuming.".into(),..Default::default()});
-                // Restart receives a fresh state from the presenter; never silently resume output.
+                let _ = results.try_send(Ack {
+                    status:
+                        "Presentation host stopped. Restarting with the current output visibility."
+                            .into(),
+                    ..Default::default()
+                });
+                // Restart receives fresh routes, frame and visibility from the presenter.
                 drop(last);
                 std::thread::sleep(Duration::from_millis(250));
             }
