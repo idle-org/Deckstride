@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### 0.1.81
+
+- Retry Presenter activation for a short bounded period during Windows startup,
+  after the fullscreen Slides process has had time to map its windows. A Win32
+  input-queue fallback improves the chance that arrow keys work immediately, and
+  retries avoid disturbing an already-focused Presenter and stop after the startup
+  window or when All slides is deliberately focused.
+- Host formatting, Clippy, workspace tests and Python helper tests pass, as does
+  Windows-target Clippy. Foreground behavior still requires a physical Windows test.
+
 ### 0.1.80
 
 - Put a visible **Set as default PDF app…** action directly in Preferences on

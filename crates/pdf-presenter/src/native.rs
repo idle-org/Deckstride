@@ -53,6 +53,102 @@ enum Role {
 }
 const OUTPUT_BASE_CACHE_MAX_PIXELS: usize = 4096 * 4096;
 
+#[cfg(target_os = "windows")]
+const PRESENTER_FOCUS_RETRY_DELAYS: [Duration; 5] = [
+    Duration::from_millis(80),
+    Duration::from_millis(150),
+    Duration::from_millis(250),
+    Duration::from_millis(400),
+    Duration::from_millis(650),
+];
+
+#[cfg(target_os = "windows")]
+struct PresenterFocusRetry {
+    window: WindowId,
+    next: Instant,
+    attempt: usize,
+}
+
+#[cfg(target_os = "windows")]
+impl PresenterFocusRetry {
+    fn new(window: WindowId, now: Instant) -> Self {
+        Self {
+            window,
+            next: now + PRESENTER_FOCUS_RETRY_DELAYS[0],
+            attempt: 0,
+        }
+    }
+
+    fn take_attempt(&mut self, now: Instant) -> bool {
+        if now < self.next {
+            return false;
+        }
+        self.attempt += 1;
+        if let Some(delay) = PRESENTER_FOCUS_RETRY_DELAYS.get(self.attempt) {
+            self.next = now + *delay;
+        }
+        true
+    }
+
+    fn finished(&self) -> bool {
+        self.attempt >= PRESENTER_FOCUS_RETRY_DELAYS.len()
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn activate_presenter(window: &Window) {
+    use std::ffi::c_void;
+    use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+    type Hwnd = *mut c_void;
+    #[link(name = "user32")]
+    unsafe extern "system" {
+        fn GetForegroundWindow() -> Hwnd;
+        fn GetWindowThreadProcessId(window: Hwnd, process: *mut u32) -> u32;
+        fn GetCurrentThreadId() -> u32;
+        fn AttachThreadInput(thread: u32, foreground: u32, attach: i32) -> i32;
+        fn BringWindowToTop(window: Hwnd) -> i32;
+        fn SetForegroundWindow(window: Hwnd) -> i32;
+        fn SetActiveWindow(window: Hwnd) -> Hwnd;
+        fn SetFocus(window: Hwnd) -> Hwnd;
+    }
+
+    window.set_minimized(false);
+    window.focus_window();
+    let Some(hwnd) = window
+        .window_handle()
+        .ok()
+        .and_then(|handle| match handle.as_raw() {
+            RawWindowHandle::Win32(handle) => Some(handle.hwnd.get() as Hwnd),
+            _ => None,
+        })
+    else {
+        return;
+    };
+    // SetForegroundWindow is timing-sensitive while fullscreen windows are mapping.
+    // Temporarily sharing the foreground input queue lets Windows apply activation
+    // to this already-visible Presenter. Calls are bounded to startup retries.
+    unsafe {
+        let foreground = GetForegroundWindow();
+        let current_thread = GetCurrentThreadId();
+        let foreground_thread = if foreground.is_null() {
+            0
+        } else {
+            GetWindowThreadProcessId(foreground, std::ptr::null_mut())
+        };
+        let attached = foreground_thread != 0
+            && foreground_thread != current_thread
+            && AttachThreadInput(current_thread, foreground_thread, 1) != 0;
+        BringWindowToTop(hwnd);
+        SetForegroundWindow(hwnd);
+        SetActiveWindow(hwnd);
+        SetFocus(hwnd);
+        if attached {
+            AttachThreadInput(current_thread, foreground_thread, 0);
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct PresentationBaseKey {
     size: [u32; 2],
@@ -612,11 +708,44 @@ struct App {
     override_presenter: Option<usize>,
     override_output: Option<usize>,
     navigation_hold: Option<(WindowId, Key, crate::navigation::Hold)>,
+    #[cfg(target_os = "windows")]
+    presenter_focus: Option<PresenterFocusRetry>,
 }
 impl App {
     fn redraw(&self) {
         for native in &self.windows {
             native.window.request_redraw();
+        }
+    }
+    #[cfg(target_os = "windows")]
+    fn retry_presenter_focus(&mut self, now: Instant) {
+        let Some(retry) = &mut self.presenter_focus else {
+            return;
+        };
+        if self
+            .windows
+            .iter()
+            .any(|window| window.role == Role::Browser && window.window.has_focus())
+        {
+            self.presenter_focus = None;
+            return;
+        }
+        if !retry.take_attempt(now) {
+            return;
+        }
+        if !self
+            .windows
+            .iter()
+            .any(|window| window.role == Role::Presenter && window.window.has_focus())
+            && let Some(window) = self
+                .windows
+                .iter()
+                .find(|window| window.window.id() == retry.window)
+        {
+            activate_presenter(&window.window);
+        }
+        if retry.finished() {
+            self.presenter_focus = None;
         }
     }
     fn refresh(&mut self, el: &ActiveEventLoop) {
@@ -746,8 +875,21 @@ impl App {
             {
                 index
             } else {
+                #[cfg(target_os = "windows")]
+                let first_presenter = role == Role::Presenter
+                    && !self
+                        .windows
+                        .iter()
+                        .any(|window| window.role == Role::Presenter);
                 self.windows
                     .push(NativeWindow::create(el, role, id.clone())?);
+                #[cfg(target_os = "windows")]
+                if first_presenter {
+                    self.presenter_focus = Some(PresenterFocusRetry::new(
+                        self.windows.last().unwrap().window.id(),
+                        Instant::now(),
+                    ));
+                }
                 self.windows.len() - 1
             };
             #[cfg(target_os = "linux")]
@@ -1613,6 +1755,8 @@ impl ApplicationHandler for App {
             window.repaint_if_due(now);
             window.transition(&self.handles, now);
         }
+        #[cfg(target_os = "windows")]
+        self.retry_presenter_focus(now);
         if self.smoke
             && self.started.elapsed() > Duration::from_millis((self.smoke_stage as u64 + 1) * 300)
             && let Some(s) = &mut self.studio
@@ -1691,6 +1835,8 @@ pub fn run(options: crate::poc::Options, path: Option<std::path::PathBuf>) -> Re
         override_presenter: options.presenter,
         override_output: options.audience,
         navigation_hold: None,
+        #[cfg(target_os = "windows")]
+        presenter_focus: None,
     };
     let result = el.run_app(&mut app);
     if let Some(output) = &mut app.output {
@@ -1759,6 +1905,8 @@ pub fn run_output() -> Result<(), Failure> {
         override_presenter: None,
         override_output: None,
         navigation_hold: None,
+        #[cfg(target_os = "windows")]
+        presenter_focus: None,
     };
     el.run_app(&mut app)?;
     Ok(())
@@ -1883,6 +2031,8 @@ mod buffer_tests {
                 override_presenter: None,
                 override_output: None,
                 navigation_hold: None,
+                #[cfg(target_os = "windows")]
+                presenter_focus: None,
             },
         };
         EventLoop::builder()
@@ -1938,6 +2088,8 @@ mod buffer_tests {
             override_presenter: None,
             override_output: None,
             navigation_hold: None,
+            #[cfg(target_os = "windows")]
+            presenter_focus: None,
         };
         for (role, consumed, modifiers, expected) in [
             (Role::Presenter, false, egui::Modifiers::NONE, 1),
