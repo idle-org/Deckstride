@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.68
+
+- Keep large arrows clean and proportional: shorten the shaft beneath a filled,
+  length-bounded triangular head instead of overlapping three thick strokes. Use
+  logical tool sizes directly so display DPI does not inflate arrows or highlights.
+  Linux checks pass with 84.42% whole-application coverage; the release binary is
+  rebuilt.
+
 ### 0.1.67
 
 - Add a presenter toolbox with a low-latency pointer, straight arrows and

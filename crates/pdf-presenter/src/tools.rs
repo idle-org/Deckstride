@@ -201,23 +201,18 @@ pub fn paint(painter: &egui::Painter, target: Rect, uv: Rect, overlay: &Overlay)
                 Color32::from_rgba_unmultiplied(mark.color[0], mark.color[1], mark.color[2], 105)
             }
         };
-        let width = mark.width * painter.ctx().pixels_per_point().sqrt().clamp(1., 2.);
-        painter.line_segment([from, to], Stroke::new(width, color));
-        if mark.kind == MarkKind::Arrow {
-            let direction = to - from;
-            if direction.length_sq() > 4. {
-                let direction = direction.normalized();
-                let normal = Vec2::new(-direction.y, direction.x);
-                let length = (width * 2.8).clamp(12., 42.);
-                painter.line_segment(
-                    [to, to - direction * length + normal * length * 0.45],
-                    Stroke::new(width, color),
-                );
-                painter.line_segment(
-                    [to, to - direction * length - normal * length * 0.45],
-                    Stroke::new(width, color),
-                );
-            }
+        let width = mark.width;
+        if mark.kind == MarkKind::Arrow
+            && let Some((shaft_end, head)) = arrow_geometry(from, to, width)
+        {
+            painter.line_segment([from, shaft_end], Stroke::new(width, color));
+            painter.add(egui::Shape::convex_polygon(
+                head.to_vec(),
+                color,
+                Stroke::NONE,
+            ));
+        } else {
+            painter.line_segment([from, to], Stroke::new(width, color));
         }
     }
     if let Some(point) = overlay
@@ -235,5 +230,47 @@ pub fn paint(painter: &egui::Painter, target: Rect, uv: Rect, overlay: &Overlay)
             overlay.pointer_size + 2.,
             Stroke::new(2_f32, Color32::WHITE),
         );
+    }
+}
+
+/// A filled head avoids the three overlapping thick strokes that deform large arrows.
+fn arrow_geometry(from: Pos2, to: Pos2, width: f32) -> Option<(Pos2, [Pos2; 3])> {
+    let vector = to - from;
+    let distance = vector.length();
+    if distance <= 2. {
+        return None;
+    }
+    let direction = vector / distance;
+    let normal = Vec2::new(-direction.y, direction.x);
+    let head_length = (width * 1.8).clamp(10., 56.).min(distance * 0.45);
+    let head_half_width = (width * 0.9).clamp(6., 30.).min(head_length * 0.75);
+    let base = to - direction * head_length;
+    let shaft_end = base + direction * (width * 0.12).min(head_length * 0.12);
+    Some((
+        shaft_end,
+        [
+            to,
+            base + normal * head_half_width,
+            base - normal * head_half_width,
+        ],
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn large_arrow_has_a_bounded_filled_head_and_shortened_shaft() {
+        let from = Pos2::new(0., 0.);
+        let to = Pos2::new(0., 200.);
+        let (shaft_end, head) = arrow_geometry(from, to, 48.).unwrap();
+        assert!(shaft_end.y < to.y);
+        assert_eq!(head[0], to);
+        assert!(head[1].distance(head[2]) <= 60.);
+        assert!(to.distance(head[1]) < 70.);
+
+        let (_, short_head) = arrow_geometry(from, Pos2::new(20., 0.), 48.).unwrap();
+        assert!(short_head[0].distance(short_head[1]) < 15.);
     }
 }
