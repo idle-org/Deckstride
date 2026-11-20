@@ -1202,3 +1202,58 @@ fn zoom_is_opt_in_resets_on_slide_change_and_does_not_blank_output() {
     assert!(!s.zoom_warning);
     assert!(!s.blanked);
 }
+
+#[test]
+fn zoom_preview_matches_reference_output_crop_and_tracks_window_shape() {
+    use pdf_presenter::{output::OutputViewport, zoom::View};
+    let mut s = studio();
+    s.settings.zoom_enabled = true;
+    s.set_zoom(View {
+        scale: 2.,
+        center: [0.4, 0.6],
+    });
+    assert_eq!(s.presentation_viewport(), Some([1920, 1080]));
+    let ctx = Context::default();
+    let mut native = UiState::default();
+    for size in [[1920, 1080], [900, 1200]] {
+        s.output_viewport = Some(OutputViewport {
+            monitor: "two".into(),
+            size,
+            fullscreen: s.presentation_fullscreen(),
+        });
+        assert_eq!(s.presentation_viewport(), Some(size));
+        let output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+            presenter_ui::presenter(ui, &mut s, &mut native);
+        });
+        let texture = native.textures.values().next().unwrap().id();
+        let mut actual = Rect::NOTHING;
+        for primitive in ctx.tessellate(output.shapes, output.pixels_per_point) {
+            if let egui::epaint::Primitive::Mesh(mesh) = primitive.primitive
+                && mesh.texture_id == texture
+            {
+                for vertex in mesh.vertices {
+                    actual.extend_with(vertex.uv);
+                }
+            }
+        }
+        let output_rect =
+            Rect::from_min_size(Pos2::ZERO, Vec2::new(size[0] as f32, size[1] as f32));
+        let (_, expected) = presenter_ui::zoom_geometry(output_rect, [64, 36], s.zoom.view, false);
+        assert!(
+            (actual.min - expected.min).length() < 0.0001,
+            "{actual:?} vs {expected:?}"
+        );
+        assert!((actual.max - expected.max).length() < 0.0001);
+    }
+    // Stale route/fullscreen reports and minimized windows cannot distort the preview.
+    s.output_viewport.as_mut().unwrap().fullscreen = !s.presentation_fullscreen();
+    assert_eq!(s.presentation_viewport(), Some([1920, 1080]));
+    s.output_viewport.as_mut().unwrap().fullscreen = s.presentation_fullscreen();
+    s.output_viewport.as_mut().unwrap().size = [0, 0];
+    assert_eq!(s.presentation_viewport(), Some([1920, 1080]));
+    s.routes.presentation = vec!["missing".into(), "one".into()];
+    s.monitors[0].size = (1280, 1024);
+    assert_eq!(s.presentation_viewport(), Some([1280, 1024]));
+    s.routes.presentation.clear();
+    assert_eq!(s.presentation_viewport(), None);
+}

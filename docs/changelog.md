@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.60
+
+- Match the zoom-enabled current preview to the first connected presentation
+  output's aspect ratio. Fit-width, wheel zoom and panning now show the same crop
+  in that preview and output, rather than fitting independently to the preview pane.
+  Report actual output-window dimensions for windowed/resized output; use monitor
+  dimensions until reported. No image copies or PDF rendering are added.
+  Linux checks pass with 86.35% coverage, including actual preview-mesh crop
+  comparisons and portrait-page fit-width regression checks. Physical display
+  acceptance remains separate.
+
 ### 0.1.59
 
 - Increase the Menu dropdown height from 520 to 720 logical pixels so Quit stays

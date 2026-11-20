@@ -170,3 +170,12 @@ absent. No zoom state is persisted except the opt-in boolean in settings.
 The performance watcher counts three consecutive zoomed window draws above 33 ms,
 including software drawing/presentation. The presenter shows the warning locally;
 output hosts report only a boolean. It does not alter visibility or navigation.
+
+
+Since 0.1.60, output heartbeats may include `viewport {monitor, size, fullscreen}`.
+`size` is the actual reference output window’s physical client size `[width, height]`.
+The reference is the first connected presentation route. This transient metadata
+lets the current preview use that aspect ratio, without transferring image data.
+Missing/zero dimensions or a route/fullscreen mismatch fall back to the connected
+monitor size. Reports are refreshed by the existing one-second heartbeat, and are
+not persisted. Outputs with different aspect ratios still use their own viewport.

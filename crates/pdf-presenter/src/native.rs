@@ -780,6 +780,11 @@ impl App {
             }
             if let Some(output) = &self.output {
                 while let Ok(ack) = output.rx.try_recv() {
+                    if let Some(viewport) = ack.viewport {
+                        let before = s.presentation_viewport();
+                        s.output_viewport = Some(viewport);
+                        repaint |= before != s.presentation_viewport();
+                    }
                     if let Some(zoom) = ack.zoom {
                         if ack.generation == s.buffer_generation() && ack.page == Some(s.requested)
                         {
@@ -1221,7 +1226,21 @@ impl ApplicationHandler for App {
                 let shown = !host.state.blanked
                     && !self.windows.is_empty()
                     && host.presented.len() >= self.windows.len();
+                let viewport = host.state.monitors.iter().find_map(|id| {
+                    self.windows
+                        .iter()
+                        .find(|w| w.role == Role::Presentation && &w.monitor == id)
+                        .map(|w| {
+                            let size = w.window.inner_size();
+                            crate::output::OutputViewport {
+                                monitor: id.clone(),
+                                size: [size.width, size.height],
+                                fullscreen: host.state.fullscreen,
+                            }
+                        })
+                });
                 let _ = host.acks.try_send(Ack {
+                    viewport,
                     sequence: host.state.sequence,
                     generation: host.state.generation,
                     buffered: host

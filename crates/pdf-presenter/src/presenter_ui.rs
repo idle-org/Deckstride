@@ -838,6 +838,11 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             if let Some(page) = page {
                 let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
                 if index == 1 && s.settings.zoom_enabled {
+                    // Mirror the output aspect, not the independently sized presenter pane.
+                    // This makes the shared zoom/center produce the same visible page crop.
+                    let area = s
+                        .presentation_viewport()
+                        .map_or(area, |dimensions| fitted_slide(area, dimensions));
                     native.image_view(ui, s, page, area, s.zoom.view);
                     if s.route_trial.is_none()
                         && let Some(frame) = s.frame(page)

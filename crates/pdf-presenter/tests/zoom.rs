@@ -655,3 +655,25 @@ fn double_click_fits_width_then_resets_without_stretching() {
         }
     }
 }
+
+#[test]
+fn fit_width_uses_output_shape_even_with_a_narrow_presenter_pane() {
+    use pdf_presenter::presenter_ui::{fitted_slide, zoom_geometry};
+    let output = Rect::from_min_size(Pos2::ZERO, Vec2::new(1920., 1080.));
+    let pane = Rect::from_min_size(Pos2::ZERO, Vec2::new(300., 600.));
+    let preview = fitted_slide(pane, [1920, 1080]);
+    let scale = preview.width() / fitted_slide(preview, [210, 297]).width();
+    let view = View {
+        scale,
+        center: [0.5; 2],
+    };
+    let (preview_draw, preview_uv) = zoom_geometry(preview, [210, 297], view, false);
+    let (output_draw, output_uv) = zoom_geometry(output, [210, 297], view, false);
+    assert!((preview_draw.width() - preview.width()).abs() < 0.001);
+    assert!(
+        (output_draw.width() - output.width()).abs() < 0.001,
+        "output retained side borders"
+    );
+    assert!((preview_uv.min - output_uv.min).length() < 0.0001);
+    assert!((preview_uv.max - output_uv.max).length() < 0.0001);
+}

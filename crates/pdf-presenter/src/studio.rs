@@ -128,6 +128,7 @@ pub struct Studio {
     pub privacy_hold: bool,
     pub output_sequence: u64,
     pub zoom: crate::zoom::Sync,
+    pub output_viewport: Option<crate::output::OutputViewport>,
     pub new_zoom: bool,
     pub zoom_warning: bool,
     pub zoom_warning_dismissed: bool,
@@ -229,6 +230,7 @@ impl Studio {
             privacy_hold: false,
             output_sequence: 0,
             zoom: Default::default(),
+            output_viewport: None,
             new_zoom: false,
             zoom_warning: false,
             zoom_warning_dismissed: false,
@@ -1116,6 +1118,22 @@ impl Studio {
     }
     pub fn buffer_generation(&self) -> u64 {
         (self.generation << 32) | u64::from(self.target_edge)
+    }
+    /// Use the first connected presentation route as the preview reference.
+    pub fn presentation_viewport(&self) -> Option<[u32; 2]> {
+        let monitor = self
+            .routes
+            .presentation
+            .iter()
+            .find_map(|id| self.monitors.iter().find(|m| &m.id == id))?;
+        if let Some(viewport) = &self.output_viewport
+            && viewport.monitor == monitor.id
+            && viewport.fullscreen == self.presentation_fullscreen()
+            && viewport.size.iter().all(|v| *v > 0)
+        {
+            return Some(viewport.size);
+        }
+        Some([monitor.size.0.max(1), monitor.size.1.max(1)])
     }
     pub fn set_zoom(&mut self, view: crate::zoom::View) {
         self.zoom.keep_fitted_area = self.settings.zoom_keep_fitted_area;

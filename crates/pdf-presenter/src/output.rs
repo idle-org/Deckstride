@@ -46,8 +46,17 @@ pub struct HostState {
     pub blanked: bool,
     pub quit: bool,
 }
+/// Actual size of the reference presentation window, never presenter content.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct OutputViewport {
+    pub monitor: String,
+    pub size: [u32; 2],
+    pub fullscreen: bool,
+}
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Ack {
+    #[serde(default)]
+    pub viewport: Option<OutputViewport>,
     #[serde(default)]
     pub zoom: Option<crate::zoom::Sync>,
     #[serde(default)]
