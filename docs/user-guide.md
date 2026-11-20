@@ -308,3 +308,12 @@ Save errors keep your draft visible. If another program changed the notes file,
 copy your draft before choosing **Reload (discard edits)**; the editor won't
 silently replace a detected external edit. Notes files require a writable source
 folder. They travel alongside the presentation, independently of saved layouts.
+
+
+### Import notes from text or Markdown
+
+With a presentation open, choose **Menu → Import notes…** or drop a `.txt`/`.md`
+file onto the presenter. Review the destination and slide count, then choose
+**Import and save notes** to create/update the presentation's `.notes.toml` file.
+Cancel leaves files unchanged. See the [README examples](../README.md#import-your-notes)
+and [format contract](interfaces/presentation-notes.md#importing-txt-and-markdown).

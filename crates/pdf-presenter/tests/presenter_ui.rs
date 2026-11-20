@@ -1067,3 +1067,70 @@ fn double_click_notes_opens_editor_and_editor_keeps_unsaved_draft() {
     }
     assert!(s.actions.iter().any(|a| matches!(a, Action::SaveNotes)));
 }
+
+#[test]
+fn notes_import_review_requires_explicit_save_and_cancel_discards_preview() {
+    fn label_pos(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| label_pos(s, label)),
+            _ => None,
+        }
+    }
+    for (button, apply) in [("Import and save notes", true), ("Cancel", false)] {
+        let ctx = Context::default();
+        let mut s = studio();
+        let original = s.deck.as_ref().unwrap().notes.clone();
+        s.notes_import = Some(pdf_presenter::studio::NotesImport {
+            busy: false,
+            error: None,
+            preview: Some(pdf_presenter::notes::ImportPreview {
+                path: "demo.notes.toml".into(),
+                revision: Some("revision".into()),
+                sections: vec!["New first note".into(), "".into()],
+                total: 30,
+            }),
+        });
+        let mut state = UiState::default();
+        let mut time = 0.;
+        let mut render = |s: &mut Studio, events| {
+            time += 0.04;
+            let mut raw = input(Vec2::new(900., 700.));
+            raw.time = Some(time);
+            raw.events = events;
+            ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, s, &mut state))
+        };
+        for _ in 0..3 {
+            render(&mut s, vec![]);
+        }
+        let output = render(&mut s, vec![]);
+        let pos = output
+            .shapes
+            .iter()
+            .find_map(|s| label_pos(&s.shape, button))
+            .unwrap();
+        assert_eq!(s.deck.as_ref().unwrap().notes, original);
+        for pressed in [true, false] {
+            render(
+                &mut s,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+        assert_eq!(
+            s.actions
+                .iter()
+                .any(|a| matches!(a, Action::ApplyNotesImport)),
+            apply
+        );
+        assert_eq!(s.notes_import.is_some(), apply);
+        assert_eq!(s.deck.as_ref().unwrap().notes, original);
+    }
+}

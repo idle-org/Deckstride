@@ -21,6 +21,9 @@ pub struct Monitor {
 pub enum Action {
     Open(PathBuf),
     Pick(bool),
+    PickNotes,
+    ImportNotes(PathBuf),
+    ApplyNotesImport,
     Go(usize),
     Blank,
     SaveProject,
@@ -40,6 +43,11 @@ pub enum Action {
     EditNotes,
     ReloadNotes,
     SaveNotes,
+}
+pub struct NotesImport {
+    pub preview: Option<crate::notes::ImportPreview>,
+    pub busy: bool,
+    pub error: Option<String>,
 }
 pub struct NotesEditor {
     pub page: usize,
@@ -84,6 +92,7 @@ pub struct Studio {
     pub evicted_frames: usize,
     pub loading: bool,
     pub notes_loading: bool,
+    pub notes_import: Option<NotesImport>,
     pub notes_editor: Option<NotesEditor>,
     notes_io: Bridge,
     notes_edited: bool,
@@ -180,6 +189,7 @@ impl Studio {
             evicted_frames: 0,
             loading: false,
             notes_loading: false,
+            notes_import: None,
             notes_editor: None,
             notes_io: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             notes_edited: false,
@@ -299,9 +309,9 @@ impl Studio {
     pub fn execute(&mut self, action: Action) {
         match action {
             Action::Open(path) => {
-                if self.notes_editor.is_some() {
+                if self.notes_editor.is_some() || self.notes_import.is_some() || self.dialog_busy {
                     self.status =
-                        "Close the notes editor before opening another presentation.".into();
+                        "Close the notes editor/import or file chooser before opening another presentation.".into();
                     return;
                 }
                 if self.fg_busy {
@@ -313,6 +323,75 @@ impl Studio {
                 self.loading = true;
                 self.pending_open = Some(path);
                 self.status = "Opening document in an isolated worker…".into();
+            }
+            Action::PickNotes => {
+                if !self.dialog_busy
+                    && !self.loading
+                    && self.deck.is_some()
+                    && self.notes_editor.is_none()
+                    && self.notes_import.is_none()
+                {
+                    self.dialog_busy = self.dialog.submit(
+                        self.generation,
+                        1,
+                        Request::PickNotes {
+                            owner: self.dialog_owner,
+                        },
+                    );
+                    self.status = "Choose a TXT or Markdown notes file.".into();
+                }
+            }
+            Action::ImportNotes(import) => {
+                if self.loading
+                    || self.notes_editor.is_some()
+                    || self.notes_import.is_some()
+                    || self.dialog_busy
+                {
+                    self.status = "Close the notes editor/import or file chooser and wait for the presentation to load.".into();
+                    return;
+                }
+                let Some(deck) = &self.deck else {
+                    self.status = "Open a presentation before importing notes.".into();
+                    return;
+                };
+                if self.notes_io.submit(
+                    self.generation,
+                    2,
+                    Request::PreviewNotesImport {
+                        path: deck.path.clone(),
+                        cache: self.cache_path.clone(),
+                        source_sha: deck.sha256.clone(),
+                        import,
+                    },
+                ) {
+                    self.notes_import = Some(NotesImport {
+                        preview: None,
+                        busy: true,
+                        error: None,
+                    });
+                    self.jump.clear();
+                    self.status = "Reading notes for import…".into();
+                }
+            }
+            Action::ApplyNotesImport => {
+                if let (Some(deck), Some(import)) = (&self.deck, &mut self.notes_import)
+                    && !import.busy
+                    && import.error.is_none()
+                    && let Some(preview) = &import.preview
+                    && self.notes_io.submit(
+                        self.generation,
+                        3,
+                        Request::ApplyNotesImport {
+                            path: deck.path.clone(),
+                            cache: self.cache_path.clone(),
+                            source_sha: deck.sha256.clone(),
+                            preview: preview.clone(),
+                        },
+                    )
+                {
+                    import.busy = true;
+                    self.status = "Saving imported notes…".into();
+                }
             }
             Action::Pick(folder) => {
                 if !self.dialog_busy {
@@ -462,6 +541,10 @@ impl Studio {
             }
             Action::Refresh => self.dirty_routes = true,
             Action::Exit => {
+                if self.notes_import.as_ref().is_some_and(|i| i.busy) {
+                    self.status = "Wait for notes import to finish before closing.".into();
+                    return;
+                }
                 if self
                     .notes_editor
                     .as_ref()
@@ -476,7 +559,11 @@ impl Studio {
                 if matches!(command, Action::EditNotes) && self.notes_editor.is_some() {
                     return;
                 }
-                if self.loading || self.notes_editor.as_ref().is_some_and(|e| e.busy) {
+                if self.loading
+                    || self.notes_import.is_some()
+                    || self.dialog_busy
+                    || self.notes_editor.as_ref().is_some_and(|e| e.busy)
+                {
                     return;
                 }
                 if let Some(deck) = &self.deck {
@@ -588,6 +675,34 @@ impl Studio {
             if completion.generation != self.generation {
                 continue;
             }
+            if completion.tag >= 2 {
+                if let Some(import) = &mut self.notes_import {
+                    import.busy = false;
+                    match completion.result {
+                        Ok(packet) => {
+                            import.error = packet.reply.error;
+                            if let Some(preview) = packet.reply.notes_import {
+                                import.preview = Some(preview);
+                                self.status = "Review the notes import before saving.".into();
+                            }
+                            if let Some(snapshot) = packet.reply.notes {
+                                if let Some(deck) = &mut self.deck {
+                                    deck.notes = snapshot.notes;
+                                }
+                                self.notes_edited = true;
+                                self.status =
+                                    format!("Notes imported: {}", snapshot.path.display());
+                                self.notes_import = None;
+                            }
+                        }
+                        Err(error) => import.error = Some(error),
+                    }
+                    if let Some(error) = self.notes_import.as_ref().and_then(|i| i.error.as_ref()) {
+                        self.status = format!("Notes import: {error}");
+                    }
+                }
+                continue;
+            }
             if let Some(editor) = &mut self.notes_editor {
                 editor.busy = false;
                 match completion.result {
@@ -668,7 +783,13 @@ impl Studio {
             match c.result {
                 Ok(p) => {
                     if let Some(path) = p.reply.picked {
-                        self.execute(Action::Open(path));
+                        if c.tag == 1 {
+                            if c.generation == self.generation {
+                                self.execute(Action::ImportNotes(path));
+                            }
+                        } else {
+                            self.execute(Action::Open(path));
+                        }
                     }
                     if let Some(e) = p.reply.error {
                         self.status = e;

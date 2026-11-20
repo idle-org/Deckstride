@@ -34,6 +34,21 @@ pub enum Request {
         path: PathBuf,
         cache: PathBuf,
     },
+    PreviewNotesImport {
+        path: PathBuf,
+        cache: PathBuf,
+        source_sha: String,
+        import: PathBuf,
+    },
+    ApplyNotesImport {
+        path: PathBuf,
+        cache: PathBuf,
+        source_sha: String,
+        preview: crate::notes::ImportPreview,
+    },
+    PickNotes {
+        owner: Option<isize>,
+    },
     PrepareNotes {
         path: PathBuf,
         cache: PathBuf,
@@ -74,6 +89,7 @@ pub struct Reply {
     pub frame: Option<FrameInfo>,
     pub settings: Option<Settings>,
     pub notes: Option<crate::notes::Snapshot>,
+    pub notes_import: Option<crate::notes::ImportPreview>,
     pub picked: Option<PathBuf>,
     pub bytes: usize,
     pub edge: Option<u32>,
@@ -202,6 +218,37 @@ pub fn run() -> Result<(), String> {
                 }
                 Request::Notes { path, cache } => {
                     reply.info = Some(document::Document::open(&path, cache)?.info);
+                }
+                Request::PreviewNotesImport {
+                    path,
+                    cache,
+                    source_sha,
+                    import,
+                } => {
+                    reply.notes_import = Some(crate::notes::preview_import(
+                        &path,
+                        cache,
+                        &source_sha,
+                        &import,
+                    )?);
+                }
+                Request::ApplyNotesImport {
+                    path,
+                    cache,
+                    source_sha,
+                    preview,
+                } => {
+                    reply.notes = Some(crate::notes::apply_import(
+                        &path,
+                        cache,
+                        &source_sha,
+                        preview,
+                    )?);
+                }
+                Request::PickNotes { owner } => {
+                    reply.picked = picker_dialog(owner)?
+                        .add_filter("Notes (TXT, Markdown)", &["txt", "md"])
+                        .pick_file();
                 }
                 Request::PrepareNotes {
                     path,

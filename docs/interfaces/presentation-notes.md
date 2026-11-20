@@ -58,3 +58,46 @@ sent to presentation outputs or persisted in global/project layout settings.
 
 See [example](examples/presentation.notes.toml), `tests/notes.rs`, the pointer
 interaction tests in `tests/presenter_ui.rs`, and the private worker protocol.
+
+
+## Importing TXT and Markdown
+
+Implemented in 0.1.53, with no change to the version-1 TOML representation. A loaded
+presentation accepts `.txt` and `.md` files (case-insensitive extensions) through
+Menu → Import notes or drag-and-drop onto the presenter. Import review is read-only;
+only **Import and save notes** writes the named sidecar. Cancel writes nothing.
+
+- Input is UTF-8, up to 8 MiB; an initial BOM is removed and CRLF becomes LF.
+- TXT splits at a line whose trimmed content is only two or more ASCII hyphens.
+  Consecutive separators preserve empty sections, as do leading/trailing separators.
+  No separators means one slide's notes. A trailing newline is not a separator.
+- Markdown splits at ATX level-one headings (`#` followed by space/tab, or `#`
+  alone), with up to three leading spaces. The title is omitted. Level-two and
+  deeper headings remain literal text. Backtick/tilde fences of at least three
+  markers protect headings inside them; closing fences use the same marker and
+  at least the opening length. A document without a heading, or with nonblank
+  preamble before the first heading, is rejected. Setext headings are unsupported.
+- Blank newline characters at the beginning/end of each section are removed;
+  internal newlines, indentation and Markdown body text are retained, displayed
+  literally. This is section parsing, not Markdown rendering.
+- Sections replace slides sequentially from slide 1, using natural filename order
+  for folders. Titles never match filenames or page numbers. Empty sections clear
+  notes. Missing trailing sections retain current sidecar/extracted notes. Excess
+  sections fail without writing. Limits remain 10000 sections and 256 KiB per note.
+- Saving materializes all slides' effective notes and preserves unknown existing
+  page keys. Combined notes and serialized-file limits still apply. Existing TOML
+  comments/formatting are regenerated. The source notes import is never modified.
+
+Preview holds parsed sections in memory, the destination, slide count and optional
+existing-sidecar SHA. Apply revalidates the source identity and sidecar revision;
+external creation, edits or deletion since review cause a conflict. Atomic replace
+and no-clobber creation use the same guarantees/limitations as the editor above.
+Malformed existing sidecars are never overwritten. Errors appear in the import
+window; cancel and import again after resolving the cause. The first three sections
+are excerpted in the review; all sections are validated before writing.
+
+Parsing, extraction and writes run in the supervised notes worker, never on the
+input/render thread. Presentation navigation and output continue independently.
+Keyboard presentation shortcuts are suspended while the import window is open.
+Opening another presentation/editing notes is held until the import closes; normal
+exit is held during an active import job. No notes payload reaches output windows.

@@ -194,3 +194,164 @@ pub fn save(
         notes: info.notes,
     })
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ImportPreview {
+    pub path: PathBuf,
+    pub revision: Option<String>,
+    pub sections: Vec<String>,
+    pub total: usize,
+}
+/// Recognize imports without filesystem access on the input thread.
+pub fn is_import(path: &Path) -> bool {
+    path.extension()
+        .and_then(|s| s.to_str())
+        .is_some_and(|s| s.eq_ignore_ascii_case("txt") || s.eq_ignore_ascii_case("md"))
+}
+/// Plain UTF-8 notes; Markdown headings delimit slides, not rendered formatting.
+pub fn parse_import(text: &str, markdown: bool) -> Result<Vec<String>, String> {
+    if text.len() > MAX_TEXT {
+        return Err("Imported notes exceed 8 MiB".into());
+    }
+    let text = text
+        .strip_prefix('\u{feff}')
+        .unwrap_or(text)
+        .replace("\r\n", "\n");
+    let mut sections = Vec::new();
+    let mut lines = Vec::new();
+    let mut heading_seen = false;
+    let mut fence: Option<(u8, usize)> = None;
+    for line in text.lines() {
+        let trimmed = line.trim();
+        let mut heading = false;
+        if markdown {
+            let start = line.trim_start_matches(' ');
+            let indent = line.len() - start.len();
+            let marker = start.as_bytes().first().copied();
+            let run = start.bytes().take_while(|b| Some(*b) == marker).count();
+            if let Some((ch, len)) = fence {
+                if indent <= 3 && marker == Some(ch) && run >= len && start[run..].trim().is_empty()
+                {
+                    fence = None;
+                }
+            } else if indent <= 3 && matches!(marker, Some(b'`' | b'~')) && run >= 3 {
+                fence = Some((marker.unwrap(), run));
+            } else if indent <= 3 {
+                heading = start == "#"
+                    || start
+                        .strip_prefix('#')
+                        .is_some_and(|tail| tail.starts_with([' ', '\t']));
+            }
+        }
+        let separator = !markdown && trimmed.len() >= 2 && trimmed.bytes().all(|b| b == b'-');
+        if heading || separator {
+            if markdown && !heading_seen {
+                if lines.iter().any(|line: &&str| !line.trim().is_empty()) {
+                    return Err(
+                        "Markdown notes must begin with a # slide title (blank lines are allowed)."
+                            .into(),
+                    );
+                }
+                heading_seen = true;
+            } else {
+                sections.push(lines.join("\n").trim_matches('\n').to_owned());
+            }
+            lines.clear();
+        } else {
+            lines.push(line);
+        }
+        if sections.len() >= 10000 {
+            return Err("Imported notes exceed 10000 slides".into());
+        }
+    }
+    if markdown && !heading_seen {
+        return Err("Markdown notes need # slide titles.".into());
+    }
+    sections.push(lines.join("\n").trim_matches('\n').to_owned());
+    if sections.iter().any(|s| s.len() > MAX_NOTE) {
+        return Err("An imported note exceeds 256 KiB".into());
+    }
+    Ok(sections)
+}
+pub fn preview_import(
+    source: &Path,
+    cache: PathBuf,
+    source_sha: &str,
+    import: &Path,
+) -> Result<ImportPreview, String> {
+    if !is_import(import) {
+        return Err("Choose a .txt or .md notes file.".into());
+    }
+    let input = read_limited(import, MAX_TEXT as u64)?;
+    let text = std::str::from_utf8(&input).map_err(|_| "Notes imports must be UTF-8 text.")?;
+    let markdown = import
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("md"));
+    let sections = parse_import(text, markdown)?;
+    let (info, existing) = document(source, cache, source_sha)?;
+    if sections.len() > info.notes.len() {
+        return Err(format!(
+            "{} note sections, but only {} slides. Nothing was changed.",
+            sections.len(),
+            info.notes.len()
+        ));
+    }
+    Ok(ImportPreview {
+        path: sidecar_path(&info.path),
+        revision: existing.map(|(_, b)| revision(&b)),
+        sections,
+        total: info.notes.len(),
+    })
+}
+pub fn apply_import(
+    source: &Path,
+    cache: PathBuf,
+    source_sha: &str,
+    preview: ImportPreview,
+) -> Result<Snapshot, String> {
+    let (mut info, existing) = document(source, cache, source_sha)?;
+    let path = sidecar_path(&info.path);
+    if path != preview.path
+        || info.notes.len() != preview.total
+        || preview.sections.len() > info.notes.len()
+    {
+        return Err("Presentation changed. Import the notes again.".into());
+    }
+    let previous = existing.as_ref().map(|(_, b)| b);
+    if previous.map(|b| revision(b)) != preview.revision {
+        return Err("Notes changed on disk. Import again to review the latest notes.".into());
+    }
+    for (note, imported) in info.notes.iter_mut().zip(preview.sections) {
+        *note = imported;
+    }
+    if info.notes.iter().map(String::len).sum::<usize>() > MAX_TEXT {
+        return Err("Combined notes exceed 8 MiB; nothing was saved.".into());
+    }
+    let mut file = NotesFile {
+        version: 1,
+        notes: BTreeMap::new(),
+    };
+    if let Some((existing, _)) = &existing {
+        file.notes.clone_from(&existing.notes);
+    }
+    file.notes.extend(
+        keys(&info.path, &info.names)
+            .into_iter()
+            .zip(info.notes.iter().cloned()),
+    );
+    let bytes = bytes(&file)?;
+    let temp = temporary(&path, &bytes)?;
+    if read(&path)?.as_ref().map(|(_, b)| b) != previous {
+        return Err("Notes changed while importing; nothing was saved.".into());
+    }
+    if previous.is_some() {
+        temp.persist(&path).map_err(|e| e.to_string())?;
+    } else {
+        temp.persist_noclobber(&path).map_err(|e| e.to_string())?;
+    }
+    Ok(Snapshot {
+        path,
+        revision: revision(&bytes),
+        notes: info.notes,
+    })
+}

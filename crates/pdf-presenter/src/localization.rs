@@ -39,6 +39,19 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         return text;
     }
     match text {
+        "Cancel" => "Annuler",
+        "Preview (first 3 slides)" => "Aperçu (3 premières diapositives)",
+        "Import notes…" => "Importer des notes…",
+        "Import notes" => "Importer des notes",
+        "Processing notes…" => "Traitement des notes…",
+        "Slides to update" => "Diapositives à modifier",
+        "Sections replace notes starting at slide 1. Remaining slides keep their notes." => {
+            "Les sections remplacent les notes à partir de la diapositive 1. Les suivantes conservent leurs notes."
+        }
+        "Update existing notes file" => "Mettre à jour le fichier de notes existant",
+        "Create notes file" => "Créer le fichier de notes",
+        "Empty note" => "Note vide",
+        "Import and save notes" => "Importer et enregistrer les notes",
         "File chooser already open" => "Sélecteur de fichiers déjà ouvert",
         "Page background" => "Fond de page",
         "Fit padding color" => "Couleur des marges",

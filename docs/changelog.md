@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.53
+
+- Import UTF-8 TXT notes separated by hyphen lines or Markdown notes separated by
+  level-one headings, via Menu or presenter drag-and-drop. Review before converting
+  to a complete presentation notes sidecar; preserve remaining notes/source files,
+  detect external conflicts and keep processing off the presentation thread.
+  Document examples and mapping in the README. Linux regression coverage includes
+  parsers, worker flow, natural ordering, atomic saves and conflict handling.
+
 ### 0.1.52
 
 - Load presentation-named notes sidecars before falling back to PDF/folder notes.

@@ -123,3 +123,16 @@ and `revision` is the notes file SHA-256 observed when editing began. A successf
 order. Errors use the existing error field. The presenter ignores stale-generation
 completions and late background extraction after an editor snapshot has been accepted.
 The current page draft survives save failure. None of this payload enters output IPC.
+
+
+## Notes import in 0.1.53
+
+`PickNotes {owner}` uses the existing owned, supervised file chooser with TXT/MD
+filters. `PreviewNotesImport {path, cache, source_sha, import}` returns
+`Reply.notes_import {path, revision, sections, total}`: destination sidecar path,
+optional existing-file SHA, parsed strings and total slide count. It writes nothing.
+`ApplyNotesImport {path, cache, source_sha, preview}` revalidates identity/revision,
+merges notes and writes atomically, returning the existing `Reply.notes` snapshot.
+Both notes jobs use the dedicated 30-second bridge, bounded JSON messages and source
+generations. Notes picker results carry the source generation too. These messages
+are private same-executable presenter/worker traffic, never output-host traffic.

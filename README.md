@@ -49,14 +49,52 @@ are not yet available. Test your display setup before using it for a live event.
 4. **Present.** Use arrows or Space to advance. Type a slide number and press Enter
    to jump. All slides opens a thumbnail browser; B blanks or restores the output.
 
-Opening a document shows the presentation by default. After changing displays,
-use **Show presentation** to restore output. Hide the bars for more space; move the
+Opening a document shows the presentation by default. Changing displays or fullscreen
+preserves whether you have shown or blanked the output. Hide the bars for more space; move the
 pointer near an edge or right-click to recover them.
 
 Prepared slides are cached for reuse. The presenter shows loading progress, RAM use
 and an ETA when available; decks larger than the RAM budget use a rolling buffer.
 Notes can come from the PDF or picture-folder sidecars. Themes and English/French
 controls are available in Menu.
+
+## Import your notes
+
+Open your presentation, then choose **Menu → Import notes…**, or drop a `.txt` or
+`.md` file onto the presenter window. Review the import and choose **Import and save
+notes**. This creates or updates `presentation.notes.toml` beside `presentation.pdf`
+(or `Slides.notes.toml` beside a picture folder named `Slides`). Your original notes
+file and slides stay untouched. Double-click the notes pane to edit a slide later.
+
+**TXT:** separate slides with a line containing two or more hyphens:
+
+```text
+Welcome everyone.
+-------
+Explain the results.
+-------
+Thank the audience.
+```
+
+**Markdown:** start each slide with a top-level `#` title. Titles are separators;
+only their body becomes the slide's notes:
+
+```markdown
+# Introduction
+Welcome everyone.
+# Results
+Explain the results.
+# Conclusion
+Thank the audience.
+```
+
+Sections map to slides **in order, starting at slide 1**; titles do not select slide
+numbers. Fewer sections preserve the remaining slides' notes; too many sections
+reject the import without writing. Empty sections clear a slide's notes. TXT files
+need no final separator (a final separator creates an empty section). Use UTF-8.
+Markdown `##` subheadings and headings inside fenced code stay in the note;
+nonblank text before the first `#` title is rejected. Notes display as plain text.
+[Format details and limits →](docs/interfaces/presentation-notes.md#importing-txt-and-markdown)
 
 [**Read the user guide →**](docs/user-guide.md)
 

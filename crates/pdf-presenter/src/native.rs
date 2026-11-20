@@ -599,7 +599,7 @@ impl App {
         }
         // Notes editing must never turn typing or Escape into presentation commands.
         // Unsaved text is only discarded through the explicit editor control.
-        if role == Role::Presenter && s.notes_editor.is_some() {
+        if role == Role::Presenter && (s.notes_editor.is_some() || s.notes_import.is_some()) {
             return;
         }
         if modifiers.ctrl || modifiers.alt || modifiers.command || consumed {
@@ -671,7 +671,7 @@ impl App {
             repaint |= !actions.is_empty();
             for action in actions {
                 #[cfg(target_os = "windows")]
-                if matches!(action, Action::Pick(_)) && !s.dialog_busy {
+                if matches!(action, Action::Pick(_) | Action::PickNotes) && !s.dialog_busy {
                     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
                     s.dialog_owner = self
                         .windows
@@ -1016,8 +1016,14 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::DroppedFile(path) => {
-                if let Some(s) = &mut self.studio {
-                    s.execute(Action::Open(path));
+                if role == Role::Presenter
+                    && let Some(s) = &mut self.studio
+                {
+                    s.execute(if crate::notes::is_import(&path) {
+                        Action::ImportNotes(path)
+                    } else {
+                        Action::Open(path)
+                    });
                 }
             }
             WindowEvent::KeyboardInput { event, .. }

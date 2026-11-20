@@ -1290,7 +1290,53 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         s.displays_open &= open;
     }
+    notes_import_ui(&ctx, s);
     notes_editor_ui(&ctx, s);
+}
+fn notes_import_ui(ctx: &Context, s: &mut Studio) {
+    let Some(import) = &s.notes_import else {
+        return;
+    };
+    let mut apply = false;
+    let mut close = false;
+    egui::Window::new(tr(ctx, "Import notes"))
+        .id(egui::Id::new("notes-import"))
+        .collapsible(false).resizable(true)
+        .default_size(Vec2::new(560., 360.).min(ctx.content_rect().size() - Vec2::splat(48.)))
+        .max_size(ctx.content_rect().size() - Vec2::splat(32.))
+        .show(ctx, |ui| {
+            if import.busy {
+                ui.horizontal(|ui| { ui.spinner(); ui.label(tr(ctx, "Processing notes…")); });
+            }
+            egui::ScrollArea::vertical().max_height((ui.available_height() - 45.).max(60.)).show(ui, |ui| {
+                if let Some(preview) = &import.preview {
+                    ui.label(format!("{}: {} / {}", tr(ctx, "Slides to update"), preview.sections.len(), preview.total));
+                    ui.label(tr(ctx, "Sections replace notes starting at slide 1. Remaining slides keep their notes."));
+                    ui.label(tr(ctx, if preview.revision.is_some() { "Update existing notes file" } else { "Create notes file" }));
+                    ui.label(preview.path.display().to_string());
+                    ui.separator();
+                    ui.strong(tr(ctx, "Preview (first 3 slides)"));
+                    for (index, note) in preview.sections.iter().enumerate().take(3) {
+                        ui.strong(format!("{} {}", tr(ctx, "Slide"), index + 1));
+                        let mut excerpt: String = note.chars().take(500).collect();
+                        if excerpt.len() < note.len() { excerpt.push('…'); }
+                        ui.label(if note.is_empty() { tr(ctx, "Empty note") } else { &excerpt });
+                    }
+                }
+                if let Some(error) = &import.error { ui.colored_label(ui.visuals().error_fg_color, error); }
+            });
+            ui.separator();
+            ui.horizontal(|ui| {
+                apply = ui.add_enabled(!import.busy && import.preview.is_some() && import.error.is_none(), egui::Button::new(tr(ctx, "Import and save notes"))).clicked();
+                close = ui.add_enabled(!import.busy, egui::Button::new(tr(ctx, "Cancel"))).clicked();
+            });
+        });
+    if apply {
+        s.actions.push(Action::ApplyNotesImport);
+    }
+    if close {
+        s.notes_import = None;
+    }
 }
 fn notes_editor_ui(ctx: &Context, s: &mut Studio) {
     let Some(editor) = &mut s.notes_editor else {
@@ -1720,6 +1766,21 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     if s.dialog_busy {
         ui.label(tr(&locale, "File chooser already open"));
     }
+    ui.add_enabled_ui(
+        !s.dialog_busy
+            && !s.loading
+            && s.deck.is_some()
+            && s.notes_editor.is_none()
+            && s.notes_import.is_none(),
+        |ui| {
+            button(
+                ui,
+                tr(&locale, "Import notes…"),
+                Action::PickNotes,
+                &mut s.actions,
+            );
+        },
+    );
     ui.separator();
     button(
         ui,
