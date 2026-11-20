@@ -1,0 +1,9 @@
+version = 1
+
+[notes]
+"1" = "Welcome — introduce the presentation."
+"2" = "" # Intentionally blank, even if the PDF contains an annotation.
+"3" = """
+Explain the diagram.
+Pause for questions.
+"""

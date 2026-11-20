@@ -13,6 +13,10 @@ case folding, then exact filename breaks ties. There is no locale collation or U
 normalization. Use UTF-8 filenames for portable notes keys. Missing/corrupt slides
 retain their position and report an error rather than renumbering the deck.
 
+Since 0.1.52, a presentation-named sidecar beside the folder takes priority over
+the sources below. See [presentation notes](presentation-notes.md) for its format
+and the double-click editor.
+
 A UTF-8 matching-stem sidecar (`slide_01.png` → `slide_01.txt`) overrides global notes,
 even when empty. Multiple images sharing that stem share its sidecar. Otherwise use
 one global notes file mapping exact image filenames to strings:

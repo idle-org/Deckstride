@@ -597,6 +597,11 @@ impl App {
             s.execute(Action::RevertRoutes);
             return;
         }
+        // Notes editing must never turn typing or Escape into presentation commands.
+        // Unsaved text is only discarded through the explicit editor control.
+        if role == Role::Presenter && s.notes_editor.is_some() {
+            return;
+        }
         if modifiers.ctrl || modifiers.alt || modifiers.command || consumed {
             return;
         }
@@ -987,7 +992,14 @@ impl ApplicationHandler for App {
         match event {
             WindowEvent::CloseRequested => {
                 if role == Role::Presenter {
-                    el.exit();
+                    if let Some(s) = &mut self.studio {
+                        s.execute(Action::Exit);
+                        if s.close_requested {
+                            el.exit();
+                        } else {
+                            self.redraw();
+                        }
+                    }
                 } else if role == Role::Browser {
                     if let Some(s) = &mut self.studio {
                         s.execute(Action::CloseBrowser);

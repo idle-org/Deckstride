@@ -26,3 +26,5 @@
 - [Private process protocol](docs/interfaces/process-protocol.md).
 
 - [Manual release preparation](docs/development/releases.md).
+
+- [Presentation notes sidecars and editor](docs/interfaces/presentation-notes.md).

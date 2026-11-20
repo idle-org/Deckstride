@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.52
+
+- Load presentation-named notes sidecars before falling back to PDF/folder notes.
+  Double-click notes to create a full-deck sidecar if absent and edit the captured
+  slide in a resizable editor. Save atomically through an isolated worker, preserve
+  source files and other notes, detect external conflicts and retain failed drafts.
+
 ### 0.1.51
 
 - Preserve shown/manually blanked output through fullscreen and routing trials,

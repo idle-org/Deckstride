@@ -685,6 +685,13 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     }
     if s.layout.notes.show {
         let rect = notes_rect;
+        let response = ui.interact(rect, ui.id().with("presenter-notes"), Sense::click());
+        response
+            .clone()
+            .on_hover_text(tr(&locale, "Double-click to edit this slide’s notes"));
+        if response.double_clicked() && s.count() > 0 {
+            s.actions.push(Action::EditNotes);
+        }
         ui.painter().rect_filled(rect, 8., ui.visuals().window_fill);
         ui.painter().text(
             rect.min + Vec2::splat(14.),
@@ -1283,7 +1290,134 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         s.displays_open &= open;
     }
+    notes_editor_ui(&ctx, s);
 }
+fn notes_editor_ui(ctx: &Context, s: &mut Studio) {
+    let Some(editor) = &mut s.notes_editor else {
+        return;
+    };
+    let mut action = None;
+    let mut close = false;
+    egui::Window::new(format!(
+        "{} · {} {}",
+        tr(ctx, "Edit notes"),
+        tr(ctx, "Slide"),
+        editor.page + 1
+    ))
+    .id(egui::Id::new("notes-editor"))
+    .collapsible(false)
+    .resizable(true)
+    .default_size(Vec2::new(640., 480.).min(ctx.content_rect().size() - Vec2::splat(48.)))
+    .min_size(Vec2::new(300., 220.))
+    .max_size(ctx.content_rect().size() - Vec2::splat(32.))
+    .show(ctx, |ui| {
+        if editor.busy {
+            ui.horizontal(|ui| {
+                ui.spinner();
+                ui.label(tr(
+                    ctx,
+                    if editor.snapshot.is_some() {
+                        "Saving notes…"
+                    } else {
+                        "Loading all notes and preparing sidecar…"
+                    },
+                ));
+            });
+        }
+        if let Some(snapshot) = &editor.snapshot {
+            ui.label(
+                snapshot
+                    .path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy(),
+            )
+            .on_hover_text(snapshot.path.display().to_string());
+            ui.small(tr(
+                ctx,
+                "The file contains all slides. Save changes only this slide.",
+            ));
+        }
+        if let Some(error) = &editor.error {
+            ui.colored_label(ui.visuals().error_fg_color, error);
+        }
+        let ready = editor.snapshot.is_some() && !editor.busy;
+        egui::ScrollArea::vertical()
+            .id_salt("notes-editor-text-scroll")
+            .max_height((ui.available_height() - 76.).max(60.))
+            .auto_shrink([false, false])
+            .show(ui, |ui| {
+                ui.add_enabled(
+                    ready,
+                    egui::TextEdit::multiline(&mut editor.text)
+                        .id(egui::Id::new((
+                            "notes-editor-text",
+                            s.generation,
+                            editor.page,
+                        )))
+                        .desired_width(f32::INFINITY)
+                        .desired_rows(12)
+                        .char_limit(crate::notes::MAX_NOTE),
+                );
+            });
+        if editor.text.len() > crate::notes::MAX_NOTE {
+            ui.colored_label(ui.visuals().error_fg_color, tr(ctx, "Note exceeds 256 KiB"));
+        }
+        ui.separator();
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add_enabled(
+                    ready && editor.text.len() <= crate::notes::MAX_NOTE,
+                    egui::Button::new(tr(ctx, "Save notes")),
+                )
+                .clicked()
+            {
+                action = Some(Action::SaveNotes);
+            }
+            let dirty = editor.text != editor.saved_text;
+            if ui
+                .add_enabled(
+                    !editor.busy,
+                    egui::Button::new(tr(
+                        ctx,
+                        if dirty {
+                            "Discard changes and close"
+                        } else {
+                            "Close"
+                        },
+                    )),
+                )
+                .clicked()
+            {
+                close = true;
+            }
+            if editor.error.is_some()
+                && ui
+                    .add_enabled(
+                        !editor.busy,
+                        egui::Button::new(tr(
+                            ctx,
+                            if editor.snapshot.is_some() {
+                                "Reload (discard edits)"
+                            } else {
+                                "Retry"
+                            },
+                        )),
+                    )
+                    .clicked()
+            {
+                action = Some(Action::ReloadNotes);
+            }
+        });
+    });
+    if let Some(action) = action {
+        s.actions.push(action);
+    }
+    if close {
+        s.notes_editor = None;
+    }
+}
+
 fn browser_preview_settings(ui: &mut Ui, s: &mut Studio) {
     let locale = ui.ctx().clone();
     ui.horizontal(|ui| {

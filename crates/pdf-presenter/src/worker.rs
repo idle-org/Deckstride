@@ -34,6 +34,19 @@ pub enum Request {
         path: PathBuf,
         cache: PathBuf,
     },
+    PrepareNotes {
+        path: PathBuf,
+        cache: PathBuf,
+        source_sha: String,
+    },
+    SaveNotes {
+        path: PathBuf,
+        cache: PathBuf,
+        source_sha: String,
+        revision: String,
+        page: usize,
+        text: String,
+    },
     Preview {
         epoch: u64,
         path: PathBuf,
@@ -60,6 +73,7 @@ pub struct Reply {
     pub info: Option<DeckInfo>,
     pub frame: Option<FrameInfo>,
     pub settings: Option<Settings>,
+    pub notes: Option<crate::notes::Snapshot>,
     pub picked: Option<PathBuf>,
     pub bytes: usize,
     pub edge: Option<u32>,
@@ -188,6 +202,30 @@ pub fn run() -> Result<(), String> {
                 }
                 Request::Notes { path, cache } => {
                     reply.info = Some(document::Document::open(&path, cache)?.info);
+                }
+                Request::PrepareNotes {
+                    path,
+                    cache,
+                    source_sha,
+                } => {
+                    reply.notes = Some(crate::notes::prepare(&path, cache, &source_sha)?);
+                }
+                Request::SaveNotes {
+                    path,
+                    cache,
+                    source_sha,
+                    revision,
+                    page,
+                    text,
+                } => {
+                    reply.notes = Some(crate::notes::save(
+                        &path,
+                        cache,
+                        &source_sha,
+                        &revision,
+                        page,
+                        text,
+                    )?);
                 }
                 Request::ReadFrame(path) => {
                     let (width, height, rgba) = document::read_frame(&path)?;

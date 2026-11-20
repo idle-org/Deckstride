@@ -286,3 +286,25 @@ When Change on click is enabled, clicks switch the live slide and do not open pr
 The All slides grid fills the browser width and adapts as you resize it. Preview
 size sets the preferred thumbnail density; tiles share the available row width,
 with slides fitted without distortion. The scrollbar stays at the right edge.
+
+## Edit presenter notes
+
+A `presentationX.notes.toml` file beside `presentationX.pdf` takes priority over PDF
+annotation notes. Missing page entries fall back to the PDF; an empty entry hides
+its embedded notes. For an image folder, the named file sits beside the folder and
+uses image filenames as keys. See the [notes format](interfaces/presentation-notes.md).
+
+**Double-click the notes pane** to edit that slide. If the named notes file does not
+exist, PDF Presenter creates it with all notes found across the presentation before
+opening the editable text. Creation and saving happen in the background.
+
+Choose **Save notes** to update this page and its auto-fit presenter text. Other
+slides and the source PDF remain unchanged. Close keeps saved changes;
+**Discard changes and close** abandons an unsaved draft. A newly created sidecar
+remains in place. The editor stays bound to the slide you opened, even if slide
+navigation occurs elsewhere. Finish editing before opening another presentation.
+
+Save errors keep your draft visible. If another program changed the notes file,
+copy your draft before choosing **Reload (discard edits)**; the editor won't
+silently replace a detected external edit. Notes files require a writable source
+folder. They travel alongside the presentation, independently of saved layouts.

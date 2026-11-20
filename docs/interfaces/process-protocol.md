@@ -112,3 +112,14 @@ including its current blank flag. Fullscreen/routing trials, confirmation,
 rollback and monitor topology changes preserve that flag. Missing outputs and
 operator privacy holds still suppress unavailable windows; no presenter content
 is sent to the output host.
+
+## Editable notes in 0.1.52
+
+`PrepareNotes {path, cache, source_sha}` and
+`SaveNotes {path, cache, source_sha, revision, page, text}` run through the dedicated
+notes bridge. `page` is zero-based, `source_sha` identifies the loaded PDF/slide list,
+and `revision` is the notes file SHA-256 observed when editing began. A successful
+`Reply.notes` contains `{path, revision, notes}` with all resolved notes in slide
+order. Errors use the existing error field. The presenter ignores stale-generation
+completions and late background extraction after an editor snapshot has been accepted.
+The current page draft survives save failure. None of this payload enters output IPC.

@@ -95,6 +95,22 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Previous slide" => "Diapositive précédente",
         "Current slide" => "Diapositive actuelle",
         "Next slide" => "Diapositive suivante",
+        "Double-click to edit this slide’s notes" => {
+            "Double-cliquez pour modifier les notes de cette diapositive"
+        }
+        "Edit notes" => "Modifier les notes",
+        "Saving notes…" => "Enregistrement des notes…",
+        "Loading all notes and preparing sidecar…" => {
+            "Lecture des notes et préparation du fichier…"
+        }
+        "The file contains all slides. Save changes only this slide." => {
+            "Le fichier contient toutes les diapositives. Seule celle-ci sera modifiée."
+        }
+        "Note exceeds 256 KiB" => "La note dépasse 256 Kio",
+        "Save notes" => "Enregistrer les notes",
+        "Discard changes and close" => "Abandonner les modifications et fermer",
+        "Reload (discard edits)" => "Recharger (abandonner les modifications)",
+        "Retry" => "Réessayer",
         "Notes" => "Notes",
         "Elapsed time" => "Temps écoulé",
         "Time · HH:MM" => "Heure · HH:MM",

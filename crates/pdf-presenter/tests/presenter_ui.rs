@@ -977,3 +977,93 @@ fn fullscreen_and_routing_changes_preserve_explicit_output_visibility() {
         }
     }
 }
+
+#[test]
+fn double_click_notes_opens_editor_and_editor_keeps_unsaved_draft() {
+    fn text_pos(shapes: &[egui::epaint::ClippedShape], label: &str) -> Pos2 {
+        fn find(s: &egui::Shape, label: &str) -> Option<Pos2> {
+            match s {
+                egui::Shape::Text(t) if t.galley.text() == label => {
+                    Some(t.pos + t.galley.size() * 0.5)
+                }
+                egui::Shape::Vec(v) => v.iter().find_map(|s| find(s, label)),
+                _ => None,
+            }
+        }
+        shapes
+            .iter()
+            .find_map(|s| find(&s.shape, label))
+            .unwrap_or_else(|| panic!("missing {label}"))
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.layout.header = false;
+    s.layout.footer = false;
+    let mut native = UiState::default();
+    let mut time = 0.;
+    let mut render = |s: &mut Studio, events| {
+        time += 0.04;
+        let mut raw = input(Vec2::new(1280., 900.));
+        raw.events = events;
+        raw.time = Some(time);
+        ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, s, &mut native))
+    };
+    let output = render(&mut s, vec![]);
+    let pos = text_pos(&output.shapes, "PRESENTER NOTES · AUTO-FIT") + Vec2::new(0., 60.);
+    for _ in 0..2 {
+        for pressed in [true, false] {
+            render(
+                &mut s,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+            );
+        }
+    }
+    assert!(s.actions.iter().any(|a| matches!(a, Action::EditNotes)));
+    s.actions.clear();
+    s.notes_editor = Some(pdf_presenter::studio::NotesEditor {
+        page: 0,
+        text: "Saved".into(),
+        saved_text: "Saved".into(),
+        busy: false,
+        error: None,
+        snapshot: Some(pdf_presenter::notes::Snapshot {
+            path: "demo.notes.toml".into(),
+            revision: "test".into(),
+            notes: vec!["Saved".into()],
+        }),
+    });
+    for _ in 0..3 {
+        render(&mut s, vec![]);
+    }
+    s.notes_editor.as_mut().unwrap().text = "Unsaved notes".into();
+    let output = render(&mut s, vec![]);
+    text_pos(&output.shapes, "Save notes");
+    text_pos(&output.shapes, "Discard changes and close");
+    s.execute(Action::Exit);
+    assert!(!s.close_requested);
+    assert_eq!(s.notes_editor.as_ref().unwrap().text, "Unsaved notes");
+    let pos = text_pos(&output.shapes, "Save notes");
+    for pressed in [true, false] {
+        render(
+            &mut s,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+    }
+    assert!(s.actions.iter().any(|a| matches!(a, Action::SaveNotes)));
+}

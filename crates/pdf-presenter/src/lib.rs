@@ -87,3 +87,6 @@ mod artwork;
 
 /// Monotonic elapsed/countdown timer.
 pub mod timer;
+
+/// Editable presentation notes sidecars.
+pub mod notes;

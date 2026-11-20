@@ -37,6 +37,17 @@ pub enum Action {
     ToggleFullscreen,
     ToggleTimer,
     RestartTimer,
+    EditNotes,
+    ReloadNotes,
+    SaveNotes,
+}
+pub struct NotesEditor {
+    pub page: usize,
+    pub text: String,
+    pub saved_text: String,
+    pub snapshot: Option<crate::notes::Snapshot>,
+    pub busy: bool,
+    pub error: Option<String>,
 }
 pub struct RouteTrial {
     pub id: u64,
@@ -73,6 +84,9 @@ pub struct Studio {
     pub evicted_frames: usize,
     pub loading: bool,
     pub notes_loading: bool,
+    pub notes_editor: Option<NotesEditor>,
+    notes_io: Bridge,
+    notes_edited: bool,
     pub visible_thumbs: HashSet<usize>,
     pub layout_open: bool,
     pub displays_open: bool,
@@ -166,6 +180,9 @@ impl Studio {
             evicted_frames: 0,
             loading: false,
             notes_loading: false,
+            notes_editor: None,
+            notes_io: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
+            notes_edited: false,
             visible_thumbs: HashSet::new(),
             layout_open: false,
             displays_open: false,
@@ -282,6 +299,11 @@ impl Studio {
     pub fn execute(&mut self, action: Action) {
         match action {
             Action::Open(path) => {
+                if self.notes_editor.is_some() {
+                    self.status =
+                        "Close the notes editor before opening another presentation.".into();
+                    return;
+                }
                 if self.fg_busy {
                     self.fg =
                         Bridge::with_program(Duration::from_secs(30), self.worker_program.clone());
@@ -439,7 +461,74 @@ impl Studio {
                 self.pending_save = true;
             }
             Action::Refresh => self.dirty_routes = true,
-            Action::Exit => self.close_requested = true,
+            Action::Exit => {
+                if self
+                    .notes_editor
+                    .as_ref()
+                    .is_some_and(|editor| editor.busy || editor.text != editor.saved_text)
+                {
+                    self.status = "Save or discard notes before closing the presentation.".into();
+                } else {
+                    self.close_requested = true;
+                }
+            }
+            command @ (Action::EditNotes | Action::ReloadNotes) => {
+                if matches!(command, Action::EditNotes) && self.notes_editor.is_some() {
+                    return;
+                }
+                if self.loading || self.notes_editor.as_ref().is_some_and(|e| e.busy) {
+                    return;
+                }
+                if let Some(deck) = &self.deck {
+                    let page = self
+                        .notes_editor
+                        .as_ref()
+                        .map_or(self.requested, |e| e.page);
+                    if page >= self.count() {
+                        return;
+                    }
+                    if self.notes_io.submit(
+                        self.generation,
+                        0,
+                        Request::PrepareNotes {
+                            path: deck.path.clone(),
+                            cache: self.cache_path.clone(),
+                            source_sha: deck.sha256.clone(),
+                        },
+                    ) {
+                        self.notes_editor = Some(NotesEditor {
+                            page,
+                            text: String::new(),
+                            saved_text: String::new(),
+                            snapshot: None,
+                            busy: true,
+                            error: None,
+                        });
+                        self.jump.clear();
+                    }
+                }
+            }
+            Action::SaveNotes => {
+                if let (Some(deck), Some(editor)) = (&self.deck, &mut self.notes_editor)
+                    && !editor.busy
+                    && let Some(snapshot) = &editor.snapshot
+                    && self.notes_io.submit(
+                        self.generation,
+                        1,
+                        Request::SaveNotes {
+                            path: deck.path.clone(),
+                            cache: self.cache_path.clone(),
+                            source_sha: deck.sha256.clone(),
+                            revision: snapshot.revision.clone(),
+                            page: editor.page,
+                            text: editor.text.clone(),
+                        },
+                    )
+                {
+                    editor.busy = true;
+                    editor.error = None;
+                }
+            }
             Action::ToggleTimer => self.timer.toggle(Instant::now(), self.timer_limit()),
             Action::RestartTimer => self.timer.restart(Instant::now()),
             Action::ToggleFullscreen => {
@@ -495,6 +584,39 @@ impl Studio {
             })
     }
     pub fn poll(&mut self) {
+        while let Ok(completion) = self.notes_io.rx.try_recv() {
+            if completion.generation != self.generation {
+                continue;
+            }
+            if let Some(editor) = &mut self.notes_editor {
+                editor.busy = false;
+                match completion.result {
+                    Ok(packet) => {
+                        editor.error = packet.reply.error;
+                        if let Some(snapshot) = packet.reply.notes {
+                            editor.text =
+                                snapshot.notes.get(editor.page).cloned().unwrap_or_default();
+                            editor.saved_text = editor.text.clone();
+                            if let Some(deck) = &mut self.deck {
+                                deck.notes = snapshot.notes.clone();
+                            }
+                            editor.snapshot = Some(snapshot);
+                            self.notes_edited = true;
+                            self.status = if completion.tag == 1 {
+                                "Notes saved."
+                            } else {
+                                "Notes editor ready."
+                            }
+                            .into();
+                        }
+                    }
+                    Err(error) => editor.error = Some(error),
+                }
+                if let Some(error) = &editor.error {
+                    self.status = format!("Notes: {error}");
+                }
+            }
+        }
         if self
             .route_trial
             .as_ref()
@@ -591,7 +713,9 @@ impl Studio {
                         if let Some(info) = packet.reply.info {
                             if c.tag == u64::MAX {
                                 self.notes_loading = false;
-                                if let Some(deck) = &mut self.deck {
+                                if !self.notes_edited
+                                    && let Some(deck) = &mut self.deck
+                                {
                                     deck.notes = info.notes;
                                     deck.warnings = info.warnings;
                                     if let Some(warning) = deck.warnings.first() {
@@ -609,6 +733,7 @@ impl Studio {
                             self.bg_job = None;
                             self.notes_loading = false;
                             self.notes_pending = true;
+                            self.notes_edited = false;
                             self.cached_slides = 0;
                             self.evicted_frames = 0;
                             self.generation += 1;

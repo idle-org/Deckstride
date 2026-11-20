@@ -244,6 +244,9 @@ impl Document {
             }
             source = Source::Pdf(pdf);
         }
+        if load_notes && let Err(error) = crate::notes::overlay(&path, &names, &mut notes) {
+            warnings.push(format!("Presentation notes: {error}"));
+        }
         let title = path
             .file_name()
             .unwrap_or_default()
