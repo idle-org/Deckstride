@@ -37,6 +37,12 @@ fn navigation_direction(key: &Key, modifiers: egui::Modifiers) -> Option<i32> {
         _ => None,
     }
 }
+// Bound zero-delay animation requests; idle windows have no repaint deadline.
+fn repaint_deadline(now: Instant, delay: Duration) -> Option<Instant> {
+    (delay != Duration::MAX)
+        .then(|| now.checked_add(delay.max(Duration::from_millis(16))))
+        .flatten()
+}
 type Failure = Box<dyn std::error::Error>;
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Role {
@@ -56,6 +62,7 @@ struct NativeWindow {
     target: Option<(String, bool)>,
     transition: Option<(Instant, bool)>,
     frames: usize,
+    repaint_at: Option<Instant>,
     display_action: Option<DisplayAction>,
     zoom_change: Option<crate::zoom::View>,
     zoom_watch: crate::zoom::PerformanceWatch,
@@ -111,6 +118,7 @@ impl NativeWindow {
             target: None,
             transition: None,
             frames: 0,
+            repaint_at: None,
             display_action: None,
             zoom_change: None,
             zoom_watch: Default::default(),
@@ -118,6 +126,12 @@ impl NativeWindow {
             #[cfg(target_os = "linux")]
             browser_parent: None,
         })
+    }
+    fn repaint_if_due(&mut self, now: Instant) {
+        if self.repaint_at.is_some_and(|deadline| now >= deadline) {
+            self.repaint_at = None;
+            self.window.request_redraw();
+        }
     }
     fn place(&mut self, handle: &MonitorHandle, id: &str, fullscreen: bool, x11: bool) {
         let target = (id.to_owned(), fullscreen);
@@ -290,6 +304,13 @@ impl NativeWindow {
                 }
             }
         });
+        self.repaint_at = repaint_deadline(
+            Instant::now(),
+            output
+                .viewport_output
+                .get(&egui::ViewportId::ROOT)
+                .map_or(Duration::MAX, |viewport| viewport.repaint_delay),
+        );
         self.input
             .handle_platform_output(&self.window, output.platform_output);
         let primitives = ctx.tessellate(output.shapes, output.pixels_per_point);
@@ -1181,12 +1202,13 @@ impl App {
                 s.new_output = true;
             }
         }
-        if repaint {
-            self.redraw();
-        }
         if let Err(e) = self.sync_windows(el) {
             self.error = Some(e.to_string());
             el.exit();
+        }
+        // Include newly created mirrors in the same state update.
+        if repaint {
+            self.redraw();
         }
     }
 }
@@ -1225,7 +1247,10 @@ impl ApplicationHandler for App {
             let n = &mut self.windows[index];
             n.input.on_window_event(&n.window, &event).repaint
         };
-        if repaint {
+        // egui-winit reports repaint=true for RedrawRequested itself. The
+        // current render satisfies that request: requeueing it creates an idle
+        // paint loop and can starve later Windows WM_PAINT messages.
+        if repaint && !matches!(event, WindowEvent::RedrawRequested) {
             self.windows[index].window.request_redraw();
         }
         match event {
@@ -1413,6 +1438,7 @@ impl ApplicationHandler for App {
             }
         }
         for window in &mut self.windows {
+            window.repaint_if_due(now);
             window.transition(&self.handles, now);
         }
         if self.smoke
@@ -1558,6 +1584,105 @@ pub fn run_output() -> Result<(), Failure> {
 #[cfg(test)]
 mod buffer_tests {
     use super::*;
+    #[test]
+    fn repaint_deadlines_bound_animation_and_leave_idle_windows_asleep() {
+        let now = Instant::now();
+        assert_eq!(repaint_deadline(now, Duration::MAX), None);
+        assert_eq!(
+            repaint_deadline(now, Duration::ZERO),
+            Some(now + Duration::from_millis(16))
+        );
+        assert_eq!(
+            repaint_deadline(now, Duration::from_secs(2)),
+            Some(now + Duration::from_secs(2))
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn three_native_windows_render_without_clicks_and_then_stop_repainting() {
+        if std::env::var_os("PDF_PRESENTER_GUI_TESTS").is_none() {
+            return;
+        }
+        use winit::platform::x11::EventLoopBuilderExtX11;
+        struct Harness {
+            app: App,
+            started: Instant,
+        }
+        impl ApplicationHandler for Harness {
+            fn resumed(&mut self, el: &ActiveEventLoop) {
+                for index in 0..3 {
+                    let window =
+                        NativeWindow::create(el, Role::Presentation, format!("test-{index}"))
+                            .unwrap();
+                    let _ = window
+                        .window
+                        .request_inner_size(PhysicalSize::new(180, 120));
+                    window
+                        .window
+                        .set_outer_position(PhysicalPosition::new(20 + index * 200, 20));
+                    window.window.set_visible(true);
+                    window.window.request_redraw();
+                    self.app.windows.push(window);
+                }
+            }
+            fn window_event(&mut self, el: &ActiveEventLoop, id: WindowId, event: WindowEvent) {
+                self.app.window_event(el, id, event);
+            }
+            fn about_to_wait(&mut self, el: &ActiveEventLoop) {
+                let now = Instant::now();
+                for window in &mut self.app.windows {
+                    window.repaint_if_due(now);
+                }
+                if now.duration_since(self.started) >= Duration::from_secs(1) {
+                    el.exit();
+                }
+                el.set_control_flow(ControlFlow::WaitUntil(now + Duration::from_millis(8)));
+            }
+        }
+        let now = Instant::now();
+        let mut harness = Harness {
+            started: now,
+            app: App {
+                studio: None,
+                host: None,
+                output: None,
+                lease: None,
+                windows: vec![],
+                handles: vec![],
+                next_poll: now,
+                next_clock: now,
+                next_monitors: now,
+                x11: true,
+                error: None,
+                smoke: false,
+                smoke_stage: 0,
+                started: now,
+                windowed: true,
+                override_presenter: None,
+                override_output: None,
+                navigation_hold: None,
+            },
+        };
+        EventLoop::builder()
+            .with_x11()
+            .with_any_thread(true)
+            .build()
+            .unwrap()
+            .run_app(&mut harness)
+            .unwrap();
+        assert!(harness.app.error.is_none(), "{:?}", harness.app.error);
+        assert_eq!(harness.app.windows.len(), 3);
+        for window in &harness.app.windows {
+            assert!(window.frames > 0, "Every mirror must paint without a click");
+            assert!(
+                window.frames < 30,
+                "Idle window repainted {} times",
+                window.frames
+            );
+        }
+    }
+
     #[test]
     fn space_navigation_respects_shift_focus_roles_and_blanking() {
         let now = Instant::now();

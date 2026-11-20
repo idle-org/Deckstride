@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.73
+
+- Stop self-perpetuating native repaint requests that can starve other selected
+  displays until their windows receive a click. Honor each window's egui repaint
+  deadline with a bounded animation rate, and include new mirrors in state redraws.
+  Add a three-window regression exercising rendering without clicks and idle repaint
+  limits. Linux workspace/native tests, 13 Python tests, formatting and warnings-
+  denied Clippy/rustdoc pass; whole-application coverage is 84.57% (75% floor).
+  The Linux release binary is rebuilt. Physical three-monitor and Windows/macOS
+  verification remain open.
+
 ### 0.1.72
 
 - Preserve the live show when Escape closes All slides, including focused controls

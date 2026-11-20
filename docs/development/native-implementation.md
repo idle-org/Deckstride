@@ -377,3 +377,26 @@ mouse holds. Skipped uncached destinations defer new rendering until input settl
 for 180 ms or ends; existing workers are not restarted on each repeat. Release can
 cancel one obsolete foreground job so the final destination gets priority. The
 last ready audience frame remains visible; RAM-ready destinations can show directly.
+
+
+## 0.1.73 multiwindow repaint scheduling
+
+A native RedrawRequested event satisfies egui-winit's repaint response for that
+same event; it must not enqueue itself again. The old feedback loop continuously
+repainted idle windows and could starve later WM_PAINT delivery on Windows, where
+winit returns to its event loop after each paint. Each window now keeps one egui
+repaint deadline, consumed once when due; zero-delay animation requests are bounded
+to a 16 ms minimum. Input, slide changes and window transitions still request
+immediate redraws, regardless of focus. Window reconciliation precedes shared-state
+redraw requests so newly created mirrors participate too.
+
+The Linux native regression opens three windows without clicking or explicitly
+focusing any of them, checks that each paints, and rejects continuous idle painting.
+This exercises the event path but does not prove physical three-monitor routing or
+Windows/macOS compositor behavior.
+
+Restoring the old repaint feedback made the new regression fail with 1,520 idle
+paints in one second. The fixed version passes alongside the full Linux workspace
+and native tests, 13 Python helper tests, formatting, and warnings-denied Clippy
+and rustdoc. Whole-application coverage is 84.57% against the 75% floor. The Linux
+release binary is rebuilt; no Windows/macOS builds or publication were performed.
