@@ -116,6 +116,23 @@ pub fn theme(ctx: &Context) {
             .insert(egui::TextStyle::Body, FontId::proportional(15.));
     });
 }
+fn fullscreen_button(ui: &mut Ui, s: &mut Studio) {
+    let label = if s.presenter_fullscreen() && s.presentation_fullscreen() {
+        "Exit fullscreen"
+    } else {
+        "Enter fullscreen"
+    };
+    if ui
+        .add_enabled(
+            s.route_trial.is_none(),
+            egui::Button::new(tr(ui.ctx(), label)),
+        )
+        .clicked()
+    {
+        s.actions.push(Action::ToggleFullscreen);
+    }
+}
+
 fn button(ui: &mut Ui, label: &str, action: Action, actions: &mut Vec<Action>) {
     if ui.button(label).clicked() {
         actions.push(action);
@@ -494,6 +511,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     s.layout.header = !s.layout.header;
                     native.header_until = now;
                 }
+                fullscreen_button(ui, s);
                 let trigger = ui.button(tr(&locale, "Menu"));
                 let mut menu_open = if trigger.clicked() {
                     !s.menu_open
@@ -1433,12 +1451,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         s.started = Instant::now();
         ui.close();
     }
-    button(
-        ui,
-        tr(&locale, "Leave fullscreen / safe blank"),
-        Action::Windowed,
-        &mut s.actions,
-    );
+    fullscreen_button(ui, s);
     button(ui, tr(&locale, "Quit"), Action::Exit, &mut s.actions);
     if s.actions.len() != actions_before {
         ui.close();

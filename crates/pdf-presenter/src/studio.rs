@@ -34,7 +34,7 @@ pub enum Action {
     CloseBrowser,
     Refresh,
     Exit,
-    Windowed,
+    ToggleFullscreen,
 }
 pub struct RouteTrial {
     pub id: u64,
@@ -429,13 +429,15 @@ impl Studio {
             }
             Action::Refresh => self.dirty_routes = true,
             Action::Exit => self.close_requested = true,
-            Action::Windowed => {
-                self.execute(Action::RevertRoutes);
-                self.settings.presenter_fullscreen = false;
-                self.settings.presentation_fullscreen = false;
-                self.blanked = true;
-                self.new_output = true;
-                self.dirty_routes = true;
+            Action::ToggleFullscreen => {
+                if self.route_trial.is_some() {
+                    return;
+                }
+                let fullscreen = !(self.presenter_fullscreen() && self.presentation_fullscreen());
+                self.draft_routes = self.routes.clone();
+                self.draft_presenter_fullscreen = fullscreen;
+                self.draft_presentation_fullscreen = fullscreen;
+                self.execute(Action::ApplyRoutes);
             }
         }
     }

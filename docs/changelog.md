@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.47
+
+- Escape in the presenter dismisses transient UI without leaving fullscreen or
+  blanking output. Add explicit Enter/Exit fullscreen controls in the header and
+  menu, using the existing reversible display trial. Apply `--windowed` only at startup.
+
 ### 0.1.46
 
 - Choose unsaved RAM budgets from 15% of available memory, with a soft 512 MiB

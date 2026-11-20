@@ -158,7 +158,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Open PDF…" => "Ouvrir un PDF…",
         "Open picture folder…" => "Ouvrir un dossier d’images…",
         "Reset timer" => "Réinitialiser le chronomètre",
-        "Leave fullscreen / safe blank" => "Quitter le plein écran et masquer la sortie",
+        "Exit fullscreen" => "Quitter le plein écran",
+        "Enter fullscreen" => "Passer en plein écran",
         "RAM budget per process (presenter + output each use this allowance):" => {
             "Budget RAM par processus (présentateur et sortie disposent chacun de ce budget) :"
         }

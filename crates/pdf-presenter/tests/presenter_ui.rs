@@ -137,7 +137,9 @@ fn shared_actions_preserve_blanking_and_save_scope() {
     assert!(!s.change_on_click);
     s.execute(Action::CloseBrowser);
     assert!(!s.browser_open);
-    s.execute(Action::Windowed);
+    s.execute(Action::ToggleFullscreen);
+    assert!(!s.presenter_fullscreen());
+    s.execute(Action::KeepRoutes);
     assert!(s.blanked);
     assert!(!s.settings.presenter_fullscreen);
     s.draft_routes.presenter.clear();
@@ -837,4 +839,21 @@ fn floating_windows_can_grow_and_shrink_after_content_is_drawn() {
             }
         }
     }
+}
+
+#[test]
+fn fullscreen_button_trials_both_directions_and_can_revert() {
+    let mut s = studio();
+    s.execute(Action::ToggleFullscreen);
+    assert!(!s.presenter_fullscreen() && !s.presentation_fullscreen());
+    assert!(s.settings.presenter_fullscreen);
+    s.execute(Action::RevertRoutes);
+    assert!(s.presenter_fullscreen());
+    s.execute(Action::ToggleFullscreen);
+    s.execute(Action::KeepRoutes);
+    assert!(!s.settings.presenter_fullscreen);
+    s.execute(Action::ToggleFullscreen);
+    assert!(s.presenter_fullscreen() && s.presentation_fullscreen());
+    s.execute(Action::KeepRoutes);
+    assert!(s.settings.presenter_fullscreen && s.settings.presentation_fullscreen);
 }

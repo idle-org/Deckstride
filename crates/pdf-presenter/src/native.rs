@@ -446,6 +446,7 @@ impl App {
                 if self.windowed {
                     s.settings.presenter_fullscreen = false;
                     s.settings.presentation_fullscreen = false;
+                    self.windowed = false;
                 }
                 if let Some(index) = self.override_presenter.take()
                     && let Some((m, _)) = self.handles.get(index)
@@ -629,8 +630,6 @@ impl App {
                     s.layout_open = false;
                     s.displays_open = false;
                     s.menu_open = false;
-                } else {
-                    s.execute(Action::Windowed);
                 }
             }
             Key::Named(NamedKey::Space) if role == Role::Presenter && modifiers.shift => {
@@ -1107,7 +1106,7 @@ impl ApplicationHandler for App {
                 }
                 5 => {
                     s.layout = Default::default();
-                    s.execute(Action::Windowed);
+                    // Escape dismisses transient UI; fullscreen is an explicit control.
                 }
                 6 => {
                     if self.windows.iter().all(|w| w.frames > 0) && !self.windows.is_empty() {
@@ -1284,6 +1283,27 @@ mod buffer_tests {
             assert_eq!(app.studio.as_ref().unwrap().requested, expected);
             assert!(app.studio.as_ref().unwrap().blanked);
         }
+        let s = app.studio.as_mut().unwrap();
+        s.settings.presenter_fullscreen = true;
+        s.settings.presentation_fullscreen = true;
+        s.blanked = false;
+        s.jump = "12".into();
+        app.key(
+            Role::Presenter,
+            Key::Named(NamedKey::Escape),
+            false,
+            egui::Modifiers::NONE,
+        );
+        assert!(app.studio.as_ref().unwrap().jump.is_empty());
+        app.key(
+            Role::Presenter,
+            Key::Named(NamedKey::Escape),
+            false,
+            egui::Modifiers::NONE,
+        );
+        let s = app.studio.as_ref().unwrap();
+        assert!(s.presenter_fullscreen() && s.presentation_fullscreen());
+        assert!(!s.blanked);
     }
     fn frame(page: usize) -> Arc<Frame> {
         Arc::new(Frame {

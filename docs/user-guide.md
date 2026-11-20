@@ -73,8 +73,10 @@ preserves blanking. Until an uncached requested slide is ready, output holds the
 usable frame. The footer distinguishes requested and acknowledged displayed slides. A red
 **NO OUTPUT DISPLAYED** warning marks blanking, no assigned output or no document;
 it remains visible when the footer is hidden. Preparing output has a separate status.
-Escape cancels a pending slide number/menu, closes the browser, or safely leaves
-fullscreen and blanks output. While the presenter is connected, closing a presentation window blanks it; close a
+Escape cancels a pending slide number/menu or closes the browser; it does not
+leave presenter fullscreen or blank the presentation. Use **Enter fullscreen /
+Exit fullscreen** in the header or Menu to toggle both display roles. Like other
+display changes, this previews the change with Keep/Revert confirmation. While the presenter is connected, closing a presentation window blanks it; close a
 presenter or choose Menu → Quit to end the application.
 
 Arrow keys and Page Up/Down navigate from the presenter. Space moves forward;
