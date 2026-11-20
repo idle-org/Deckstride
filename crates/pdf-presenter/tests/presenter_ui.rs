@@ -802,11 +802,12 @@ fn browser_thumbnails_fill_resized_window_without_stretching_tiles() {
             _ => {}
         }
     }
-    let ctx = Context::default();
     let mut s = studio();
     s.deck.as_mut().unwrap().names = (0..1000).map(|i| format!("Slide {i}")).collect();
-    let mut native = UiState::default();
     for width in [500., 900., 1600.] {
+        let ctx = Context::default();
+        presenter_ui::theme(&ctx);
+        let mut native = UiState::default();
         let mut right = 0.;
         let mut output = ctx.run_ui(input(Vec2::new(width, 900.)), |ui| {
             right = ui.max_rect().right();
@@ -822,15 +823,82 @@ fn browser_thumbnails_fill_resized_window_without_stretching_tiles() {
         for shape in &output.shapes {
             collect(&shape.shape, &mut rects);
         }
+        fn right_edge_rects(
+            shape: &egui::Shape,
+            right: f32,
+            found: &mut Vec<(Rect, egui::Color32)>,
+        ) {
+            match shape {
+                egui::Shape::Rect(rect) if rect.rect.right() > right - 20. => {
+                    found.push((rect.rect, rect.fill));
+                }
+                egui::Shape::Vec(shapes) => {
+                    shapes
+                        .iter()
+                        .for_each(|shape| right_edge_rects(shape, right, found));
+                }
+                _ => {}
+            }
+        }
+        let mut edge = vec![];
+        for shape in &output.shapes {
+            right_edge_rects(&shape.shape, right, &mut edge);
+        }
+        let handles = edge
+            .iter()
+            .filter(|(rect, fill)| {
+                *fill == egui::Color32::from_rgb(70, 210, 175)
+                    && (rect.width() - 8.).abs() < 0.1
+                    && rect.height() >= 36.
+            })
+            .map(|(rect, _)| *rect)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            handles.len(),
+            1,
+            "an explicit scrollbar handle must be painted"
+        );
         assert!(!rects.is_empty());
         let max_right = rects.iter().map(Rect::right).fold(0., f32::max);
         // A wide, non-floating scrollbar owns the far-right gutter.
-        assert!((max_right + 14. - right).abs() < 1.);
+        assert!((max_right + 16. - right).abs() < 1.);
         for rect in &rects {
             assert!((rect.height() / rect.width() - 0.5625).abs() < 0.001);
             assert!(rect.right() <= right);
         }
         assert!(s.visible_thumbs.len() < s.count());
+
+        let initial_top = handles[0].top();
+        let mut scrolled_input = input(Vec2::new(width, 900.));
+        scrolled_input.events = vec![
+            egui::Event::PointerMoved(egui::pos2(width / 2., 400.)),
+            egui::Event::MouseWheel {
+                unit: egui::MouseWheelUnit::Point,
+                phase: egui::TouchPhase::Move,
+                delta: Vec2::new(0., -5_000.),
+                modifiers: egui::Modifiers::NONE,
+            },
+        ];
+        let _ = ctx.run_ui(scrolled_input, |ui| {
+            presenter_ui::browser(ui, &mut s, &mut native);
+        });
+        // The scroll area's viewport reflects the new offset on the next frame.
+        output = ctx.run_ui(input(Vec2::new(width, 900.)), |ui| {
+            presenter_ui::browser(ui, &mut s, &mut native);
+        });
+        let mut scrolled_edge = vec![];
+        for shape in &output.shapes {
+            right_edge_rects(&shape.shape, right, &mut scrolled_edge);
+        }
+        let scrolled_handle = scrolled_edge
+            .iter()
+            .find(|(rect, fill)| {
+                *fill == egui::Color32::from_rgb(70, 210, 175) && (rect.width() - 8.).abs() < 0.1
+            })
+            .map(|(rect, _)| *rect)
+            .expect("scrollbar handle remains visible after scrolling");
+        assert!(scrolled_handle.top() > initial_top);
+        assert!(!s.visible_thumbs.contains(&0));
     }
 }
 

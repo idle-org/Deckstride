@@ -10,6 +10,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+const BROWSER_SCROLL_HANDLE: Color32 = Color32::from_rgb(70, 210, 175);
 /// Composite a fitted slide over independent page and padding colors in every view.
 pub fn paint_slide(
     painter: &egui::Painter,
@@ -213,7 +214,10 @@ impl Default for UiState {
 }
 impl UiState {
     pub fn image(&mut self, ui: &mut Ui, s: &Studio, page: usize, rect: Rect) {
-        self.image_view(ui, s, page, rect, Default::default());
+        self.image_view(ui, s, page, rect, Default::default(), false);
+    }
+    fn browser_image(&mut self, ui: &mut Ui, s: &Studio, page: usize, rect: Rect) {
+        self.image_view(ui, s, page, rect, Default::default(), true);
     }
     fn image_view(
         &mut self,
@@ -222,6 +226,7 @@ impl UiState {
         page: usize,
         rect: Rect,
         view: crate::zoom::View,
+        browser: bool,
     ) {
         let locale = ui.ctx().clone();
         ui.painter()
@@ -255,12 +260,17 @@ impl UiState {
                 } else {
                     tr(
                         &locale,
-                        match s.slide_load_state(page) {
-                            SlideLoadState::Ready => "Slide ready",
-                            SlideLoadState::Preparing => "Preparing slide…",
-                            SlideLoadState::Cached => "Cached · loads when nearby",
-                            SlideLoadState::Queued => "Queued for preparation",
-                            SlideLoadState::Failed => "Could not load slide",
+                        match (browser, s.slide_load_state(page)) {
+                            (true, SlideLoadState::Preparing) => "Loading into memory…",
+                            (true, SlideLoadState::Cached) => "On disk · loads nearby",
+                            (true, SlideLoadState::Queued) => "Not loaded · waiting",
+                            (true, SlideLoadState::Failed) => "Could not load slide",
+                            (true, SlideLoadState::Ready) => "Slide ready",
+                            (false, SlideLoadState::Ready) => "Slide ready",
+                            (false, SlideLoadState::Preparing) => "Preparing slide…",
+                            (false, SlideLoadState::Cached) => "Cached · loads when nearby",
+                            (false, SlideLoadState::Queued) => "Queued for preparation",
+                            (false, SlideLoadState::Failed) => "Could not load slide",
                         },
                     )
                 },
@@ -856,7 +866,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                     let area = s
                         .presentation_viewport()
                         .map_or(area, |dimensions| fitted_slide(area, dimensions));
-                    native.image_view(ui, s, page, area, s.zoom.view);
+                    native.image_view(ui, s, page, area, s.zoom.view, false);
                     if s.route_trial.is_none()
                         && let Some(frame) = s.frame(page)
                     {
@@ -1764,6 +1774,44 @@ fn browser_screen_settings(ui: &mut Ui, s: &mut Studio) {
             });
     });
 }
+fn paint_browser_scrollbar(ui: &Ui, inner: Rect, content_height: f32, offset: f32) {
+    let track = Rect::from_min_max(
+        Pos2::new(inner.right() + 4., inner.top()),
+        Pos2::new(inner.right() + 16., inner.bottom()),
+    );
+    if track.height() <= 0. {
+        return;
+    }
+    let viewport = inner.height();
+    let handle_height = if content_height <= viewport {
+        track.height()
+    } else {
+        (viewport / content_height * track.height())
+            .max(36.)
+            .min(track.height())
+    };
+    let max_offset = (content_height - viewport).max(0.);
+    let travel = (track.height() - handle_height).max(0.);
+    let top = track.top()
+        + if max_offset > 0. {
+            offset.clamp(0., max_offset) / max_offset * travel
+        } else {
+            0.
+        };
+    let handle = Rect::from_min_max(
+        Pos2::new(track.left() + 2., top),
+        Pos2::new(track.right() - 2., top + handle_height),
+    );
+    ui.painter()
+        .rect_filled(track, 3., Color32::from_rgb(28, 34, 36));
+    ui.painter().rect_filled(handle, 3., BROWSER_SCROLL_HANDLE);
+    ui.painter().rect_stroke(
+        handle,
+        3.,
+        egui::Stroke::new(1_f32, ui.visuals().text_color()),
+        egui::StrokeKind::Inside,
+    );
+}
 pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let browser_width = ui.available_width();
     let footer_rect = Rect::from_min_max(
@@ -1891,7 +1939,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     // Reserve a stable gutter, so neither thumbnail sizing nor scrollbar placement
     // depends on how much of the last row is populated.
     let mut scroll_style = egui::style::ScrollStyle::solid();
-    scroll_style.bar_width = 10.;
+    scroll_style.bar_width = 12.;
     scroll_style.handle_min_length = 36.;
     scroll_style.foreground_color = true;
     ui.spacing_mut().scroll = scroll_style;
@@ -1903,65 +1951,79 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     let size = ((width - gap * (cols - 1) as f32) / cols as f32).max(1.);
     let rows = s.count().div_ceil(cols);
     s.visible_thumbs.clear();
-    egui::ScrollArea::vertical()
+    let row_height = size * 0.5625 + 50.;
+    let scroll = egui::ScrollArea::vertical()
         .max_width(browser_width)
         .max_height((footer_rect.top() - ui.cursor().top() - 8.).max(0.))
         .auto_shrink([false, false])
         .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible)
-        .show_rows(ui, size * 0.5625 + 50., rows, |ui, range| {
-            ui.spacing_mut().item_spacing.x = gap;
-            for row in range {
-                ui.horizontal(|ui| {
-                    for col in 0..cols {
-                        let page = row * cols + col;
-                        if page >= s.count() {
-                            break;
-                        }
-                        s.visible_thumbs.insert(page);
-                        ui.vertical(|ui| {
-                            let (rect, response) = ui.allocate_exact_size(
-                                Vec2::new(size, size * 0.5625),
-                                Sense::click(),
-                            );
-                            native.image(ui, s, page, rect);
-                            if s.browser_selected == page || s.requested == page {
-                                ui.painter().rect_stroke(
-                                    rect,
-                                    4.,
-                                    egui::Stroke::new(
-                                        2_f32,
-                                        if s.requested == page {
-                                            ui.visuals().hyperlink_color
-                                        } else {
-                                            Color32::GOLD
-                                        },
-                                    ),
-                                    egui::StrokeKind::Inside,
+        .show_viewport(ui, |ui, viewport| {
+            let pitch = row_height + ui.spacing().item_spacing.y;
+            ui.set_height((pitch * rows as f32 - ui.spacing().item_spacing.y).max(0.));
+            let mut first = (viewport.top() / pitch).floor().max(0.) as usize;
+            let last = ((viewport.bottom() / pitch).ceil() as usize + 1).min(rows);
+            first = first.min(last);
+            let y = ui.max_rect().top() + first as f32 * pitch;
+            let bottom = ui.max_rect().top() + last as f32 * pitch;
+            let rect = Rect::from_x_y_ranges(ui.max_rect().x_range(), y..=bottom);
+            let offset = viewport.top();
+            ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+                ui.spacing_mut().item_spacing.x = gap;
+                for row in first..last {
+                    ui.horizontal(|ui| {
+                        for col in 0..cols {
+                            let page = row * cols + col;
+                            if page >= s.count() {
+                                break;
+                            }
+                            s.visible_thumbs.insert(page);
+                            ui.vertical(|ui| {
+                                let (rect, response) = ui.allocate_exact_size(
+                                    Vec2::new(size, size * 0.5625),
+                                    Sense::click(),
                                 );
-                            }
-                            if response.double_clicked() && !s.change_on_click {
-                                s.browser_preview = Some((s.generation, page));
-                            }
-                            if response.clicked() {
-                                s.browser_selected = page;
-                                if s.change_on_click {
-                                    s.actions.push(Action::Go(page));
+                                native.browser_image(ui, s, page, rect);
+                                if s.browser_selected == page || s.requested == page {
+                                    ui.painter().rect_stroke(
+                                        rect,
+                                        4.,
+                                        egui::Stroke::new(
+                                            2_f32,
+                                            if s.requested == page {
+                                                ui.visuals().hyperlink_color
+                                            } else {
+                                                Color32::GOLD
+                                            },
+                                        ),
+                                        egui::StrokeKind::Inside,
+                                    );
                                 }
-                            }
-                            ui.label(format!(
-                                "{}{}",
-                                page + 1,
-                                if s.requested == page {
-                                    tr(&locale, " · CURRENT")
-                                } else {
-                                    ""
+                                if response.double_clicked() && !s.change_on_click {
+                                    s.browser_preview = Some((s.generation, page));
                                 }
-                            ));
-                        });
-                    }
-                });
-            }
+                                if response.clicked() {
+                                    s.browser_selected = page;
+                                    if s.change_on_click {
+                                        s.actions.push(Action::Go(page));
+                                    }
+                                }
+                                ui.label(format!(
+                                    "{}{}",
+                                    page + 1,
+                                    if s.requested == page {
+                                        tr(&locale, " · CURRENT")
+                                    } else {
+                                        ""
+                                    }
+                                ));
+                            });
+                        }
+                    });
+                }
+            });
+            offset
         });
+    paint_browser_scrollbar(ui, scroll.inner_rect, scroll.content_size.y, scroll.inner);
     ui.scope_builder(egui::UiBuilder::new().max_rect(footer_rect), |ui| {
         ui.separator();
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
@@ -1995,7 +2057,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.label(tr(&locale, "Preview only — presentation unchanged"));
             let (rect, _) =
                 ui.allocate_exact_size(ui.available_size().max(Vec2::splat(1.)), Sense::hover());
-            native.image(ui, s, page, rect);
+            native.browser_image(ui, s, page, rect);
         });
         if !open {
             s.browser_preview = None;
