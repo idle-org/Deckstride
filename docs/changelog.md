@@ -8,6 +8,8 @@
   height so they occupy a comparable share of Presenter previews, 1080p Slides and
   4K Slides, including mixed-DPI screens. Raise the selectable maximum from 32 to 48
   while preserving the lightweight vector overlay path.
+- Prepare the 0.1.83 Linux/Windows preview release; see the
+  [release notes](development/release-notes/v0.1.83.md).
 
 ### 0.1.82
 
