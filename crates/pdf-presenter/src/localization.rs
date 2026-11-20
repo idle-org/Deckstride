@@ -161,7 +161,20 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         " · CURRENT" => " · ACTUELLE",
         "Open PDF…" => "Ouvrir un PDF…",
         "Open picture folder…" => "Ouvrir un dossier d’images…",
-        "Reset timer" => "Réinitialiser le chronomètre",
+        "Restart timer" => "Redémarrer le chronomètre",
+        "Start timer" => "Démarrer le chronomètre",
+        "Pause timer" => "Mettre en pause",
+        "Countdown" => "Compte à rebours",
+        "Duration" => "Durée",
+        "Start on first slide" => "Démarrer à la première diapositive",
+        "Or use Start timer. Restart resets and starts immediately." => {
+            "Ou utilisez Démarrer. Redémarrer remet à zéro et démarre immédiatement."
+        }
+        "Running" => "En cours",
+        "Stopped" => "Arrêté",
+        "Waiting for first slide" => "En attente de la première diapositive",
+        "Time is up" => "Temps écoulé",
+        "Bar height" => "Hauteur de la barre",
         "Exit fullscreen" => "Quitter le plein écran",
         "Enter fullscreen" => "Passer en plein écran",
         "RAM budget per process (presenter + output each use this allowance):" => {

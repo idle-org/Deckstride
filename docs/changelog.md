@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.49
+
+- Add monotonic elapsed/countdown timing with Start/Pause, Restart, configurable
+  duration and first-output autostart. Preserve pauses across slide changes; reset
+  on successful source loads and stop countdown at zero. Save timer preferences
+  with layouts, and add an 8–120 pixel slide progress bar height control.
+
 ### 0.1.48
 
 - Add independent left/right of notes/slides timer positions and raise clock/elapsed

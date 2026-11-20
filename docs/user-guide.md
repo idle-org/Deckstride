@@ -224,8 +224,20 @@ Header, Above slides, Below notes, or left/right of the notes or slides.
 Timer text can be set up to 320 logical pixels; it scales down only to fit its
 allocated space. Timers on the same side stack vertically. Timers have separate labeled boxes; size and
 visibility controls still apply. Body positions remain visible when bars are hidden.
+Use **Start timer**, **Pause timer** and **Restart timer** in Menu or Layout.
+Pause preserves the time; Restart resets and starts immediately. Under Layout →
+Timers and progress, choose **Elapsed time** or **Countdown** and set a countdown
+in minutes and seconds (up to 24 hours). **Start on first slide** is enabled by
+default: timing begins when the first slide reaches the presentation output,
+including automatic output after opening a document. Turn it off for manual start.
+Rehearsal without an output screen starts on explicit navigation or Show presentation.
+Loading a new source resets the timer; pausing is never undone by slide navigation.
+Countdown stops at zero. Changing mode, duration or autostart resets the timer.
+Save the layout for this project or all projects to remember these preferences.
+
 Enable **Slide progress bar** for a presenter-only current slide / total indicator
-at the bottom of the content area. It starts disabled and tracks requested slide
+at the bottom of the content area. Adjust **Bar height** from 8 to 120 pixels.
+It starts disabled and tracks requested slide
 navigation, even while output is blank or preparing; it is separate from loading
 progress. Use Save layout · This project or All projects to remember these choices.
 

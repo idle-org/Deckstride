@@ -528,7 +528,8 @@ fn nested_settings_remain_interactive_and_menu_still_dismisses() {
     assert!(s.menu_open);
     click(&mut s, "Storage locations");
     assert!(s.menu_open);
-    click(&mut s, "Reset timer");
+    click(&mut s, "Restart timer");
+    assert!(s.timer.running(std::time::Instant::now(), s.timer_limit()));
     assert!(!s.menu_open, "Commands should dismiss the dropdown");
     click(&mut s, "Menu");
     click(&mut s, "Demo");
@@ -888,4 +889,59 @@ fn fullscreen_button_trials_both_directions_and_can_revert() {
     assert!(s.presenter_fullscreen() && s.presentation_fullscreen());
     s.execute(Action::KeepRoutes);
     assert!(s.settings.presenter_fullscreen && s.settings.presentation_fullscreen);
+}
+
+#[test]
+fn timer_actions_and_slide_triggers_do_not_restart_paused_timers() {
+    use std::time::Instant;
+    let mut s = studio();
+    s.blanked = true;
+    s.execute(Action::Go(1));
+    assert!(!s.timer.running(Instant::now(), s.timer_limit()));
+    s.blanked = false;
+    s.slide_played();
+    assert!(s.timer.running(Instant::now(), s.timer_limit()));
+    s.execute(Action::ToggleTimer);
+    s.slide_played();
+    assert!(!s.timer.running(Instant::now(), s.timer_limit()));
+    s.execute(Action::RestartTimer);
+    assert!(s.timer.running(Instant::now(), s.timer_limit()));
+    s.timer = Default::default();
+    s.layout.timer_autostart = false;
+    s.slide_played();
+    assert!(!s.timer.running(Instant::now(), s.timer_limit()));
+    s.timer = Default::default();
+    s.layout.timer_autostart = true;
+    s.routes.presentation.clear();
+    s.execute(Action::Go(0));
+    assert!(s.timer.running(Instant::now(), s.timer_limit()));
+}
+
+#[test]
+fn progress_bar_height_changes_rendered_geometry() {
+    let ctx = Context::default();
+    let mut s = studio();
+    let mut native = UiState::default();
+    s.layout.header = false;
+    s.layout.footer = false;
+    s.layout.slide_progress = true;
+    for height in [8., 24., 80., 120.] {
+        s.layout.slide_progress_height = height;
+        let output = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+            presenter_ui::presenter(ui, &mut s, &mut native)
+        });
+        fn contains_bar(shape: &egui::Shape, height: f32) -> bool {
+            match shape {
+                egui::Shape::Rect(r) => {
+                    r.rect.width() > 1200. && (r.rect.height() - height).abs() < 1.
+                }
+                egui::Shape::Vec(shapes) => shapes.iter().any(|s| contains_bar(s, height)),
+                _ => false,
+            }
+        }
+        assert!(
+            output.shapes.iter().any(|s| contains_bar(&s.shape, height)),
+            "Missing bar at height {height}"
+        );
+    }
 }

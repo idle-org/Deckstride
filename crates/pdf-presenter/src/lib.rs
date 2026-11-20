@@ -84,3 +84,6 @@ pub mod localization;
 pub mod theme;
 
 mod artwork;
+
+/// Monotonic elapsed/countdown timer.
+pub mod timer;

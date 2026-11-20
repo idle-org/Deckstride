@@ -46,6 +46,13 @@ impl TimerPosition {
         }
     }
 }
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TimerMode {
+    #[default]
+    Elapsed,
+    Countdown,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(default)]
 pub struct Layout {
@@ -58,6 +65,10 @@ pub struct Layout {
     pub elapsed_position: TimerPosition,
     pub clock_position: TimerPosition,
     pub slide_progress: bool,
+    pub slide_progress_height: f32,
+    pub timer_mode: TimerMode,
+    pub countdown_seconds: u32,
+    pub timer_autostart: bool,
     pub header: bool,
     pub footer: bool,
 }
@@ -91,6 +102,10 @@ impl Default for Layout {
             elapsed_position: TimerPosition::Header,
             clock_position: TimerPosition::Header,
             slide_progress: false,
+            slide_progress_height: 24.,
+            timer_mode: TimerMode::Elapsed,
+            countdown_seconds: 1200,
+            timer_autostart: true,
             header: true,
             footer: true,
         }
@@ -98,6 +113,12 @@ impl Default for Layout {
 }
 impl Layout {
     pub fn validate(&self) -> Result<(), String> {
+        if !self.slide_progress_height.is_finite()
+            || !(8. ..=120.).contains(&self.slide_progress_height)
+            || !(1..=86400).contains(&self.countdown_seconds)
+        {
+            return Err("Invalid timer duration or progress bar size".into());
+        }
         for (w, min, max) in [
             (&self.previous, 30., 160.),
             (&self.current, 60., 200.),

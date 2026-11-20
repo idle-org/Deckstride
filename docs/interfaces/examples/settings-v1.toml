@@ -19,6 +19,10 @@ presentation = ["Projector#1"]
 elapsed_position = "above_slides"
 clock_position = "below_notes"
 slide_progress = true
+slide_progress_height = 32.0
+timer_mode = "countdown"
+countdown_seconds = 1200
+timer_autostart = true
 header = true
 footer = false
 

@@ -1,7 +1,7 @@
 use crate::localization::tr;
 // Native controls for the approved presenter layout and safe slide browser.
 use crate::{
-    settings::{Layout, TimerPosition},
+    settings::{Layout, TimerMode, TimerPosition},
     studio::{Action, Studio},
 };
 use egui::{Color32, Context, FontId, Pos2, Rect, Sense, TextureHandle, TextureOptions, Ui, Vec2};
@@ -200,6 +200,101 @@ fn widget(
         );
     });
 }
+fn timer_controls(ui: &mut Ui, s: &mut Studio, close: bool) {
+    let locale = ui.ctx().clone();
+    let running = s.timer.running(Instant::now(), s.timer_limit());
+    ui.horizontal_wrapped(|ui| {
+        if ui
+            .button(tr(
+                &locale,
+                if running {
+                    "Pause timer"
+                } else {
+                    "Start timer"
+                },
+            ))
+            .clicked()
+        {
+            s.execute(Action::ToggleTimer);
+            if close {
+                ui.close();
+            }
+        }
+        if ui.button(tr(&locale, "Restart timer")).clicked() {
+            s.execute(Action::RestartTimer);
+            if close {
+                ui.close();
+            }
+        }
+    });
+    let state = if running {
+        "Running"
+    } else if s.timer.waiting_for_slide && s.layout.timer_autostart {
+        "Waiting for first slide"
+    } else if s.timer_limit().is_some() && s.timer.seconds(Instant::now(), s.timer_limit()) == 0 {
+        "Time is up"
+    } else {
+        "Stopped"
+    };
+    ui.small(tr(&locale, state));
+}
+fn timer_settings(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    let before = (
+        s.layout.timer_mode,
+        s.layout.countdown_seconds,
+        s.layout.timer_autostart,
+    );
+    ui.horizontal_wrapped(|ui| {
+        ui.selectable_value(
+            &mut s.layout.timer_mode,
+            TimerMode::Elapsed,
+            tr(&locale, "Elapsed time"),
+        );
+        ui.selectable_value(
+            &mut s.layout.timer_mode,
+            TimerMode::Countdown,
+            tr(&locale, "Countdown"),
+        );
+    });
+    if s.layout.timer_mode == TimerMode::Countdown {
+        let mut minutes = s.layout.countdown_seconds / 60;
+        let mut seconds = s.layout.countdown_seconds % 60;
+        ui.horizontal_wrapped(|ui| {
+            ui.label(tr(&locale, "Duration"));
+            ui.add(
+                egui::DragValue::new(&mut minutes)
+                    .range(0..=1440)
+                    .suffix(" min"),
+            );
+            ui.add(
+                egui::DragValue::new(&mut seconds)
+                    .range(0..=59)
+                    .suffix(" s"),
+            );
+        });
+        s.layout.countdown_seconds = (minutes * 60 + seconds).clamp(1, 86400);
+    }
+    ui.checkbox(
+        &mut s.layout.timer_autostart,
+        tr(&locale, "Start on first slide"),
+    );
+    ui.small(tr(
+        &locale,
+        "Or use Start timer. Restart resets and starts immediately.",
+    ));
+    if before
+        != (
+            s.layout.timer_mode,
+            s.layout.countdown_seconds,
+            s.layout.timer_autostart,
+        )
+    {
+        s.timer = crate::timer::Timer::default();
+    }
+    timer_controls(ui, s, false);
+}
+
 fn timer_position(ui: &mut Ui, id: &str, position: &mut TimerPosition) {
     let locale = ui.ctx().clone();
     egui::ComboBox::from_id_salt(id)
@@ -222,12 +317,16 @@ fn timer_height(s: &Studio, position: TimerPosition) -> f32 {
 }
 fn timers(ui: &mut Ui, s: &Studio, position: TimerPosition) {
     let locale = ui.ctx().clone();
-    let secs = s.started.elapsed().as_secs();
+    let secs = s.timer.seconds(Instant::now(), s.timer_limit());
     let entries = [
         (
             &s.layout.elapsed,
             s.layout.elapsed_position,
-            "Elapsed time",
+            if s.layout.timer_mode == TimerMode::Countdown {
+                "Countdown"
+            } else {
+                "Elapsed time"
+            },
             format!("{:02}:{:02}", secs / 60, secs % 60),
         ),
         (
@@ -413,8 +512,12 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         body.max.y -= 90.;
     }
     if s.layout.slide_progress {
-        let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - 24.), body.max);
-        body.max.y -= 32.;
+        let height = s
+            .layout
+            .slide_progress_height
+            .min(body.height().max(0.) * 0.25);
+        let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - height), body.max);
+        body.max.y -= height + 8.;
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
             let current = if s.count() == 0 {
                 0
@@ -425,6 +528,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             ui.add(
                 egui::ProgressBar::new(fraction)
                     .desired_width(rect.width())
+                    .desired_height(height)
                     .text(format!(
                         "{} {current} / {}",
                         tr(&locale, "Slide"),
@@ -958,6 +1062,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             );
                         });
                         layout_section(ui, tr(&locale, "Timers and progress"), |ui| {
+                            timer_settings(ui, s);
+                            ui.separator();
                             widget(
                                 ui,
                                 tr(&locale, "Elapsed time"),
@@ -999,6 +1105,11 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                             ui.checkbox(
                                 &mut s.layout.slide_progress,
                                 tr(&locale, "Slide progress bar"),
+                            );
+                            ui.add_enabled(
+                                s.layout.slide_progress,
+                                egui::Slider::new(&mut s.layout.slide_progress_height, 8. ..=120.)
+                                    .text(tr(&locale, "Bar height")),
                             );
                         });
                         layout_section(ui, tr(&locale, "Header and footer"), |ui| {
@@ -1587,10 +1698,7 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
         });
     });
     ui.separator();
-    if ui.button(tr(&locale, "Reset timer")).clicked() {
-        s.started = Instant::now();
-        ui.close();
-    }
+    timer_controls(ui, s, true);
     fullscreen_button(ui, s);
     button(ui, tr(&locale, "Quit"), Action::Exit, &mut s.actions);
     if s.actions.len() != actions_before {

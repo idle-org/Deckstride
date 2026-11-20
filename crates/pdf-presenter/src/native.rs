@@ -731,6 +731,12 @@ impl App {
                     }
                     if ack.sequence == s.output_sequence {
                         s.displayed = ack.page;
+                        if ack.page.is_some()
+                            && !s.blanked
+                            && ack.generation == s.buffer_generation()
+                        {
+                            s.slide_played();
+                        }
                     }
                 }
                 if s.new_output {

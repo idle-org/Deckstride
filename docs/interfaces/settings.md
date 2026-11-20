@@ -49,8 +49,21 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
 - `layout.slide_progress`: boolean, default false, added in 0.1.24. Shows requested
   slide / total and its fraction in a reserved bottom body row; empty decks show
   0 / 0 with zero fill. This is navigation progress, not render/output readiness.
-  These three fields round-trip in both global and project layouts. Older v1
-  layouts omit them and use defaults without migration.
+- Since 0.1.49, `layout.slide_progress_height`: finite logical pixels 8–120,
+  default 24. Height is capped to 25% of available body height on small windows.
+- Since 0.1.49, `layout.timer_mode`: `elapsed` (default) or `countdown`;
+  `layout.countdown_seconds`: integer 1–86400, default 1200;
+  `layout.timer_autostart`: boolean, default true. These preferences and bar size
+  round-trip through both global and project layouts. Missing fields use defaults.
+  Older v1 binaries ignore these additive fields and lose them on resave.
+  Running/paused state, monotonic timestamps and elapsed time are transient,
+  never saved. Successful source loads reset the timer to its waiting state;
+  failed loads preserve the current timer. Mode/duration/autostart edits reset it.
+  Automatic start uses the first matching, unblanked output frame acknowledgement;
+  without output monitors, explicit navigation/show starts rehearsal timing.
+  Pause disables pending autostart; later slide changes never resume a paused timer.
+  Restart resets and runs immediately. Countdown uses ceiling seconds, stops at
+  zero and never wraps; Start after expiry restarts the configured duration.
 - `projects`: at most 4096 SHA-256 canonical-path keys mapping to full layouts.
   Path identity uses OS encoded bytes, not source content. Moving files or switching
   platforms may therefore select a different layout. Project overrides win globally.

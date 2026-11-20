@@ -206,3 +206,32 @@ fn side_timer_positions_and_large_sizes_roundtrip() {
         assert!(s.validate().is_err());
     }
 }
+
+#[test]
+fn timer_and_progress_settings_migrate_validate_and_roundtrip() {
+    let legacy: Settings = toml::from_str("version=1").unwrap();
+    assert_eq!(legacy.layout.timer_mode, settings::TimerMode::Elapsed);
+    assert_eq!(legacy.layout.countdown_seconds, 1200);
+    assert!(legacy.layout.timer_autostart);
+    assert_eq!(legacy.layout.slide_progress_height, 24.);
+    let mut s = legacy;
+    s.layout.timer_mode = settings::TimerMode::Countdown;
+    s.layout.countdown_seconds = 90;
+    s.layout.timer_autostart = false;
+    s.layout.slide_progress_height = 120.;
+    s.projects.insert("demo".into(), s.layout.clone());
+    s.validate().unwrap();
+    let loaded: Settings = toml::from_str(&toml::to_string(&s).unwrap()).unwrap();
+    assert_eq!(s.layout, loaded.layout);
+    assert_eq!(s.projects, loaded.projects);
+    for duration in [0, 86401] {
+        s.layout.countdown_seconds = duration;
+        assert!(s.validate().is_err());
+    }
+    s.layout.countdown_seconds = 1;
+    for height in [7., 121., f32::NAN] {
+        s.layout.slide_progress_height = height;
+        assert!(s.validate().is_err());
+    }
+    assert!(toml::from_str::<Settings>("[layout]\ntimer_mode='unknown'").is_err());
+}

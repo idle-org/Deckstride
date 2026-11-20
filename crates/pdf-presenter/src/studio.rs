@@ -35,6 +35,8 @@ pub enum Action {
     Refresh,
     Exit,
     ToggleFullscreen,
+    ToggleTimer,
+    RestartTimer,
 }
 pub struct RouteTrial {
     pub id: u64,
@@ -80,7 +82,7 @@ pub struct Studio {
     pub browser_preview: Option<(u64, usize)>,
     pub change_on_click: bool,
     pub jump: String,
-    pub started: Instant,
+    pub timer: crate::timer::Timer,
     pub actions: Vec<Action>,
     pub settings_path: PathBuf,
     pub cache_path: PathBuf,
@@ -173,7 +175,7 @@ impl Studio {
             browser_preview: None,
             change_on_click: false,
             jump: String::new(),
-            started: Instant::now(),
+            timer: crate::timer::Timer::default(),
             actions: vec![],
             settings_path,
             cache_path,
@@ -267,6 +269,14 @@ impl Studio {
             .into();
         }
     }
+    pub fn timer_limit(&self) -> Option<Duration> {
+        (self.layout.timer_mode == settings::TimerMode::Countdown)
+            .then(|| Duration::from_secs(self.layout.countdown_seconds as u64))
+    }
+    pub fn slide_played(&mut self) {
+        self.timer
+            .first_slide(Instant::now(), self.layout.timer_autostart);
+    }
     pub fn execute(&mut self, action: Action) {
         match action {
             Action::Open(path) => {
@@ -312,6 +322,9 @@ impl Studio {
                         self.fg_job = None;
                     }
                     self.presentation_started = true;
+                    if !self.blanked && self.routes.presentation.is_empty() {
+                        self.slide_played();
+                    }
                     self.requested = page;
                     self.jump.clear();
                     self.new_output = true;
@@ -324,6 +337,9 @@ impl Studio {
                 self.blanked = !self.blanked;
                 if !self.blanked {
                     self.presentation_started = true;
+                    if self.count() > 0 && self.routes.presentation.is_empty() {
+                        self.slide_played();
+                    }
                 }
                 self.new_output = true;
             }
@@ -429,6 +445,8 @@ impl Studio {
             }
             Action::Refresh => self.dirty_routes = true,
             Action::Exit => self.close_requested = true,
+            Action::ToggleTimer => self.timer.toggle(Instant::now(), self.timer_limit()),
+            Action::RestartTimer => self.timer.restart(Instant::now()),
             Action::ToggleFullscreen => {
                 if self.route_trial.is_some() {
                     return;
@@ -607,6 +625,7 @@ impl Studio {
                             self.failed.clear();
                             self.requested = 0;
                             self.presentation_started = false;
+                            self.timer = crate::timer::Timer::default();
                             self.displayed = None;
                             self.layout = self.settings.for_project(&info.key);
                             self.status = info.warnings.first().cloned().unwrap_or_else(|| {
