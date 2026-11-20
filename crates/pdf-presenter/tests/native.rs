@@ -204,6 +204,15 @@ fn independent_output_acknowledges_frames_and_blanking() {
         write_json(
             &mut input,
             &HostState {
+                zoom: pdf_presenter::zoom::Sync {
+                    enabled: true,
+                    view: pdf_presenter::zoom::View {
+                        scale: 2.,
+                        center: [0.5; 2],
+                    },
+                    epoch: sequence * 2,
+                    serial: 0,
+                },
                 sequence,
                 page,
                 generation: 99,
@@ -223,6 +232,41 @@ fn independent_output_acknowledges_frames_and_blanking() {
                 .recv_timeout(deadline.saturating_duration_since(Instant::now()))
                 .expect("host frame deadline");
             if ack.sequence == sequence && ack.page == (!blanked).then_some(page) {
+                break;
+            }
+        }
+        // Zoom-only commands carry no frame, preload, routes or visibility fields.
+        // They must retain every buffered frame after all source/cache files are gone.
+        write_json(
+            &mut input,
+            &HostState {
+                zoom_only: true,
+                generation: 99,
+                page,
+                zoom: pdf_presenter::zoom::Sync {
+                    enabled: true,
+                    view: pdf_presenter::zoom::View {
+                        scale: 4.,
+                        center: [0.4, 0.6],
+                    },
+                    epoch: sequence * 2 + 1,
+                    serial: 0,
+                },
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let ack = rx
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .expect("zoom retained buffer deadline");
+            assert!(ack.status.is_empty(), "{}", ack.status);
+            if ack.sequence == sequence
+                && ack.generation == 99
+                && ack.buffered == 8
+                && ack.page == (!blanked).then_some(page)
+            {
                 break;
             }
         }

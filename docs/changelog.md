@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.1.54
+
+- Add globally saved, default-off page zoom (1×–8×), wheel/pinch zoom, drag panning
+  and double-click reset from the presenter/current preview or any output. Mirror
+  the crop with lightweight ordered messages; reset on slide changes and preserve
+  visibility. Reuse buffered textures without new rendering, file I/O or image
+  allocations. Explain sharpness/CPU tradeoffs and warn on repeated slow frames.
+  Bundle a licensed renderer patch for bounded scanline sampling and parallel crop
+  bands (four threads maximum). Local software-drawing medians: ~5 ms at 1080p,
+  ~16 ms at 4K; physical multicreen/OS acceptance remains separate.
+  Linux checks cover input, pixels, opt-in migration and disk-free output buffering.
+
 ### 0.1.53
 
 - Import UTF-8 TXT notes separated by hyphen lines or Markdown notes separated by

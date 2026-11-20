@@ -39,6 +39,24 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         return text;
     }
     match text {
+        "Enable page zoom" => "Activer le zoom des diapositives",
+        "Page zoom" => "Zoom de la diapositive",
+        "Reset zoom" => "Réinitialiser le zoom",
+        "Disable zoom" => "Désactiver le zoom",
+        "Keep zoom enabled" => "Garder le zoom activé",
+        "Zoom performance" => "Performances du zoom",
+        "Scroll to zoom · drag to pan · double-click to reset" => {
+            "Molette pour zoomer · glisser pour déplacer · double-clic pour réinitialiser"
+        }
+        "Use the current slide preview or a presentation screen. Changing slides resets zoom." => {
+            "Utilisez l’aperçu actuel ou un écran de présentation. Changer de diapositive réinitialise le zoom."
+        }
+        "Zoom reuses buffered images: no extra PDF rendering or image memory. Enlarged slides may look softer. Software drawing can slow down on large or multiple displays." => {
+            "Le zoom réutilise les images en mémoire, sans rendu PDF ni mémoire d’image supplémentaires. Les diapositives agrandies peuvent être moins nettes. Le dessin logiciel peut ralentir sur des écrans grands ou multiples."
+        }
+        "Zoomed frames are taking over 33 ms to draw. Panning may feel slow on this display. Reset or disable zoom to return to normal viewing." => {
+            "Les images zoomées prennent plus de 33 ms à dessiner. Le déplacement peut sembler lent sur cet écran. Réinitialisez ou désactivez le zoom pour revenir à l’affichage normal."
+        }
         "Cancel" => "Annuler",
         "Preview (first 3 slides)" => "Aperçu (3 premières diapositives)",
         "Import notes…" => "Importer des notes…",

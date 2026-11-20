@@ -127,6 +127,10 @@ pub struct Studio {
     pub dirty_routes: bool,
     pub privacy_hold: bool,
     pub output_sequence: u64,
+    pub zoom: crate::zoom::Sync,
+    pub new_zoom: bool,
+    pub zoom_warning: bool,
+    pub zoom_warning_dismissed: bool,
     pub new_output: bool,
     pub close_requested: bool,
     failed: HashSet<(usize, u32)>,
@@ -224,6 +228,10 @@ impl Studio {
             dirty_routes: true,
             privacy_hold: false,
             output_sequence: 0,
+            zoom: Default::default(),
+            new_zoom: false,
+            zoom_warning: false,
+            zoom_warning_dismissed: false,
             new_output: true,
             close_requested: false,
             failed: HashSet::new(),
@@ -427,6 +435,9 @@ impl Studio {
                     self.presentation_started = true;
                     if !self.blanked && self.routes.presentation.is_empty() {
                         self.slide_played();
+                    }
+                    if self.requested != page {
+                        self.set_zoom(crate::zoom::View::default());
                     }
                     self.requested = page;
                     self.jump.clear();
@@ -748,6 +759,7 @@ impl Studio {
                         if !self.smoke {
                             self.blanked = !settings.auto_show;
                             self.settings = settings;
+                            self.set_zoom(crate::zoom::View::default());
                             self.layout = self.settings.for_project(&self.project());
                             self.routes = Routes::default();
                         }
@@ -864,6 +876,7 @@ impl Studio {
                             self.output_buffered = 0;
                             self.ram_blocked = false;
                             self.failed.clear();
+                            self.set_zoom(crate::zoom::View::default());
                             self.requested = 0;
                             self.presentation_started = false;
                             self.timer = crate::timer::Timer::default();
@@ -1103,6 +1116,17 @@ impl Studio {
     }
     pub fn buffer_generation(&self) -> u64 {
         (self.generation << 32) | u64::from(self.target_edge)
+    }
+    pub fn set_zoom(&mut self, view: crate::zoom::View) {
+        self.zoom.set(self.settings.zoom_enabled, view);
+        self.new_zoom = true;
+    }
+    pub fn enable_zoom(&mut self, enabled: bool) {
+        self.settings.zoom_enabled = enabled;
+        self.set_zoom(crate::zoom::View::default());
+        self.zoom_warning = false;
+        self.zoom_warning_dismissed = false;
+        self.save_preferences();
     }
     pub fn save_preferences(&mut self) {
         self.pending_save = true;

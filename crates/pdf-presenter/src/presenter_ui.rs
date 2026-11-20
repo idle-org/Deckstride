@@ -18,19 +18,102 @@ pub fn paint_slide(
     dimensions: [u32; 2],
     colors: crate::settings::SlideColors,
 ) {
-    let [width, height] = dimensions.map(|v| v as f32);
+    paint_slide_zoomed(
+        painter,
+        rect,
+        texture,
+        dimensions,
+        colors,
+        Default::default(),
+    );
+}
+pub fn fitted_slide(rect: Rect, dimensions: [u32; 2]) -> Rect {
+    let [width, height] = dimensions.map(|v| v.max(1) as f32);
     let scale = (rect.width() / width).min(rect.height() / height);
-    let target = Rect::from_center_size(rect.center(), Vec2::new(width * scale, height * scale));
+    Rect::from_center_size(rect.center(), Vec2::new(width * scale, height * scale))
+}
+/// Crop UVs, never enlarge geometry or allocate another image for zoom.
+pub fn paint_slide_zoomed(
+    painter: &egui::Painter,
+    rect: Rect,
+    texture: egui::TextureId,
+    dimensions: [u32; 2],
+    colors: crate::settings::SlideColors,
+    view: crate::zoom::View,
+) {
+    let target = fitted_slide(rect, dimensions);
     let [r, g, b] = colors.fit_padding;
     painter.rect_filled(rect, 0., Color32::from_rgb(r, g, b));
     let [r, g, b] = colors.page_background;
     painter.rect_filled(target, 0., Color32::from_rgb(r, g, b));
-    painter.image(
-        texture,
-        target,
-        Rect::from_min_max(Pos2::ZERO, Pos2::new(1., 1.)),
-        Color32::WHITE,
-    );
+    let uv = view.uv();
+    // Separate clip bands keep large moving crops parallel in the bounded CPU
+    // renderer pool. Every band reads the same texture; no image is duplicated.
+    let pixels = target.area() * painter.ctx().pixels_per_point().powi(2);
+    let bands = if view.scale > 1. && pixels > 1_000_000. {
+        4
+    } else {
+        1
+    };
+    for band in 0..bands {
+        let a = band as f32 / bands as f32;
+        let b = (band + 1) as f32 / bands as f32;
+        let rect = Rect::from_min_max(
+            Pos2::new(target.left(), target.top() + target.height() * a),
+            Pos2::new(target.right(), target.top() + target.height() * b),
+        );
+        let crop = Rect::from_min_max(
+            Pos2::new(uv.left(), uv.top() + uv.height() * a),
+            Pos2::new(uv.right(), uv.top() + uv.height() * b),
+        );
+        painter
+            .with_clip_rect(painter.clip_rect().intersect(rect))
+            .image(texture, rect, crop, Color32::WHITE);
+    }
+}
+/// Shared presenter/output input in normalized slide coordinates; no file I/O.
+pub fn zoom_gestures(
+    ui: &mut Ui,
+    target: Rect,
+    view: crate::zoom::View,
+) -> (crate::zoom::View, egui::Response) {
+    let response = ui.interact(target, ui.id().with("page-zoom"), Sense::click_and_drag());
+    let mut next = view;
+    if response.hovered() {
+        let scroll = ui.input_mut(|i| {
+            let scroll = i.smooth_scroll_delta.y;
+            i.smooth_scroll_delta = Vec2::ZERO;
+            scroll
+        });
+        if scroll != 0.
+            && let Some(pos) = response.hover_pos()
+        {
+            let anchor = (pos - target.min) / target.size();
+            next = next.zoom_at(
+                next.scale * (scroll * 0.002).clamp(-0.7, 0.7).exp(),
+                [anchor.x, anchor.y],
+            );
+        }
+        let pinch = ui.input(|i| i.zoom_delta());
+        if pinch != 1. {
+            next = next.zoom_at(next.scale * pinch, [0.5; 2]);
+        }
+    }
+    if response.dragged_by(egui::PointerButton::Primary) {
+        let delta = ui.input(|i| i.pointer.delta()) / target.size();
+        next = next.pan([delta.x, delta.y]);
+    }
+    if response.double_clicked() {
+        next = Default::default();
+    }
+    if response.hovered() || response.dragged() {
+        ui.ctx().set_cursor_icon(if response.dragged() {
+            egui::CursorIcon::Grabbing
+        } else {
+            egui::CursorIcon::Grab
+        });
+    }
+    (next, response)
 }
 const TEAL: Color32 = Color32::from_rgb(103, 226, 205);
 pub struct UiState {
@@ -51,6 +134,16 @@ impl Default for UiState {
 }
 impl UiState {
     pub fn image(&mut self, ui: &mut Ui, s: &Studio, page: usize, rect: Rect) {
+        self.image_view(ui, s, page, rect, Default::default());
+    }
+    fn image_view(
+        &mut self,
+        ui: &mut Ui,
+        s: &Studio,
+        page: usize,
+        rect: Rect,
+        view: crate::zoom::View,
+    ) {
         let locale = ui.ctx().clone();
         ui.painter()
             .rect_filled(rect, 6., Color32::from_rgb(18, 28, 31));
@@ -66,12 +159,13 @@ impl UiState {
                     TextureOptions::LINEAR,
                 )
             });
-            paint_slide(
+            paint_slide_zoomed(
                 ui.painter(),
                 rect,
                 tex.id(),
                 [frame.info.width, frame.info.height],
                 s.settings.slide_colors,
+                view,
             );
         } else {
             ui.painter().text(
@@ -657,12 +751,25 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
                 ui.visuals().hyperlink_color,
             );
             if let Some(page) = page {
-                native.image(
-                    ui,
-                    s,
-                    page,
-                    Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max),
-                );
+                let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
+                if index == 1 && s.settings.zoom_enabled {
+                    native.image_view(ui, s, page, area, s.zoom.view);
+                    if s.route_trial.is_none()
+                        && let Some(frame) = s.frame(page)
+                    {
+                        let target = fitted_slide(area, [frame.info.width, frame.info.height]);
+                        let (view, response) = zoom_gestures(ui, target, s.zoom.view);
+                        response.on_hover_text(tr(
+                            &locale,
+                            "Scroll to zoom · drag to pan · double-click to reset",
+                        ));
+                        if view != s.zoom.view {
+                            s.set_zoom(view);
+                        }
+                    }
+                } else {
+                    native.image(ui, s, page, area);
+                }
             } else if index == 2 && s.count() > 0 && s.requested == s.count() - 1 {
                 // Presenter-only decoration: never create a page, frame or navigation target.
                 let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
@@ -1290,6 +1397,16 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             });
         s.displays_open &= open;
     }
+    if s.settings.zoom_enabled && s.zoom_warning && !s.zoom_warning_dismissed {
+        egui::Window::new(tr(&ctx, "Zoom performance"))
+            .collapsible(false).resizable(false).show(&ctx, |ui| {
+                ui.set_max_width(420.);
+                ui.label(tr(&ctx, "Zoomed frames are taking over 33 ms to draw. Panning may feel slow on this display. Reset or disable zoom to return to normal viewing."));
+                if ui.button(tr(&ctx, "Reset zoom")).clicked() { s.set_zoom(Default::default()); s.zoom_warning_dismissed = true; }
+                if ui.button(tr(&ctx, "Disable zoom")).clicked() { s.enable_zoom(false); }
+                if ui.button(tr(&ctx, "Keep zoom enabled")).clicked() { s.zoom_warning_dismissed = true; }
+            });
+    }
     notes_import_ui(&ctx, s);
     notes_editor_ui(&ctx, s);
 }
@@ -1860,6 +1977,10 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
     ui.menu_button(tr(&locale,"Preferences"), |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_width(370.);
+            let mut enabled = s.settings.zoom_enabled;
+            if ui.checkbox(&mut enabled, tr(&locale, "Enable page zoom")).changed() { s.enable_zoom(enabled); }
+            ui.small(tr(&locale, "Zoom reuses buffered images: no extra PDF rendering or image memory. Enlarged slides may look softer. Software drawing can slow down on large or multiple displays."));
+            ui.separator();
             if ui.checkbox(&mut s.settings.auto_show,tr(&locale,"Show presentation automatically when opening a document")).changed() {s.save_preferences();}
             ui.separator();
             ui.label(tr(&locale,"RAM budget per process (presenter + output each use this allowance):"));
@@ -1873,6 +1994,17 @@ fn menu(ui: &mut Ui, s: &mut Studio) {
             });
         });
     });
+    if s.settings.zoom_enabled {
+        ui.menu_button(tr(&locale, "Page zoom"), |ui| {
+            let mut scale = s.zoom.view.scale;
+            if ui.add(egui::Slider::new(&mut scale, 1.0..=8.0).text("×")).changed() {
+                s.set_zoom(s.zoom.view.zoom_at(scale, [0.5; 2]));
+            }
+            if ui.button(tr(&locale, "Reset zoom")).clicked() { s.set_zoom(Default::default()); }
+            ui.small(tr(&locale, "Scroll to zoom · drag to pan · double-click to reset"));
+            ui.small(tr(&locale, "Use the current slide preview or a presentation screen. Changing slides resets zoom."));
+        });
+    }
     ui.separator();
     timer_controls(ui, s, true);
     fullscreen_button(ui, s);

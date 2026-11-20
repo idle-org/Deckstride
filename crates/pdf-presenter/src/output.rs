@@ -24,6 +24,10 @@ pub enum DisplayAction {
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct HostState {
     #[serde(default)]
+    pub zoom: crate::zoom::Sync,
+    #[serde(default)]
+    pub zoom_only: bool,
+    #[serde(default)]
     pub slide_colors: crate::settings::SlideColors,
     #[serde(default)]
     pub setup_controls: bool,
@@ -44,6 +48,10 @@ pub struct HostState {
 }
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Ack {
+    #[serde(default)]
+    pub zoom: Option<crate::zoom::Sync>,
+    #[serde(default)]
+    pub zoom_slow: bool,
     /// Explicit operator blanking, separate from diagnostic status messages.
     #[serde(default)]
     pub request_blank: bool,
@@ -59,6 +67,18 @@ pub struct Ack {
     pub generation: u64,
     #[serde(default)]
     pub buffered: usize,
+}
+/// A lightweight crop update must never discard queued frame/routing state.
+pub fn coalesce(latest: &mut Option<HostState>, command: HostState) {
+    if command.zoom_only
+        && let Some(previous) = latest
+    {
+        if previous.generation == command.generation && previous.page == command.page {
+            previous.zoom.accept_presenter(command.zoom);
+        }
+    } else {
+        *latest = Some(command);
+    }
 }
 pub struct OutputLink {
     pub tx: SyncSender<HostState>,
@@ -130,7 +150,7 @@ impl OutputLink {
                     }
                     let mut latest = None;
                     while let Ok(command) = commands.try_recv() {
-                        latest = Some(command);
+                        coalesce(&mut latest, command);
                     }
                     if let Some(command) = latest {
                         if write_json(&mut stdin, &command).is_err() {

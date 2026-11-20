@@ -46,6 +46,9 @@ struct NativeWindow {
     transition: Option<(Instant, bool)>,
     frames: usize,
     display_action: Option<DisplayAction>,
+    zoom_change: Option<crate::zoom::View>,
+    zoom_watch: crate::zoom::PerformanceWatch,
+    zoom_slow: bool,
     #[cfg(target_os = "linux")]
     browser_parent: Option<WindowId>,
 }
@@ -98,6 +101,9 @@ impl NativeWindow {
             transition: None,
             frames: 0,
             display_action: None,
+            zoom_change: None,
+            zoom_watch: Default::default(),
+            zoom_slow: false,
             #[cfg(target_os = "linux")]
             browser_parent: None,
         })
@@ -166,6 +172,7 @@ impl NativeWindow {
         blank: bool,
         setup: Option<&HostState>,
     ) -> Result<(), Failure> {
+        let render_started = Instant::now();
         let size = self.window.inner_size();
         if size.width == 0 || size.height == 0 {
             return Ok(());
@@ -182,6 +189,7 @@ impl NativeWindow {
         let ui_state = &mut self.ui;
         let ctx = self.ctx.clone();
         let display_action = &mut self.display_action;
+        let zoom_change = &mut self.zoom_change;
         let output = ctx.run_ui(input, |ui| match role {
             Role::Presenter => {
                 presenter_ui::presenter(ui, studio.as_deref_mut().unwrap(), ui_state)
@@ -193,7 +201,7 @@ impl NativeWindow {
                 if let Some(setup) = setup {
                     *display_action = presenter_ui::output_display_recovery(
                         ui,
-                        setup.setup_controls,
+                        setup.setup_controls && !setup.zoom.enabled,
                         setup.route_trial.is_some(),
                     );
                 }
@@ -216,12 +224,43 @@ impl NativeWindow {
                             egui::TextureOptions::LINEAR,
                         )
                     });
-                    presenter_ui::paint_slide(
+                    let mut view = setup.map(|s| s.zoom.view).unwrap_or_default();
+                    if let Some(setup) = setup
+                        && setup.zoom.enabled
+                        && setup.route_trial.is_none()
+                        && setup
+                            .frame
+                            .as_ref()
+                            .is_some_and(|f| f.path == frame.info.path)
+                    {
+                        let target = presenter_ui::fitted_slide(
+                            ui.max_rect(),
+                            [frame.info.width, frame.info.height],
+                        );
+                        let (next, response) = presenter_ui::zoom_gestures(ui, target, view);
+                        if setup.setup_controls {
+                            response.context_menu(|ui| {
+                                if ui
+                                    .button("Swap presenter and presentation displays…")
+                                    .clicked()
+                                {
+                                    *display_action = Some(DisplayAction::Swap);
+                                    ui.close();
+                                }
+                            });
+                        }
+                        if next != view {
+                            *zoom_change = Some(next);
+                            view = next;
+                        }
+                    }
+                    presenter_ui::paint_slide_zoomed(
                         ui.painter(),
                         ui.max_rect(),
                         tex.id(),
                         [frame.info.width, frame.info.height],
                         setup.map(|s| s.slide_colors).unwrap_or_default(),
+                        view,
                     );
                 }
             }
@@ -248,6 +287,19 @@ impl NativeWindow {
         self.window.pre_present_notify();
         buffer.present()?;
         self.frames += 1;
+        let zoomed = if role == Role::Presenter {
+            studio
+                .as_ref()
+                .is_some_and(|s| s.zoom.enabled && s.zoom.view.scale > 1.)
+        } else {
+            !blank && setup.is_some_and(|s| s.zoom.enabled && s.zoom.view.scale > 1.)
+        };
+        if self.zoom_watch.observe(zoomed, render_started.elapsed()) {
+            self.zoom_slow = true;
+            if let Some(s) = studio {
+                s.zoom_warning = true;
+            }
+        }
         Ok(())
     }
 }
@@ -347,6 +399,9 @@ struct Host {
     presented: HashSet<WindowId>,
     failed_reads: HashSet<std::path::PathBuf>,
     preload_cursor: usize,
+    zoom_pending: bool,
+    zoom_slow: bool,
+    next_zoom_ack: Instant,
 }
 // The last visible frame may outlive its cache entry during a working-set change.
 // Count that allocation and pin it until the requested replacement is available.
@@ -656,6 +711,7 @@ impl App {
     fn poll(&mut self, el: &ActiveEventLoop) {
         let mut repaint = false;
         if let Some(s) = &mut self.studio {
+            repaint |= s.new_zoom;
             let before = (
                 s.generation,
                 s.frames.len(),
@@ -719,6 +775,20 @@ impl App {
             }
             if let Some(output) = &self.output {
                 while let Ok(ack) = output.rx.try_recv() {
+                    if let Some(zoom) = ack.zoom {
+                        if ack.generation == s.buffer_generation() && ack.page == Some(s.requested)
+                        {
+                            if s.zoom.accept_output(zoom) {
+                                repaint = true;
+                            }
+                            if zoom.epoch == s.zoom.epoch {
+                                s.zoom_warning |= ack.zoom_slow;
+                                s.new_zoom = true; // Echo newest serial so output can stop retrying.
+                                repaint |= ack.zoom_slow;
+                            }
+                        }
+                        continue;
+                    }
                     if let Some(action) = ack.display_action {
                         s.display_control(action, ack.route_trial);
                     }
@@ -750,6 +820,7 @@ impl App {
                 if s.new_output {
                     s.output_sequence += 1;
                     let state = HostState {
+                        zoom: s.zoom,
                         setup_controls: !s.presentation_started,
                         route_trial: s.route_trial.as_ref().map(|t| t.id),
                         sequence: s.output_sequence,
@@ -778,9 +849,25 @@ impl App {
                     };
                     if output.tx.try_send(state).is_ok() {
                         s.new_output = false;
+                        s.new_zoom = false;
                     } else {
                         s.output_sequence -= 1;
                     }
+                }
+            }
+            if s.new_zoom
+                && !s.new_output
+                && let Some(output) = &self.output
+            {
+                let state = HostState {
+                    zoom_only: true,
+                    zoom: s.zoom,
+                    generation: s.buffer_generation(),
+                    page: s.requested,
+                    ..Default::default()
+                };
+                if output.tx.try_send(state).is_ok() {
+                    s.new_zoom = false;
                 }
             }
             if s.close_requested {
@@ -799,7 +886,7 @@ impl App {
         }
         if let Some(host) = &mut self.host {
             loop {
-                let state = match host.commands.try_recv() {
+                let mut state = match host.commands.try_recv() {
                     Ok(state) => state,
                     Err(mpsc::TryRecvError::Empty) => break,
                     Err(mpsc::TryRecvError::Disconnected) => {
@@ -809,6 +896,18 @@ impl App {
                         break;
                     }
                 };
+                if state.zoom_only {
+                    if state.generation == host.state.generation && state.page == host.state.page {
+                        let before = host.state.zoom;
+                        host.state.zoom.accept_presenter(state.zoom);
+                        host.zoom_pending = host.state.zoom != state.zoom.normalized();
+                        repaint |= before != host.state.zoom;
+                    }
+                    continue;
+                }
+                host.state.zoom.accept_presenter(state.zoom);
+                host.zoom_pending = host.state.zoom != state.zoom.normalized();
+                state.zoom = host.state.zoom;
                 if !state.blanked {
                     host.close_requested = false;
                 }
@@ -846,6 +945,16 @@ impl App {
                     host.frame = None;
                 }
                 host.state = state;
+            }
+            if host.zoom_pending && host.parent_connected && Instant::now() >= host.next_zoom_ack {
+                let _ = host.acks.try_send(Ack {
+                    zoom: Some(host.state.zoom),
+                    zoom_slow: host.zoom_slow,
+                    generation: host.state.generation,
+                    page: Some(host.state.page),
+                    ..Default::default()
+                });
+                host.next_zoom_ack = Instant::now() + Duration::from_millis(33);
             }
             if !host.parent_connected && (host.close_requested || self.windows.is_empty()) {
                 el.exit();
@@ -1049,6 +1158,17 @@ impl ApplicationHandler for App {
                     blank,
                     self.host.as_ref().map(|h| &h.state),
                 );
+                if let Some(host) = &mut self.host {
+                    if let Some(view) = self.windows[index].zoom_change.take() {
+                        host.state.zoom.gesture(view);
+                        host.zoom_pending = true;
+                        self.windows.iter().for_each(|w| w.window.request_redraw());
+                    }
+                    if self.windows[index].zoom_slow && !host.zoom_slow {
+                        host.zoom_slow = true;
+                        host.zoom_pending = true;
+                    }
+                }
                 if let Some(action) = self.windows[index].display_action.take()
                     && let Some(host) = &self.host
                 {
@@ -1227,6 +1347,9 @@ pub fn run_output() -> Result<(), Failure> {
             presented: HashSet::new(),
             failed_reads: HashSet::new(),
             preload_cursor: 0,
+            zoom_pending: false,
+            zoom_slow: false,
+            next_zoom_ack: now,
         }),
         output: None,
         lease: Some(SleepLease::new()),

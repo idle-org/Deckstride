@@ -1,5 +1,6 @@
 version = 1
 auto_show = true
+zoom_enabled = false
 theme = "midra"
 language = "system"
 presenter_fullscreen = true

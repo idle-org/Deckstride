@@ -317,3 +317,32 @@ file onto the presenter. Review the destination and slide count, then choose
 **Import and save notes** to create/update the presentation's `.notes.toml` file.
 Cancel leaves files unchanged. See the [README examples](../README.md#import-your-notes)
 and [format contract](interfaces/presentation-notes.md#importing-txt-and-markdown).
+
+
+## Zoom and move around a slide
+
+Zoom is **off by default**. Enable **Menu → Preferences → Enable page zoom**.
+The preference is saved globally; it does not change presentation visibility.
+
+- On the **current slide preview** or any **presentation screen**, scroll up/down
+  to zoom in/out (1×–8×). The point under the mouse stays anchored when possible.
+- Hold the left mouse button and drag to move the enlarged image. Movement stops
+  at the page edges. Double-click to reset to the complete fitted slide.
+- **Menu → Page zoom** also has a zoom slider and **Reset zoom** button. If the
+  current preview is hidden, show it in Layout to pan from the presenter.
+- All mirrored presenter/current previews and presentation outputs share the crop.
+  Previous/next previews, All slides thumbnails and browser previews stay unzoomed.
+  Moving to another slide or opening another presentation resets zoom. Display
+  swaps/fullscreen changes preserve it. Zoom gestures pause during display trials.
+
+Zoom uses the already buffered image: no PDF re-render, additional image buffer,
+cache rewrite or disk access is triggered by changing the zoom. This prioritizes
+response time; text/images may look softer when enlarged, especially while only a
+low-resolution preview is available. Normal background preparation continues.
+
+The Preferences disclaimer explains that software drawing can slow down on large
+or multiple displays. If three consecutive zoomed frames take over 33 ms each to
+render/present on a window, a **Zoom performance** warning appears on the presenter
+with reset, disable and keep-enabled choices. This is a detected frame-budget
+warning, not proof that zoom caused the delay. It does not blank or interrupt the
+output. It cannot predict compositor/hardware delays or guarantee a frame rate.

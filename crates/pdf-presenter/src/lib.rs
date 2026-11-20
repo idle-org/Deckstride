@@ -90,3 +90,5 @@ pub mod timer;
 
 /// Editable presentation notes sidecars.
 pub mod notes;
+
+pub mod zoom;

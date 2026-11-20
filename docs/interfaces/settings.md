@@ -12,6 +12,11 @@ with an error, without rewriting the bad file. Missing files use defaults. Reads
 bounded to 4 MiB. Writes validate then atomically replace using a same-directory
 flushed temporary file. Unknown fields are ignored and not preserved on round trip.
 
+- `zoom_enabled`: boolean, default false, added in 0.1.54. Global opt-in for
+  presenter/current-slide and output zoom gestures. Missing fields in older v1
+  files retain normal non-zoom behavior. Menu → Preferences saves this setting
+  immediately. Crop/scale, gesture serials and warning state are transient and are
+  never saved in global/project layouts; each newly opened slide starts fitted.
 - `slide_colors.page_background` and `slide_colors.fit_padding`: opaque sRGB
   arrays of exactly three integers, each 0–255, added in 0.1.26. Defaults are
   `[255, 255, 255]` (white beneath transparent slide pixels) and `[0, 0, 0]`

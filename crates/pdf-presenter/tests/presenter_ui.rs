@@ -1134,3 +1134,46 @@ fn notes_import_review_requires_explicit_save_and_cancel_discards_preview() {
         assert_eq!(s.deck.as_ref().unwrap().notes, original);
     }
 }
+
+#[test]
+fn zoom_is_opt_in_resets_on_slide_change_and_does_not_blank_output() {
+    let mut s = studio();
+    assert!(!s.settings.zoom_enabled);
+    s.blanked = false;
+    s.set_zoom(pdf_presenter::zoom::View {
+        scale: 4.,
+        center: [0.3, 0.6],
+    });
+    assert_eq!(s.zoom.view.scale, 1.);
+    s.enable_zoom(true);
+    s.set_zoom(pdf_presenter::zoom::View {
+        scale: 4.,
+        center: [0.3, 0.6],
+    });
+    let ctx = Context::default();
+    let mut state = UiState::default();
+    for size in [Vec2::new(1280., 900.), Vec2::new(600., 400.)] {
+        let _ = ctx.run_ui(input(size), |ui| {
+            presenter_ui::presenter(ui, &mut s, &mut state)
+        });
+        assert_eq!(s.zoom.view.scale, 4.);
+    }
+    let epoch = s.zoom.epoch;
+    s.execute(Action::Go(1));
+    assert_eq!(s.zoom.view.scale, 1.);
+    assert!(s.zoom.epoch > epoch);
+    assert!(!s.blanked);
+    s.set_zoom(pdf_presenter::zoom::View {
+        scale: 8.,
+        center: [0.5; 2],
+    });
+    s.zoom_warning = true;
+    let _ = ctx.run_ui(input(Vec2::new(900., 700.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut state)
+    });
+    assert!(!s.zoom_warning_dismissed);
+    s.enable_zoom(false);
+    assert_eq!(s.zoom.view, Default::default());
+    assert!(!s.zoom_warning);
+    assert!(!s.blanked);
+}

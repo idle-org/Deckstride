@@ -292,3 +292,48 @@ formatting, warnings-denied Clippy/rustdoc and 13 Python tests pass; whole-app
 X11 coverage is 86.38%. Niri is unavailable here, so this verifies hint delivery,
 not Niri placement or physical multi-monitor acceptance. Windows/macOS were not
 built or runtime-tested for this Linux-only change.
+
+
+## Buffered page zoom — 0.1.54
+
+Opt-in zoom crops UVs of the current cached texture, with bounded normalized panning
+and no oversized draw rectangle. All views share crop state via small coalesced IPC;
+page/epoch/serial checks prevent stale gestures from undoing navigation or reset.
+The output host updates its mirrors locally and retries the latest crop at 30 Hz
+until echoed. Full slide-buffer manifests are not resent for zoom-only updates.
+Tests cover anchor math, bounds, pointer gestures, settings migration, software
+pixels/unchanged texture uploads and host buffer preservation after deleting source
+and cache files. The manual software-drawing measurement is run with:
+
+```sh
+cargo test --release --test zoom buffered_zoom_drawing_measurement -- --ignored --nocapture
+```
+
+This synthetic measurement excludes OS presentation/compositor and physical mirror
+acceptance. Validate real pointer/trackpad input and simultaneous displays on each OS;
+only Linux development checks were run for this subject.
+
+
+The software renderer is bundled with a narrow cropped-quad optimization; see
+[`vendor/egui_software_backend/PDF-PRESENTER-PATCH.md`](../../vendor/egui_software_backend/PDF-PRESENTER-PATCH.md)
+for provenance and the precise changes. Fixed-point bilinear scanlines reuse two
+filtered rows and bounded coordinate tables. Large crops use four disjoint bands
+on a lazily initialized pool capped at four CPU threads per native process. This
+keeps image buffers shared, avoids PDF jobs and bounds additional scratch memory
+by viewport width. Font/tinted/general geometry keeps the original raster path.
+
+
+Local release-mode measurement (2026-11-20, Intel Core i5-8500, six logical CPUs,
+renderer pool capped at four): 1920×1080 source image, changing crop center every
+frame, two warm-up frames then ten timed frames per case. Median software drawing:
+
+| Output size | Fitted/static 1× | Panning at 4× | Panning at 8× |
+| --- | ---: | ---: | ---: |
+| 1920×1080 | 0.79 ms | 4.83 ms | 4.29 ms |
+| 3840×2160 | 4.11 ms | 16.07 ms | 15.76 ms |
+
+Maximum measured moving-frame time was 17.02 ms. The 1× case benefits from an
+unchanged cached primitive; moving crops deliberately invalidate that cache.
+These numbers include egui tessellation and software buffer drawing, exclude native
+surface/compositor/monitor latency, and are not a guaranteed display frame rate.
+The in-app watcher measures the actual native window draw/presentation call.

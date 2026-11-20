@@ -136,3 +136,35 @@ merges notes and writes atomically, returning the existing `Reply.notes` snapsho
 Both notes jobs use the dedicated 30-second bridge, bounded JSON messages and source
 generations. Notes picker results carry the source generation too. These messages
 are private same-executable presenter/worker traffic, never output-host traffic.
+
+
+## Shared zoom in 0.1.54
+
+HostState adds `zoom {enabled, view {scale, center}, epoch, serial}` and
+`zoom_only` (false by default). Scale is bounded to 1–8 and center is normalized
+page UV coordinates, clamped to keep the full crop inside the page. Disabled or
+invalid views normalize to a complete fitted page. The viewport keeps the slide's
+aspect ratio and draws a cropped texture rectangle with constant-sized geometry.
+No higher-resolution request, texture upload or image buffer is created by zoom.
+Large crops split into disjoint clip bands on a pool capped at four CPU threads;
+scanline interpolation uses O(viewport width) scratch memory.
+
+Presenter gestures, enable/disable and slide changes advance `epoch`, reset serial
+to zero and invalidate prior output gestures. Output gestures increment `serial`
+within that epoch, sharing the crop immediately among output mirrors. Ack adds
+optional `zoom` and boolean `zoom_slow`; crop ACKs include generation and page.
+Presenter accepts only current-generation/current-page/current-epoch newer serials.
+The output retains newer local serials against delayed presenter states. Pending
+output changes retry at most every 33 ms until the presenter echoes the crop; pipe
+queues remain bounded and the latest absolute crop replaces intermediate gestures.
+
+Zoom-only messages contain only crop/page/generation metadata and must not replace
+frame, preload, monitor, fullscreen or visibility state. Coalescing retains queued
+full state and merges same-page zoom metadata. The host validates page/generation
+before applying a lightweight update, without touching its RAM cache or textures.
+Full state also carries zoom for recovery. Notes and other operator data remain
+absent. No zoom state is persisted except the opt-in boolean in settings.
+
+The performance watcher counts three consecutive zoomed window draws above 33 ms,
+including software drawing/presentation. The presenter shows the warning locally;
+output hosts report only a boolean. It does not alter visibility or navigation.

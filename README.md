@@ -56,7 +56,9 @@ pointer near an edge or right-click to recover them.
 Prepared slides are cached for reuse. The presenter shows loading progress, RAM use
 and an ETA when available; decks larger than the RAM budget use a rolling buffer.
 Notes can come from the PDF or picture-folder sidecars. Themes and English/French
-controls are available in Menu.
+controls are available in Menu. Optional shared slide zoom is available under
+**Menu → Preferences → Enable page zoom**; scroll to zoom, drag to pan, double-click
+to reset on the current preview or presentation screen.
 
 ## Import your notes
 
