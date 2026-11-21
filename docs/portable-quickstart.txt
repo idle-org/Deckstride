@@ -1,4 +1,4 @@
-Deckstride — preview release
+Deckstride — portable release
 
 Windows: extract the ZIP and run deckstride.exe. Its icon is embedded.
 Linux: extract the tarball and run ./deckstride. Optional menu/taskbar
@@ -15,5 +15,5 @@ Linux uses the system desktop services and X11/Wayland libraries.
 Run --licenses for bundled dependency notices. Open PDFs or picture folders
 from Menu. Both Presenter and Slides windows start fullscreen.
 
-Physical display, sleep prevention and clean-machine acceptance remain open.
-This is a preview for testing, not a claim of production readiness.
+Rehearse on the actual presentation computer, adapters and display arrangement
+before a live event.

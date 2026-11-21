@@ -57,25 +57,28 @@ on the machines that will run the show.
 Open the [release page](https://proxy.dandaedre.com/gitea/idle-org/deckstride/releases)
 and download the archive for your computer.
 
-| Platform | Recommended download |
-| --- | --- |
-| Windows x86_64 | Portable Windows ZIP |
-| Linux x86_64 | Portable Linux x86_64 tarball |
-| Linux ARM64 | Portable Linux ARM64 tarball |
-| Apple Silicon macOS 13+ | Portable Apple Silicon tarball |
-| Intel macOS 13+ | Portable Intel tarball |
-
-Existing releases remain unchanged and therefore retain the filenames shown on
-their release pages. Future packages use the Deckstride executable and archive name.
+| Platform | Recommended download | Start after extracting |
+| --- | --- | --- |
+| Windows x86_64 | `deckstride-portable-x86_64-pc-windows-gnu-v….zip` | `deckstride.exe` |
+| Linux x86_64 | `deckstride-portable-x86_64-unknown-linux-gnu-v….tgz` | `./deckstride` |
+| Linux ARM64 | `deckstride-portable-aarch64-unknown-linux-musl-v….tgz` | `./deckstride` |
+| Apple Silicon macOS 13+ | `deckstride-portable-aarch64-apple-darwin-v….tgz` | Follow the release-page macOS instructions |
+| Intel macOS 13+ | `deckstride-portable-x86_64-apple-darwin-v….tgz` | Follow the release-page macOS instructions |
 
 Windows and macOS builds are currently unsigned. Releases are ready for normal use;
 test the actual computer, adapters and display arrangement before a live event.
 macOS artifacts are cross-built on Linux and have not yet had native Mac runtime
 testing. [Installation and update details →](docs/user-guide.md#install-and-update)
 
-New Deckstride releases will also support installation with
-[cargo-binstall](https://github.com/cargo-bins/cargo-binstall). Until one is
-published, use the unchanged portable packages from the release page.
+If you already have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall)
+installed, install the prebuilt release directly:
+
+```sh
+cargo binstall deckstride --git https://proxy.dandaedre.com/gitea/idle-org/deckstride --version 0.1.96 --strategies crate-meta-data
+```
+
+Replace `0.1.96` with another published Deckstride version when needed. Then run
+`deckstride`.
 
 ## Set up a show
 

@@ -8,8 +8,9 @@
   CI publication paths and future packages to Deckstride. Existing releases remain
   unchanged; valid settings migrate to the new location and warm rendered-slide
   caches remain available after the rename.
-- Retain the current application icon pending review of a separate Deckstride logo
-  proposal.
+- Retain the established application icon for the Deckstride release.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests and 13 Python
+  helper tests pass. Windows and macOS runtime acceptance remains native testing.
 
 ### 0.1.95
 
