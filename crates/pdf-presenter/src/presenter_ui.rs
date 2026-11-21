@@ -1414,9 +1414,9 @@ fn presenter_view(
                         },
                         s.jump,
                         if s.settings.language.french() {
-                            "Entrée : diffuser · Échap : annuler"
+                            "Entrée : diffuser · Retour arrière : effacer"
                         } else {
-                            "Enter to show · Esc to cancel"
+                            "Enter to show · Backspace to clear"
                         }
                     ));
                 });
@@ -1889,6 +1889,7 @@ fn presenter_view(
     }
     notes_import_ui(&ctx, s);
     notes_editor_ui(&ctx, s);
+    quit_confirmation(&ctx, s);
 }
 fn notes_import_ui(ctx: &Context, s: &mut Studio) {
     let Some(import) = &s.notes_import else {
@@ -2263,9 +2264,9 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             },
             s.jump,
             if s.settings.language.french() {
-                "Entrée : diffuser, Échap : annuler"
+                "Entrée : diffuser, Retour arrière : effacer"
             } else {
-                "Enter to show, Escape to cancel"
+                "Enter to show; Backspace to clear"
             }
         ));
     }
@@ -2396,6 +2397,7 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
             s.browser_preview = None;
         }
     }
+    quit_confirmation(ui.ctx(), s);
 }
 
 fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
@@ -2808,4 +2810,32 @@ pub fn output_display_recovery(
             });
     }
     action
+}
+
+fn quit_confirmation(ctx: &egui::Context, s: &mut Studio) {
+    if !s.quit_confirmation {
+        return;
+    }
+    egui::Modal::new(egui::Id::new("confirm-quit")).show(ctx, |ui| {
+        ui.heading(tr(ctx, "Quit presentation?"));
+        ui.label(tr(ctx, "This closes Presenter and all Slides windows."));
+        let blocked = s.quit_block_reason();
+        if let Some(reason) = blocked {
+            ui.label(tr(ctx, reason));
+        }
+        ui.horizontal(|ui| {
+            if ui.button(tr(ctx, "Cancel")).clicked() {
+                s.actions.push(Action::CancelExit);
+            }
+            if ui
+                .add_enabled(
+                    blocked.is_none(),
+                    egui::Button::new(tr(ctx, "Quit presentation")),
+                )
+                .clicked()
+            {
+                s.actions.push(Action::ConfirmExit);
+            }
+        });
+    });
 }

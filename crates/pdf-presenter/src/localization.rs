@@ -276,6 +276,17 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
             "Afficher automatiquement les diapositives à l’ouverture d’un document"
         }
         "Quit" => "Quitter",
+        "Quit presentation?" => "Quitter la présentation ?",
+        "Quit presentation" => "Quitter la présentation",
+        "This closes Presenter and all Slides windows." => {
+            "Ferme le présentateur et toutes les fenêtres de diapositives."
+        }
+        "Wait for notes import to finish before closing." => {
+            "Attendez la fin de l’importation des notes avant de quitter."
+        }
+        "Save or discard notes before closing the presentation." => {
+            "Enregistrez ou abandonnez les notes avant de quitter la présentation."
+        }
         "Theme" => "Thème",
         "Language" => "Langue",
         _ => text,

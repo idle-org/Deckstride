@@ -134,7 +134,7 @@ Useful controls:
 - **Hold S for one second** — swap Presenter and Slides screens, then Keep or Revert
 - **B** — blank or restore Slides
 - **P / A / H** — pointer, arrow or highlighter
-- **Escape** — cancel the current popup or display proposal; fullscreen has its own button
+- **Escape / Ctrl+Q** — request quit confirmation (Escape first reverts an active display trial)
 
 [Notes, layouts and controls →](docs/user-guide.md) ·
 [Notes file formats →](docs/interfaces/presentation-notes.md) ·

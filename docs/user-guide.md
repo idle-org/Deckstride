@@ -92,8 +92,14 @@ preserves blanking. Until an uncached requested slide is ready, output holds the
 usable frame. The footer distinguishes requested and acknowledged displayed slides. A red
 **NO OUTPUT DISPLAYED** warning marks blanking, no assigned output or no document;
 it remains visible when the footer is hidden. Preparing output has a separate status.
-Escape cancels a pending slide number/menu or closes the browser; it does not
-leave Presenter fullscreen or blank Slides. Use **Enter fullscreen /
+**Escape** or **Ctrl+Q** opens **Quit presentation?** in Presenter or All slides.
+Choose **Quit presentation** to close the application, or **Cancel** (also Escape)
+to continue. Menu → Quit and closing a Presenter use the same confirmation.
+Unsaved notes or active notes writes/imports must be saved, discarded or finished
+before quitting; Cancel returns to the editor. Slides keeps its current visibility
+while confirmation is open. Shortcuts on a connected Slides window request the
+confirmation on Presenter, never on the audience display. Escape still reverts
+an active display trial before offering to quit. Use **Enter fullscreen /
 Exit fullscreen** in the header to toggle both display roles. Like other
 display changes, this previews the change with Keep/Revert confirmation. While a
 Presenter is connected, closing a Slides window blanks it; close a Presenter or
@@ -102,9 +108,9 @@ choose Menu → Quit to end the application.
 Arrow keys and Page Up/Down navigate from the presenter or All slides, including
 while a presenter menu is open. Space moves forward; Shift+Space moves back. Notes
 editors and Ctrl/Alt/Command combinations retain keyboard priority. Type a 1-based slide
-number then Enter to jump; Backspace edits and Escape cancels. Out-of-range numbers
+number then Enter to jump; Backspace edits or clears it. Out-of-range numbers
 do not navigate. Output windows accept B for emergency blanking. Escape never blanks a connected
-show; it only reverts a display trial or closes an orphaned output.
+show; it requests quit confirmation, reverts a display trial, or closes an orphaned output.
 
 Hold Next/Previous, an arrow key, Page Up/Down or Space (Shift+Space backwards)
 to accelerate. The first step is immediate; after 400 ms, single steps repeat every
@@ -254,7 +260,7 @@ dependency/font notices without launching a window.
 
 ## Appearance and language
 
-Menu opens a dropdown below its button; click outside or press Escape to dismiss it.
+Menu opens a dropdown below its button; click outside to dismiss it.
 Page zoom, fitted-area zoom and automatic Slides output stay in this dropdown for
 quick access. **Preferences…** opens a separate resizable window for blank-output
 artwork, RAM and cache controls, preparation/storage details and Windows integration.
@@ -275,7 +281,7 @@ remain verbatim. Additional Canvas Pilot languages and external theme/language p
 are not included in this version.
 
 All slides opens a windowed browser above fullscreen windows and requests focus.
-Opening it again restores/focuses the existing browser. Close or Escape dismisses it.
+Opening it again restores/focuses the existing browser. Its Close button dismisses it; Escape requests application quit confirmation.
 The destination remains configurable in the browser, defaulting to the presenter.
 Window-manager focus restrictions may still require clicking the browser on some systems.
 
@@ -344,7 +350,7 @@ See [Niri window rules](https://github.com/niri-wm/niri/wiki/Configuration%3A-Wi
 The rule targets only All slides, not Presenter or Slides windows.
 
 In All slides, double-click a thumbnail to open a larger, resizable preview inside
-the browser. It does not change the presentation. Close it with its X or Escape.
+the browser. It does not change the presentation. Close it with its X.
 When Change on click is enabled, clicks switch the live slide and do not open previews.
 
 The All slides grid fills the browser width and adapts as you resize it. Preview

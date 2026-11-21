@@ -937,8 +937,14 @@ impl App {
         Ok(())
     }
     fn key(&mut self, role: Role, key: Key, consumed: bool, modifiers: egui::Modifiers) {
+        let escape = matches!(key, Key::Named(NamedKey::Escape)) && modifiers.is_none();
+        let quit = escape
+            || (matches!(&key, Key::Character(c) if c.eq_ignore_ascii_case("q"))
+                && modifiers.ctrl
+                && !modifiers.alt
+                && !modifiers.shift);
         if role == Role::Presentation {
-            if matches!(key, Key::Named(NamedKey::Escape))
+            if escape
                 && let Some(host) = &self.host
                 && host.state.route_trial.is_some()
             {
@@ -949,7 +955,16 @@ impl App {
                 });
                 return;
             }
-            if matches!(key, Key::Named(NamedKey::Escape)) {
+            if quit {
+                if let Some(h) = &self.host
+                    && h.parent_connected
+                {
+                    let _ = h.acks.try_send(Ack {
+                        request_quit: true,
+                        ..Default::default()
+                    });
+                    return;
+                }
                 // Focus may move here as All slides closes. Escape must never blank
                 // a connected show; an orphan can still be dismissed safely.
                 if let Some(h) = &mut self.host {
@@ -971,8 +986,20 @@ impl App {
         let Some(s) = &mut self.studio else {
             return;
         };
-        if matches!(key, Key::Named(NamedKey::Escape)) && s.route_trial.is_some() {
+        if s.quit_confirmation {
+            if escape {
+                s.execute(Action::CancelExit);
+            }
+            self.redraw();
+            return;
+        }
+        if escape && s.route_trial.is_some() {
             s.execute(Action::RevertRoutes);
+            return;
+        }
+        if quit {
+            s.execute(Action::Exit);
+            self.redraw();
             return;
         }
         // Notes editing must never turn typing or Escape into presentation commands.
@@ -992,14 +1019,6 @@ impl App {
                 repeated: false,
             });
             self.redraw();
-            return;
-        }
-        if role == Role::Browser && matches!(key, Key::Named(NamedKey::Escape)) {
-            if !s.jump.is_empty() {
-                s.jump.clear();
-            } else if s.browser_preview.take().is_none() {
-                s.execute(Action::CloseBrowser);
-            }
             return;
         }
         if consumed {
@@ -1023,16 +1042,6 @@ impl App {
             }
             Key::Named(NamedKey::Backspace) if !s.jump.is_empty() => {
                 s.jump.pop();
-            }
-            Key::Named(NamedKey::Escape) => {
-                if !s.jump.is_empty() {
-                    s.jump.clear();
-                } else if s.layout_open || s.displays_open || s.menu_open || s.toolbox.open {
-                    s.layout_open = false;
-                    s.displays_open = false;
-                    s.menu_open = false;
-                    s.toolbox.open = false;
-                }
             }
             Key::Character(c) if c.eq_ignore_ascii_case("p") => {
                 let tool = if s.toolbox.tool == crate::tools::Tool::Pointer {
@@ -1089,7 +1098,8 @@ impl App {
             .iter()
             .any(|w| w.window.id() == *id && w.window.has_focus())
             && self.studio.as_ref().is_some_and(|s| {
-                s.notes_editor.is_none()
+                !s.quit_confirmation
+                    && s.notes_editor.is_none()
                     && s.notes_import.is_none()
                     && !s.dialog_busy
                     && !s.loading
@@ -1126,6 +1136,7 @@ impl App {
                 s.status.clone(),
                 s.layout_open,
                 s.browser_open,
+                s.quit_confirmation,
                 s.route_trial.as_ref().map(|trial| trial.id),
             );
             let chooser_was_open = s.dialog_busy;
@@ -1205,6 +1216,9 @@ impl App {
                             }
                         }
                         continue;
+                    }
+                    if ack.request_quit {
+                        s.execute(Action::Exit);
                     }
                     if let Some(action) = ack.display_action {
                         s.display_control(action, ack.route_trial);
@@ -1311,6 +1325,7 @@ impl App {
                     s.status.clone(),
                     s.layout_open,
                     s.browser_open,
+                    s.quit_confirmation,
                     s.route_trial.as_ref().map(|trial| trial.id),
                 );
         }
@@ -1553,7 +1568,8 @@ impl ApplicationHandler for App {
         // egui's focused button activation or the OS repeat stream.
         let navigation_event = role != Role::Presentation
             && self.studio.as_ref().is_some_and(|s| {
-                s.notes_editor.is_none()
+                !s.quit_confirmation
+                    && s.notes_editor.is_none()
                     && s.notes_import.is_none()
                     && !s.dialog_busy
                     && s.route_trial.is_none()
@@ -1651,7 +1667,8 @@ impl ApplicationHandler for App {
                     let direction = navigation_direction(&event.logical_key, modifiers);
                     let allowed = role != Role::Presentation
                         && self.studio.as_ref().is_some_and(|s| {
-                            s.notes_editor.is_none()
+                            !s.quit_confirmation
+                                && s.notes_editor.is_none()
                                 && s.notes_import.is_none()
                                 && !s.dialog_busy
                                 && s.route_trial.is_none()
@@ -1663,34 +1680,7 @@ impl ApplicationHandler for App {
                             crate::navigation::Hold::new(direction, Instant::now()),
                         ));
                     }
-                    let local_dismissed = matches!(event.logical_key, Key::Named(NamedKey::Escape))
-                        && !modifiers.ctrl
-                        && !modifiers.alt
-                        && !modifiers.command
-                        && role == Role::Presenter
-                        && self.studio.as_mut().is_some_and(|s| {
-                            if s.route_trial.is_some()
-                                || s.notes_editor.is_some()
-                                || s.notes_import.is_some()
-                                || !s.jump.is_empty()
-                            {
-                                return false;
-                            }
-                            let Some(view) =
-                                s.presenter_views.get_mut(&self.windows[index].monitor)
-                            else {
-                                return false;
-                            };
-                            let open = view.layout_open || view.menu_open;
-                            view.layout_open = false;
-                            view.menu_open = false;
-                            open
-                        });
-                    if local_dismissed {
-                        self.redraw();
-                    } else {
-                        self.key(role, event.logical_key, consumed, modifiers);
-                    }
+                    self.key(role, event.logical_key, consumed, modifiers);
                 }
             }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
@@ -1843,7 +1833,7 @@ impl ApplicationHandler for App {
                     for view in s.presenter_views.values_mut() {
                         view.layout = Default::default();
                     }
-                    // Escape dismisses transient UI; fullscreen is an explicit control.
+                    // Fullscreen remains an explicit control; Escape requests quit confirmation.
                 }
                 6 => {
                     if self.windows.iter().all(|w| w.frames > 0) && !self.windows.is_empty() {
@@ -2181,43 +2171,29 @@ mod buffer_tests {
         s.settings.presenter_fullscreen = true;
         s.settings.presentation_fullscreen = true;
         s.blanked = false;
-        s.jump = "12".into();
-        app.key(
-            Role::Presenter,
-            Key::Named(NamedKey::Escape),
-            false,
-            egui::Modifiers::NONE,
-        );
-        assert!(app.studio.as_ref().unwrap().jump.is_empty());
-        app.key(
-            Role::Presenter,
-            Key::Named(NamedKey::Escape),
-            false,
-            egui::Modifiers::NONE,
-        );
-        let s = app.studio.as_ref().unwrap();
-        assert!(s.presenter_fullscreen() && s.presentation_fullscreen());
-        assert!(!s.blanked);
-        for consumed in [false, true] {
-            let s = app.studio.as_mut().unwrap();
-            s.browser_open = true;
-            s.browser_preview = Some((s.generation, 1));
-            app.key(
-                Role::Browser,
-                Key::Named(NamedKey::Escape),
-                consumed,
-                egui::Modifiers::NONE,
-            );
-            let s = app.studio.as_ref().unwrap();
-            assert!(s.browser_open && s.browser_preview.is_none() && !s.blanked);
-            app.key(
-                Role::Browser,
-                Key::Named(NamedKey::Escape),
-                consumed,
-                egui::Modifiers::NONE,
-            );
-            let s = app.studio.as_ref().unwrap();
-            assert!(!s.browser_open && !s.blanked && s.presentation_fullscreen());
+        for (key, modifiers) in [
+            (Key::Named(NamedKey::Escape), egui::Modifiers::NONE),
+            (Key::Character("q".into()), egui::Modifiers::CTRL),
+        ] {
+            for role in [Role::Presenter, Role::Browser] {
+                app.key(role, key.clone(), true, modifiers);
+                let s = app.studio.as_ref().unwrap();
+                assert!(s.quit_confirmation && !s.close_requested && !s.blanked);
+                app.key(
+                    role,
+                    Key::Named(NamedKey::Space),
+                    false,
+                    egui::Modifiers::NONE,
+                );
+                assert!(app.studio.as_ref().unwrap().quit_confirmation);
+                app.key(
+                    role,
+                    Key::Named(NamedKey::Escape),
+                    true,
+                    egui::Modifiers::NONE,
+                );
+                assert!(!app.studio.as_ref().unwrap().quit_confirmation);
+            }
         }
         let (_tx, commands) = mpsc::sync_channel(4);
         let (acks, rx) = mpsc::sync_channel(8);
@@ -2250,10 +2226,8 @@ mod buffer_tests {
         );
         assert!(!app.host.as_ref().unwrap().state.blanked);
         assert!(!app.host.as_ref().unwrap().close_requested);
-        assert!(
-            rx.try_recv().is_err(),
-            "Focus transfer must not request audience blanking"
-        );
+        let ack = rx.try_recv().unwrap();
+        assert!(ack.request_quit && !ack.request_blank);
         app.key(
             Role::Presentation,
             Key::Character("b".into()),
@@ -2326,6 +2300,7 @@ mod buffer_tests {
 
 fn swap_allowed(s: &Studio) -> bool {
     s.initialized
+        && !s.quit_confirmation
         && s.notes_editor.is_none()
         && s.notes_import.is_none()
         && !s.dialog_busy

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.1.88
+
+- Escape and Ctrl+Q request a shared quit-confirmation dialog, also used by Menu
+  Quit and Presenter window close. Cancel/Escape resumes the show; explicit Quit
+  closes it only when notes have no pending writes or unsaved edits. Audience
+  shortcuts request operator confirmation without showing dialogs or blanking
+  Slides. Escape still reverts active display trials first.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, build and
+  13 Python tests pass. GUI coverage remains blocked by `XOpenDisplayFailed` in
+  this environment; native physical testing and Windows/macOS validation were
+  not performed.
+
 ### 0.1.87
 
 - Add per-screen Follow global / Always fullscreen / Always windowed choices in

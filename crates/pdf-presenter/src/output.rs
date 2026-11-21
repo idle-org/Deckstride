@@ -81,6 +81,8 @@ pub struct Ack {
     #[serde(default)]
     pub request_blank: bool,
     #[serde(default)]
+    pub request_quit: bool,
+    #[serde(default)]
     pub display_action: Option<DisplayAction>,
     #[serde(default)]
     pub route_trial: Option<u64>,

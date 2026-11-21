@@ -225,3 +225,11 @@ no presenter layout, notes or paths. Placement and OutputViewport acknowledgment
 use the same per-monitor value. Full state updates replace the map; lightweight
 zoom/overlay updates preserve it. Values round-trip through JSON; both processes
 must still run the same executable build.
+
+## Quit confirmation — 0.1.88
+
+ACK adds optional boolean `request_quit` (default false). Escape/Ctrl+Q on a
+connected output requests the shared operator-only quit dialog; it does not blank
+or stop the output. No confirmation text or notes are sent to the audience host.
+Only a confirmed presenter-side quit triggers existing shutdown. Escape retains
+priority for display-trial rollback; an orphan output can still close directly.

@@ -152,6 +152,8 @@ fn shared_actions_preserve_blanking_and_save_scope() {
     s.execute(Action::Refresh);
     assert!(s.dirty_routes);
     s.execute(Action::Exit);
+    assert!(s.quit_confirmation && !s.close_requested);
+    s.execute(Action::ConfirmExit);
     assert!(s.close_requested);
 }
 
@@ -1216,6 +1218,7 @@ fn double_click_notes_opens_editor_and_editor_keeps_unsaved_draft() {
     s.execute(Action::Exit);
     assert!(!s.close_requested);
     assert_eq!(s.notes_editor.as_ref().unwrap().text, "Unsaved notes");
+    s.execute(Action::CancelExit);
     let pos = text_pos(&output.shapes, "Save notes");
     for pressed in [true, false] {
         render(
@@ -1973,4 +1976,103 @@ fn output_viewport_accepts_screen_override_instead_of_global_mode() {
     assert_eq!(s.presentation_viewport(), Some([800, 600]));
     s.output_viewport.as_mut().unwrap().fullscreen = true;
     assert_eq!(s.presentation_viewport(), Some([1920, 1080]));
+}
+
+#[test]
+fn quit_confirmation_requires_explicit_confirmation_and_protects_notes() {
+    let mut s = studio();
+    s.execute(Action::ConfirmExit);
+    assert!(!s.close_requested);
+    s.execute(Action::Exit);
+    assert!(s.quit_confirmation && !s.close_requested && !s.blanked);
+    s.execute(Action::CancelExit);
+    s.execute(Action::ConfirmExit);
+    assert!(!s.quit_confirmation && !s.close_requested);
+    s.notes_editor = Some(pdf_presenter::studio::NotesEditor {
+        page: 0,
+        text: "Unsaved".into(),
+        saved_text: "Saved".into(),
+        busy: false,
+        error: None,
+        snapshot: None,
+    });
+    s.execute(Action::Exit);
+    s.execute(Action::ConfirmExit);
+    assert!(s.quit_confirmation && !s.close_requested);
+    assert_eq!(s.notes_editor.as_ref().unwrap().text, "Unsaved");
+    s.notes_editor.as_mut().unwrap().text = "Saved".into();
+    s.notes_editor.as_mut().unwrap().busy = true;
+    s.execute(Action::ConfirmExit);
+    assert!(!s.close_requested);
+    s.notes_editor = None;
+    s.notes_import = Some(pdf_presenter::studio::NotesImport {
+        preview: None,
+        busy: true,
+        error: None,
+    });
+    s.execute(Action::ConfirmExit);
+    assert!(!s.close_requested);
+    s.notes_import = None;
+    s.execute(Action::ConfirmExit);
+    assert!(s.close_requested && !s.quit_confirmation);
+}
+
+#[test]
+fn quit_modal_buttons_work_in_presenter_and_browser() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    for browser in [false, true] {
+        for label in ["Cancel", "Quit presentation"] {
+            let ctx = Context::default();
+            let mut s = studio();
+            s.settings.language = pdf_presenter::localization::Language::En;
+            s.execute(Action::Exit);
+            let mut native = UiState::default();
+            let mut frame = |s: &mut Studio, events| {
+                let mut raw = input(Vec2::new(1920., 1080.));
+                raw.events = events;
+                ctx.run_ui(raw, |ui| {
+                    if browser {
+                        presenter_ui::browser(ui, s, &mut native);
+                    } else {
+                        presenter_ui::presenter(ui, s, &mut native);
+                    }
+                })
+            };
+            let mut output = frame(&mut s, vec![]);
+            for _ in 0..3 {
+                output = frame(&mut s, vec![]);
+            }
+            let pos = output
+                .shapes
+                .iter()
+                .find_map(|shape| find(&shape.shape, label))
+                .unwrap();
+            for pressed in [true, false] {
+                frame(
+                    &mut s,
+                    vec![
+                        egui::Event::PointerMoved(pos),
+                        egui::Event::PointerButton {
+                            pos,
+                            button: egui::PointerButton::Primary,
+                            pressed,
+                            modifiers: Default::default(),
+                        },
+                    ],
+                );
+            }
+            for action in std::mem::take(&mut s.actions) {
+                s.execute(action);
+            }
+            assert!(!s.quit_confirmation);
+            assert_eq!(s.close_requested, label == "Quit presentation");
+            assert!(!s.blanked);
+        }
+    }
 }

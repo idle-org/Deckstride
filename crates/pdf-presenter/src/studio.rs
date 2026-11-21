@@ -53,6 +53,8 @@ pub enum Action {
     CloseBrowser,
     Refresh,
     Exit,
+    ConfirmExit,
+    CancelExit,
     ToggleFullscreen,
     ToggleTimer,
     ResetTimer,
@@ -181,6 +183,7 @@ pub struct Studio {
     pub new_overlay: bool,
     pub new_output: bool,
     pub close_requested: bool,
+    pub quit_confirmation: bool,
     failed: HashSet<(usize, u32)>,
     pub smoke: bool,
     pub startup: Instant,
@@ -297,6 +300,7 @@ impl Studio {
             new_overlay: false,
             new_output: true,
             close_requested: false,
+            quit_confirmation: false,
             failed: HashSet::new(),
             smoke,
             startup: Instant::now(),
@@ -802,18 +806,17 @@ impl Studio {
             }
             Action::Refresh => self.dirty_routes = true,
             Action::Exit => {
-                if self.notes_import.as_ref().is_some_and(|i| i.busy) {
-                    self.status = "Wait for notes import to finish before closing.".into();
-                    return;
-                }
-                if self
-                    .notes_editor
-                    .as_ref()
-                    .is_some_and(|editor| editor.busy || editor.text != editor.saved_text)
-                {
-                    self.status = "Save or discard notes before closing the presentation.".into();
-                } else {
-                    self.close_requested = true;
+                self.quit_confirmation = true;
+            }
+            Action::CancelExit => self.quit_confirmation = false,
+            Action::ConfirmExit => {
+                if self.quit_confirmation {
+                    if let Some(reason) = self.quit_block_reason() {
+                        self.status = reason.into();
+                    } else {
+                        self.quit_confirmation = false;
+                        self.close_requested = true;
+                    }
                 }
             }
             command @ (Action::EditNotes | Action::ReloadNotes) => {
@@ -910,6 +913,19 @@ impl Studio {
                 });
             }
             _ => {}
+        }
+    }
+    pub fn quit_block_reason(&self) -> Option<&'static str> {
+        if self.notes_import.as_ref().is_some_and(|i| i.busy) {
+            Some("Wait for notes import to finish before closing.")
+        } else if self
+            .notes_editor
+            .as_ref()
+            .is_some_and(|e| e.busy || e.text != e.saved_text)
+        {
+            Some("Save or discard notes before closing the presentation.")
+        } else {
+            None
         }
     }
     pub fn screen_fullscreen(&self, display: &str, global: bool) -> bool {
