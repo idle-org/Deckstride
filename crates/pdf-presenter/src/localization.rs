@@ -192,6 +192,16 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Unused" => "Inutilisé",
         "Presenter" => "Présentateur",
         "Slides" => "Diapositives",
+        "Single screen" => "Écran unique",
+        "Use single-screen mode?" => "Utiliser le mode écran unique ?",
+        "PDF Presenter is intended for a presenter setup with separate Presenter and Slides screens." => {
+            "PDF Presenter est conçu pour une présentation avec des écrans Présentateur et Diapositives séparés."
+        }
+        "Only one screen was connected at startup. Single-screen mode shows slides with controls revealed at the top and bottom edges." => {
+            "Un seul écran était connecté au démarrage. Le mode écran unique affiche les diapositives avec des commandes apparaissant aux bords supérieur et inférieur."
+        }
+        "Keep Presenter view" => "Garder la vue Présentateur",
+        "Use single-screen mode" => "Utiliser le mode écran unique",
         "Window mode" => "Mode de fenêtre",
         "Follow global" => "Suivre le réglage global",
         "Always fullscreen" => "Toujours en plein écran",

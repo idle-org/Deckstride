@@ -463,3 +463,29 @@ Validation: Linux workspace/native tests, 13 Python helper tests, formatting and
 warnings-denied Clippy/rustdoc pass. Whole-application coverage is 84.78% against
 the 75% floor. The Linux release binary is rebuilt. Windows/macOS builds and
 physical multi-presenter customization/reconnect acceptance remain open.
+
+## Single-screen view — 0.1.89
+
+Single screen is a saved display-view marker on an operator-owned presenter route.
+The independent audience host, its protocol and cached-base drawing path are
+unchanged. Native window identity, async chooser ownership, keyboard controls,
+supervised rendering and sleep leases reuse the existing presenter path. A distinct
+render branch replaces presenter notes/previews with a full-window slide; shared
+header/footer controls reveal as overlays. Presenter layouts remain untouched.
+Only already prepared full-slide frames are consumed. Each single-screen window
+retains at most one slide texture and one optional blank-picture texture; pending
+navigation retains the last ready slide, and a new document generation clears it.
+Idle repaint and edge reveals reuse texture uploads and fixed slide geometry.
+
+A one-shot monitor-discovery latch, separate from hotplug routing and async settings
+completion, controls the startup offer. Zero or multiple initial monitors cannot
+later become eligible. A topology change withdraws a pending offer. Saved explicit
+single-screen choices and manual Displays edits use the existing timed display
+trial, with settings written only on confirmation. Display group swaps exclude
+Single screen monitors; ordinary Slides routes never gain reveal controls.
+
+Regression tests cover startup decisions and disconnect/reconnect sequences,
+manual selection, reversible trials, role/privacy and blanking preservation,
+settings migration/validation, hidden notes/status, fixed slide geometry and
+texture reuse through pending navigation. Physical screen placement, edge input
+and display-mode transitions still require native testing on the target system.

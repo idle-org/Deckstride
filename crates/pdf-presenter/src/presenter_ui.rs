@@ -203,6 +203,8 @@ pub struct UiState {
     pub footer_until: Instant,
     pub navigation_hold: Option<crate::navigation::Hold>,
     note_cache: Option<(String, Vec2, Arc<egui::Galley>)>,
+    single_slide: Option<(u64, std::path::PathBuf, TextureHandle, [u32; 2])>,
+    single_blank: Option<(std::path::PathBuf, TextureHandle, [u32; 2])>,
 }
 impl Default for UiState {
     fn default() -> Self {
@@ -211,6 +213,8 @@ impl Default for UiState {
             header_until: Instant::now(),
             footer_until: Instant::now(),
             note_cache: None,
+            single_slide: None,
+            single_blank: None,
             navigation_hold: None,
         }
     }
@@ -840,7 +844,7 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
         preferences_open: s.preferences_open,
         menu_open: s.menu_open,
     };
-    presenter_view(ui, s, native, &mut view, None);
+    presenter_view(ui, s, native, &mut view, None, false);
     view.layout.timer_mode = s.layout.timer_mode;
     view.layout.countdown_seconds = s.layout.countdown_seconds;
     view.layout.timer_autostart = s.layout.timer_autostart;
@@ -852,7 +856,8 @@ pub fn presenter(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
 /// A native presenter always edits and renders the layout of its own monitor.
 pub fn presenter_on_display(ui: &mut Ui, s: &mut Studio, native: &mut UiState, display: &str) {
     let mut view = s.take_presenter_view(display);
-    presenter_view(ui, s, native, &mut view, Some(display));
+    let single = s.is_single_screen(display);
+    presenter_view(ui, s, native, &mut view, Some(display), single);
     s.presenter_views.insert(display.into(), view);
 }
 fn presenter_view(
@@ -861,8 +866,13 @@ fn presenter_view(
     native: &mut UiState,
     view: &mut crate::studio::PresenterView,
     display: Option<&str>,
+    single: bool,
 ) {
     let locale = ui.ctx().clone();
+    if !single {
+        native.single_slide = None;
+        native.single_blank = None;
+    }
     native.trim(s);
     let ctx = ui.ctx().clone();
     let screen = ui.max_rect();
@@ -876,8 +886,15 @@ fn presenter_view(
     if pointer.is_some_and(|p| p.y > screen.bottom() - 72.) {
         native.footer_until = now + Duration::from_millis(700);
     }
-    let header = view.layout.header || native.header_until > now || view.menu_open;
-    let footer = view.layout.footer || native.footer_until > now;
+    if single {
+        for deadline in [native.header_until, native.footer_until] {
+            if deadline > now {
+                ctx.request_repaint_after(deadline.saturating_duration_since(now));
+            }
+        }
+    }
+    let header = (!single && view.layout.header) || native.header_until > now || view.menu_open;
+    let footer = (!single && view.layout.footer) || native.footer_until > now;
     if native.navigation_hold.is_some() && (!footer || !ctx.input(|i| i.focused)) {
         native.navigation_hold = None;
         s.actions.push(Action::FinishNavigation);
@@ -902,19 +919,25 @@ fn presenter_view(
             s.actions.push(Action::RevertRoutes);
             ui.close();
         }
-        ui.checkbox(&mut view.layout.header, tr(&locale, "Keep header visible"));
-        ui.checkbox(&mut view.layout.footer, tr(&locale, "Keep footer visible"));
-        if ui.button(tr(&locale, "Show both")).clicked() {
-            view.layout.header = true;
-            view.layout.footer = true;
-            ui.close();
-        }
-        if ui.button(tr(&locale, "Layout…")).clicked() {
-            view.layout_open = true;
-            ui.close();
+        if !single {
+            ui.checkbox(&mut view.layout.header, tr(&locale, "Keep header visible"));
+            ui.checkbox(&mut view.layout.footer, tr(&locale, "Keep footer visible"));
+            if ui.button(tr(&locale, "Show both")).clicked() {
+                view.layout.header = true;
+                view.layout.footer = true;
+                ui.close();
+            }
+            if ui.button(tr(&locale, "Layout…")).clicked() {
+                view.layout_open = true;
+                ui.close();
+            }
         }
     });
-    let header_timer_height = timer_height(&view.layout, TimerPosition::Header);
+    let header_timer_height = if single {
+        0.
+    } else {
+        timer_height(&view.layout, TimerPosition::Header)
+    };
     let separate_header_timers =
         header_timer_height > 100. || (header_timer_height > 0. && screen.width() < 1400.);
     let header_controls_height = if screen.width() < 1100. { 76. } else { 44. };
@@ -927,289 +950,297 @@ fn presenter_view(
         })
     .max(header_controls_height + 20.)
     .min(screen.height() * 0.35);
-    let mut body = screen.shrink(16.);
-    if view.layout.header {
-        body.min.y += header_height;
-    }
-    if view.layout.footer {
-        body.max.y -= 90.;
-    }
-    if view.layout.slide_progress {
-        let height = view
-            .layout
-            .slide_progress_height
-            .min(body.height().max(0.) * 0.25);
-        let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - height), body.max);
-        body.max.y -= height + 8.;
-        ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
-            let current = if s.count() == 0 {
-                0
-            } else {
-                s.requested.min(s.count() - 1) + 1
-            };
-            let fraction = current as f32 / s.count().max(1) as f32;
-            ui.add(
-                egui::ProgressBar::new(fraction)
-                    .desired_width(rect.width())
-                    .desired_height(height)
-                    .text(format!(
-                        "{} {current} / {}",
-                        tr(&locale, "Slide"),
-                        s.count()
-                    )),
-            );
-        });
-    }
-    for position in [TimerPosition::AboveSlides, TimerPosition::BelowNotes] {
-        let height = timer_height(&view.layout, position).min(body.height().max(0.) * 0.35);
-        if height > 0. {
-            let top = if position == TimerPosition::AboveSlides {
-                body.top()
-            } else {
-                body.bottom() - height
-            };
-            let rect =
-                Rect::from_min_size(Pos2::new(body.left(), top), Vec2::new(body.width(), height));
-            if position == TimerPosition::AboveSlides {
-                body.min.y += height + 8.;
-            } else {
-                body.max.y -= height + 8.;
-            }
-            ui.scope_builder(
-                egui::UiBuilder::new()
-                    .max_rect(rect)
-                    .layout(egui::Layout::left_to_right(egui::Align::Center)),
-                |ui| timers(ui, s, &view.layout, position),
-            );
-        }
-    }
-    let preview_visible =
-        view.layout.previous.show || view.layout.current.show || view.layout.next.show;
-    let notes_h = if view.layout.notes.show {
-        if preview_visible {
-            body.height() * view.layout.notes.size / 100.
-        } else {
-            body.height()
-        }
+    if single {
+        single_slide(ui, s, native, screen, header, footer);
     } else {
-        0.
-    };
-    let mut preview = Rect::from_min_max(
-        body.min,
-        Pos2::new(
-            body.max.x,
-            body.max.y
-                - notes_h
-                - if notes_h > 0. && preview_visible {
-                    14.
+        let mut body = screen.shrink(16.);
+        if view.layout.header {
+            body.min.y += header_height;
+        }
+        if view.layout.footer {
+            body.max.y -= 90.;
+        }
+        if view.layout.slide_progress {
+            let height = view
+                .layout
+                .slide_progress_height
+                .min(body.height().max(0.) * 0.25);
+            let rect = Rect::from_min_max(Pos2::new(body.left(), body.bottom() - height), body.max);
+            body.max.y -= height + 8.;
+            ui.scope_builder(egui::UiBuilder::new().max_rect(rect), |ui| {
+                let current = if s.count() == 0 {
+                    0
                 } else {
-                    0.
-                },
-        ),
-    );
-    let mut notes_rect =
-        Rect::from_min_max(Pos2::new(body.left(), body.bottom() - notes_h), body.max);
-    // When a pane is hidden, use the remaining body so enabled timers stay accessible.
-    if !preview_visible {
-        preview = body;
-    }
-    if !view.layout.notes.show {
-        notes_rect = body;
-    }
-    side_timers(
-        ui,
-        s,
-        &view.layout,
-        &mut preview,
-        TimerPosition::LeftOfSlides,
-        TimerPosition::RightOfSlides,
-    );
-    if !preview_visible {
-        notes_rect = preview;
-    }
-    if !view.layout.notes.show {
-        notes_rect = preview;
-    }
-    side_timers(
-        ui,
-        s,
-        &view.layout,
-        &mut notes_rect,
-        TimerPosition::LeftOfNotes,
-        TimerPosition::RightOfNotes,
-    );
-    if !view.layout.notes.show {
-        preview = notes_rect;
-    }
-    if preview_visible {
-        let items = [
-            (
-                tr(&locale, "PREVIOUS"),
-                s.requested.checked_sub(1),
-                view.layout.previous.clone(),
-            ),
-            (
-                tr(&locale, "CURRENT"),
-                Some(s.requested),
-                view.layout.current.clone(),
-            ),
-            (
-                tr(&locale, "NEXT"),
-                (s.requested + 1 < s.count()).then_some(s.requested + 1),
-                view.layout.next.clone(),
-            ),
-        ];
-        let total: f32 = items
-            .iter()
-            .filter(|(_, _, w)| w.show)
-            .map(|(_, _, w)| w.size)
-            .sum();
-        let count = items.iter().filter(|(_, _, w)| w.show).count();
-        let width = preview.width() - 14. * count.saturating_sub(1) as f32;
-        let mut x = preview.left();
-        for (index, (label, page, w)) in items.into_iter().enumerate() {
-            if !w.show {
-                continue;
+                    s.requested.min(s.count() - 1) + 1
+                };
+                let fraction = current as f32 / s.count().max(1) as f32;
+                ui.add(
+                    egui::ProgressBar::new(fraction)
+                        .desired_width(rect.width())
+                        .desired_height(height)
+                        .text(format!(
+                            "{} {current} / {}",
+                            tr(&locale, "Slide"),
+                            s.count()
+                        )),
+                );
+            });
+        }
+        for position in [TimerPosition::AboveSlides, TimerPosition::BelowNotes] {
+            let height = timer_height(&view.layout, position).min(body.height().max(0.) * 0.35);
+            if height > 0. {
+                let top = if position == TimerPosition::AboveSlides {
+                    body.top()
+                } else {
+                    body.bottom() - height
+                };
+                let rect = Rect::from_min_size(
+                    Pos2::new(body.left(), top),
+                    Vec2::new(body.width(), height),
+                );
+                if position == TimerPosition::AboveSlides {
+                    body.min.y += height + 8.;
+                } else {
+                    body.max.y -= height + 8.;
+                }
+                ui.scope_builder(
+                    egui::UiBuilder::new()
+                        .max_rect(rect)
+                        .layout(egui::Layout::left_to_right(egui::Align::Center)),
+                    |ui| timers(ui, s, &view.layout, position),
+                );
             }
-            let rect = Rect::from_min_size(
-                Pos2::new(x, preview.top()),
-                Vec2::new(width * w.size / total, preview.height()),
-            );
-            ui.painter().text(
-                rect.min,
-                egui::Align2::LEFT_TOP,
-                format!(
-                    "{label}  {}",
-                    page.map_or(String::new(), |p| format!("{} / {}", p + 1, s.count()))
+        }
+        let preview_visible =
+            view.layout.previous.show || view.layout.current.show || view.layout.next.show;
+        let notes_h = if view.layout.notes.show {
+            if preview_visible {
+                body.height() * view.layout.notes.size / 100.
+            } else {
+                body.height()
+            }
+        } else {
+            0.
+        };
+        let mut preview = Rect::from_min_max(
+            body.min,
+            Pos2::new(
+                body.max.x,
+                body.max.y
+                    - notes_h
+                    - if notes_h > 0. && preview_visible {
+                        14.
+                    } else {
+                        0.
+                    },
+            ),
+        );
+        let mut notes_rect =
+            Rect::from_min_max(Pos2::new(body.left(), body.bottom() - notes_h), body.max);
+        // When a pane is hidden, use the remaining body so enabled timers stay accessible.
+        if !preview_visible {
+            preview = body;
+        }
+        if !view.layout.notes.show {
+            notes_rect = body;
+        }
+        side_timers(
+            ui,
+            s,
+            &view.layout,
+            &mut preview,
+            TimerPosition::LeftOfSlides,
+            TimerPosition::RightOfSlides,
+        );
+        if !preview_visible {
+            notes_rect = preview;
+        }
+        if !view.layout.notes.show {
+            notes_rect = preview;
+        }
+        side_timers(
+            ui,
+            s,
+            &view.layout,
+            &mut notes_rect,
+            TimerPosition::LeftOfNotes,
+            TimerPosition::RightOfNotes,
+        );
+        if !view.layout.notes.show {
+            preview = notes_rect;
+        }
+        if preview_visible {
+            let items = [
+                (
+                    tr(&locale, "PREVIOUS"),
+                    s.requested.checked_sub(1),
+                    view.layout.previous.clone(),
                 ),
-                FontId::proportional(13.),
-                ui.visuals().hyperlink_color,
-            );
-            if let Some(page) = page {
-                let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
-                if index == 1
-                    && (s.settings.zoom_enabled
-                        || s.toolbox.tool != Tool::Off
-                        || !s.toolbox.overlay.marks.is_empty())
-                {
-                    // Mirror the output aspect, not the independently sized presenter pane.
-                    // This makes the shared zoom/center produce the same visible page crop.
-                    let area = s
-                        .presentation_viewport()
-                        .map_or(area, |dimensions| fitted_slide(area, dimensions));
-                    native.image_view(ui, s, page, area, s.zoom.view, false);
-                    if s.route_trial.is_none()
-                        && let Some(frame) = s.frame(page)
+                (
+                    tr(&locale, "CURRENT"),
+                    Some(s.requested),
+                    view.layout.current.clone(),
+                ),
+                (
+                    tr(&locale, "NEXT"),
+                    (s.requested + 1 < s.count()).then_some(s.requested + 1),
+                    view.layout.next.clone(),
+                ),
+            ];
+            let total: f32 = items
+                .iter()
+                .filter(|(_, _, w)| w.show)
+                .map(|(_, _, w)| w.size)
+                .sum();
+            let count = items.iter().filter(|(_, _, w)| w.show).count();
+            let width = preview.width() - 14. * count.saturating_sub(1) as f32;
+            let mut x = preview.left();
+            for (index, (label, page, w)) in items.into_iter().enumerate() {
+                if !w.show {
+                    continue;
+                }
+                let rect = Rect::from_min_size(
+                    Pos2::new(x, preview.top()),
+                    Vec2::new(width * w.size / total, preview.height()),
+                );
+                ui.painter().text(
+                    rect.min,
+                    egui::Align2::LEFT_TOP,
+                    format!(
+                        "{label}  {}",
+                        page.map_or(String::new(), |p| format!("{} / {}", p + 1, s.count()))
+                    ),
+                    FontId::proportional(13.),
+                    ui.visuals().hyperlink_color,
+                );
+                if let Some(page) = page {
+                    let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
+                    if index == 1
+                        && (s.settings.zoom_enabled
+                            || s.toolbox.tool != Tool::Off
+                            || !s.toolbox.overlay.marks.is_empty())
                     {
-                        let dimensions = [frame.info.width, frame.info.height];
-                        if s.toolbox.tool == Tool::Off && s.settings.zoom_enabled {
-                            let (view, response) = zoom_gestures_in(
-                                ui,
-                                area,
-                                dimensions,
-                                s.zoom.view,
-                                s.zoom.keep_fitted_area,
-                            );
-                            response.on_hover_text(tr(
+                        // Mirror the output aspect, not the independently sized presenter pane.
+                        // This makes the shared zoom/center produce the same visible page crop.
+                        let area = s
+                            .presentation_viewport()
+                            .map_or(area, |dimensions| fitted_slide(area, dimensions));
+                        native.image_view(ui, s, page, area, s.zoom.view, false);
+                        if s.route_trial.is_none()
+                            && let Some(frame) = s.frame(page)
+                        {
+                            let dimensions = [frame.info.width, frame.info.height];
+                            if s.toolbox.tool == Tool::Off && s.settings.zoom_enabled {
+                                let (view, response) = zoom_gestures_in(
+                                    ui,
+                                    area,
+                                    dimensions,
+                                    s.zoom.view,
+                                    s.zoom.keep_fitted_area,
+                                );
+                                response.on_hover_text(tr(
                                 &locale,
                                 "Scroll to zoom · drag to pan · double-click to fit width / reset",
                             ));
-                            if view != s.zoom.view {
-                                s.set_zoom_from_action(view);
+                                if view != s.zoom.view {
+                                    s.set_zoom_from_action(view);
+                                }
                             }
+                            slide_tools(ui, s, area, dimensions);
                         }
-                        slide_tools(ui, s, area, dimensions);
+                    } else {
+                        native.image(ui, s, page, area);
                     }
-                } else {
-                    native.image(ui, s, page, area);
-                }
-            } else if index == 2 && s.count() > 0 && s.requested == s.count() - 1 {
-                // Presenter-only decoration: never create a page, frame or navigation target.
-                let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
-                let painter = ui.painter().with_clip_rect(area);
-                painter.rect_filled(area, 6., ui.visuals().extreme_bg_color);
-                let text = painter.layout(
-                    tr(&locale, "End of slides").into(),
-                    FontId::proportional(24_f32.min(area.width() / 8.).max(1.)),
-                    ui.visuals().text_color(),
-                    (area.width() - 24.).max(1.),
-                );
-                painter.galley(
-                    area.center() - text.size() / 2.,
-                    text,
-                    ui.visuals().text_color(),
-                );
-            }
-            x = rect.right() + 14.;
-        }
-    }
-    if view.layout.notes.show {
-        let rect = notes_rect;
-        let response = ui.interact(rect, ui.id().with("presenter-notes"), Sense::click());
-        response
-            .clone()
-            .on_hover_text(tr(&locale, "Double-click to edit this slide’s notes"));
-        if response.double_clicked() && s.count() > 0 {
-            s.actions.push(Action::EditNotes);
-        }
-        ui.painter().rect_filled(rect, 8., ui.visuals().window_fill);
-        ui.painter().text(
-            rect.min + Vec2::splat(14.),
-            egui::Align2::LEFT_TOP,
-            tr(&locale, "PRESENTER NOTES · AUTO-FIT"),
-            FontId::proportional(12.),
-            ui.visuals().hyperlink_color,
-        );
-        let text = s
-            .deck
-            .as_ref()
-            .and_then(|d| d.notes.get(s.requested))
-            .filter(|n| !n.is_empty())
-            .map_or(tr(&locale, "No notes for this slide"), String::as_str);
-        let area = Rect::from_min_max(rect.min + Vec2::new(16., 40.), rect.max - Vec2::splat(16.));
-        if area.is_positive() {
-            if native
-                .note_cache
-                .as_ref()
-                .is_none_or(|(old, size, _)| old != text || *size != area.size())
-            {
-                let mut lo = 0.1;
-                let mut hi = 48.;
-                let mut galley = ui.fonts_mut(|f| {
-                    f.layout(
-                        text.into(),
-                        FontId::proportional(lo),
+                } else if index == 2 && s.count() > 0 && s.requested == s.count() - 1 {
+                    // Presenter-only decoration: never create a page, frame or navigation target.
+                    let area = Rect::from_min_max(rect.min + Vec2::new(0., 24.), rect.max);
+                    let painter = ui.painter().with_clip_rect(area);
+                    painter.rect_filled(area, 6., ui.visuals().extreme_bg_color);
+                    let text = painter.layout(
+                        tr(&locale, "End of slides").into(),
+                        FontId::proportional(24_f32.min(area.width() / 8.).max(1.)),
                         ui.visuals().text_color(),
-                        area.width(),
-                    )
-                });
-                for _ in 0..14 {
-                    let mid = (lo + hi) / 2.;
-                    let candidate = ui.fonts_mut(|f| {
+                        (area.width() - 24.).max(1.),
+                    );
+                    painter.galley(
+                        area.center() - text.size() / 2.,
+                        text,
+                        ui.visuals().text_color(),
+                    );
+                }
+                x = rect.right() + 14.;
+            }
+        }
+        if view.layout.notes.show {
+            let rect = notes_rect;
+            let response = ui.interact(rect, ui.id().with("presenter-notes"), Sense::click());
+            response
+                .clone()
+                .on_hover_text(tr(&locale, "Double-click to edit this slide’s notes"));
+            if response.double_clicked() && s.count() > 0 {
+                s.actions.push(Action::EditNotes);
+            }
+            ui.painter().rect_filled(rect, 8., ui.visuals().window_fill);
+            ui.painter().text(
+                rect.min + Vec2::splat(14.),
+                egui::Align2::LEFT_TOP,
+                tr(&locale, "PRESENTER NOTES · AUTO-FIT"),
+                FontId::proportional(12.),
+                ui.visuals().hyperlink_color,
+            );
+            let text = s
+                .deck
+                .as_ref()
+                .and_then(|d| d.notes.get(s.requested))
+                .filter(|n| !n.is_empty())
+                .map_or(tr(&locale, "No notes for this slide"), String::as_str);
+            let area =
+                Rect::from_min_max(rect.min + Vec2::new(16., 40.), rect.max - Vec2::splat(16.));
+            if area.is_positive() {
+                if native
+                    .note_cache
+                    .as_ref()
+                    .is_none_or(|(old, size, _)| old != text || *size != area.size())
+                {
+                    let mut lo = 0.1;
+                    let mut hi = 48.;
+                    let mut galley = ui.fonts_mut(|f| {
                         f.layout(
                             text.into(),
-                            FontId::proportional(mid),
+                            FontId::proportional(lo),
                             ui.visuals().text_color(),
                             area.width(),
                         )
                     });
-                    if candidate.size().y <= area.height() && candidate.size().x <= area.width() {
-                        lo = mid;
-                        galley = candidate;
-                    } else {
-                        hi = mid;
+                    for _ in 0..14 {
+                        let mid = (lo + hi) / 2.;
+                        let candidate = ui.fonts_mut(|f| {
+                            f.layout(
+                                text.into(),
+                                FontId::proportional(mid),
+                                ui.visuals().text_color(),
+                                area.width(),
+                            )
+                        });
+                        if candidate.size().y <= area.height() && candidate.size().x <= area.width()
+                        {
+                            lo = mid;
+                            galley = candidate;
+                        } else {
+                            hi = mid;
+                        }
                     }
+                    native.note_cache = Some((text.into(), area.size(), galley));
                 }
-                native.note_cache = Some((text.into(), area.size(), galley));
-            }
-            if let Some((_, _, galley)) = &native.note_cache {
-                ui.painter()
-                    .with_clip_rect(area)
-                    .galley_with_override_text_color(
-                        area.min,
-                        galley.clone(),
-                        ui.visuals().text_color(),
-                    );
+                if let Some((_, _, galley)) = &native.note_cache {
+                    ui.painter()
+                        .with_clip_rect(area)
+                        .galley_with_override_text_color(
+                            area.min,
+                            galley.clone(),
+                            ui.visuals().text_color(),
+                        );
+                }
             }
         }
     }
@@ -1224,7 +1255,7 @@ fn presenter_view(
             ui.with_layout(
                 egui::Layout::left_to_right(egui::Align::Center).with_main_wrap(true),
                 |ui| {
-                    if bar_visibility_button(ui, view.layout.header, true).clicked() {
+                    if !single && bar_visibility_button(ui, view.layout.header, true).clicked() {
                         view.layout.header = !view.layout.header;
                         native.header_until = now;
                     }
@@ -1265,7 +1296,7 @@ fn presenter_view(
                         Action::OpenBrowser,
                         &mut s.actions,
                     );
-                    if ui.button(tr(&locale, "Layout")).clicked() {
+                    if !single && ui.button(tr(&locale, "Layout")).clicked() {
                         view.layout_open = !view.layout_open;
                     }
                     if ui.button(tr(&locale, "Tools")).clicked() {
@@ -1273,7 +1304,9 @@ fn presenter_view(
                     }
                     fullscreen_button(ui, s);
                     timer_buttons(ui, s);
-                    let inactive = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
+                    let inactive = s.blanked
+                        || (!single && s.routes.presentation.is_empty())
+                        || s.count() == 0;
                     let color = if inactive {
                         ui.visuals().error_fg_color
                     } else {
@@ -1298,7 +1331,7 @@ fn presenter_view(
                     {
                         s.actions.push(Action::Blank);
                     }
-                    if !separate_header_timers {
+                    if !single && !separate_header_timers {
                         timers(ui, s, &view.layout, TimerPosition::Header);
                     }
                 },
@@ -1325,7 +1358,7 @@ fn presenter_view(
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(8.)), |ui| {
             ui.horizontal(|ui| {
-                if bar_visibility_button(ui, view.layout.footer, false).clicked() {
+                if !single && bar_visibility_button(ui, view.layout.footer, false).clicked() {
                     view.layout.footer = !view.layout.footer;
                     native.footer_until = now;
                 }
@@ -1336,7 +1369,8 @@ fn presenter_view(
                     if s.count() == 0 { 0 } else { s.requested + 1 },
                     s.count()
                 ));
-                let unavailable = s.blanked || s.routes.presentation.is_empty() || s.count() == 0;
+                let unavailable =
+                    s.blanked || (!single && s.routes.presentation.is_empty()) || s.count() == 0;
                 ui.colored_label(
                     if unavailable {
                         ui.visuals().error_fg_color
@@ -1345,7 +1379,9 @@ fn presenter_view(
                     },
                     if unavailable {
                         tr(&locale, "NO OUTPUT DISPLAYED")
-                    } else if s.displayed == Some(s.requested) {
+                    } else if (single && s.full_frame(s.requested).is_some())
+                        || s.displayed == Some(s.requested)
+                    {
                         tr(&locale, "PRESENTING")
                     } else {
                         tr(&locale, "PREPARING OUTPUT")
@@ -1376,7 +1412,7 @@ fn presenter_view(
     let compact_preparation = s.loading
         || s.notes_loading
         || (s.deck.is_some() && !s.fully_buffered() && s.evicted_frames == 0);
-    if !footer && compact_preparation {
+    if !single && !footer && compact_preparation {
         egui::Area::new("preparation-progress".into())
             .anchor(egui::Align2::LEFT_BOTTOM, Vec2::new(12., -12.))
             .interactable(false)
@@ -1387,7 +1423,7 @@ fn presenter_view(
                 });
             });
     }
-    if !footer && (s.blanked || s.routes.presentation.is_empty() || s.count() == 0) {
+    if !single && !footer && (s.blanked || s.routes.presentation.is_empty() || s.count() == 0) {
         egui::Area::new("output-warning".into())
             .anchor(egui::Align2::RIGHT_TOP, Vec2::new(-12., 76.))
             .interactable(false)
@@ -1468,7 +1504,7 @@ fn presenter_view(
             });
         });
     }
-    if view.layout_open {
+    if !single && view.layout_open {
         let layout_choices = display.map_or_else(Vec::new, |_| {
             s.routes
                 .presenter
@@ -1788,7 +1824,7 @@ fn presenter_view(
                             });
                             ui.add_space(8.);
                             let mut role = if s.draft_routes.presenter.contains(&m.id) {
-                                1
+                                if s.draft_single_screens.contains(&m.id) { 3 } else { 1 }
                             } else if s.draft_routes.presentation.contains(&m.id) {
                                 2
                             } else {
@@ -1800,6 +1836,7 @@ fn presenter_view(
                                         tr(&locale, "Unused"),
                                         tr(&locale, "Presenter"),
                                         tr(&locale, "Slides"),
+                                        tr(&locale, "Single screen"),
                                     ]
                                     .iter()
                                     .enumerate()
@@ -1825,10 +1862,12 @@ fn presenter_view(
                             } else {
                                 s.draft_screen_modes.insert(m.id.clone(), mode);
                             }
+                            s.draft_single_screens.retain(|id| id != &m.id);
+                            if role == 3 { s.draft_single_screens.push(m.id.clone()); }
                             s.draft_routes.presenter.retain(|id| id != &m.id);
                             s.draft_routes.presentation.retain(|id| id != &m.id);
                             match role {
-                                1 => s.draft_routes.presenter.push(m.id.clone()),
+                                1 | 3 => s.draft_routes.presenter.push(m.id.clone()),
                                 2 => s.draft_routes.presentation.push(m.id.clone()),
                                 _ => {}
                             }
@@ -1838,10 +1877,7 @@ fn presenter_view(
                 if ui.button(tr(&locale, "Swap groups")).clicked()
                     && !s.draft_routes.presentation.is_empty()
                 {
-                    std::mem::swap(
-                        &mut s.draft_routes.presenter,
-                        &mut s.draft_routes.presentation,
-                    );
+                    s.swap_draft_groups();
                 }
                 ui.checkbox(
                     &mut s.draft_presenter_fullscreen,
@@ -1866,7 +1902,7 @@ fn presenter_view(
                     "Output visibility is preserved while previewing display changes.",
                 ));
                 ui.small(tr(&locale, "Always fullscreen/windowed overrides global fullscreen commands for this screen."));
-                if s.draft_routes.presenter.iter().any(|id| !s.draft_screen_modes.get(id).copied().unwrap_or_default().fullscreen(s.draft_presenter_fullscreen))
+                if s.draft_routes.presenter.iter().any(|id| !s.draft_screen_modes.get(id).copied().unwrap_or_default().fullscreen(if s.draft_single_screens.contains(id) { s.draft_presentation_fullscreen } else { s.draft_presenter_fullscreen }))
                     || s.draft_routes.presentation.iter().any(|id| !s.draft_screen_modes.get(id).copied().unwrap_or_default().fullscreen(s.draft_presentation_fullscreen)) {
                     ui.colored_label(
                         ui.visuals().warn_fg_color,
@@ -1889,6 +1925,7 @@ fn presenter_view(
     }
     notes_import_ui(&ctx, s);
     notes_editor_ui(&ctx, s);
+    startup_single_screen(&ctx, s);
     quit_confirmation(&ctx, s);
 }
 fn notes_import_ui(ctx: &Context, s: &mut Studio) {
@@ -2838,4 +2875,117 @@ fn quit_confirmation(ctx: &egui::Context, s: &mut Studio) {
             }
         });
     });
+}
+
+fn startup_single_screen(ctx: &Context, s: &mut Studio) {
+    if !s.startup_single_offer() {
+        return;
+    }
+    egui::Modal::new(egui::Id::new("startup-single-screen")).show(ctx, |ui| {
+        ui.heading(tr(ctx, "Use single-screen mode?"));
+        ui.label(tr(ctx, "PDF Presenter is intended for a presenter setup with separate Presenter and Slides screens."));
+        ui.label(tr(ctx, "Only one screen was connected at startup. Single-screen mode shows slides with controls revealed at the top and bottom edges."));
+        ui.horizontal_wrapped(|ui| {
+            button(ui, tr(ctx, "Keep Presenter view"), Action::StartupSingleScreen(false), &mut s.actions);
+            button(ui, tr(ctx, "Use single-screen mode"), Action::StartupSingleScreen(true), &mut s.actions);
+        });
+    });
+}
+
+fn single_slide(
+    ui: &mut Ui,
+    s: &mut Studio,
+    native: &mut UiState,
+    screen: Rect,
+    header: bool,
+    footer: bool,
+) {
+    ui.painter().rect_filled(screen, 0., Color32::BLACK);
+    if native
+        .single_slide
+        .as_ref()
+        .is_some_and(|(generation, _, _, _)| *generation != s.generation)
+    {
+        native.single_slide = None;
+    }
+    if let Some(frame) = s.full_frame(s.requested)
+        && native
+            .single_slide
+            .as_ref()
+            .is_none_or(|(_, path, _, _)| *path != frame.info.path)
+    {
+        let dimensions = [frame.info.width, frame.info.height];
+        let tex = ui.ctx().load_texture(
+            "single-slide",
+            egui::ColorImage::from_rgba_unmultiplied(
+                [dimensions[0] as usize, dimensions[1] as usize],
+                &frame.rgba,
+            ),
+            TextureOptions::LINEAR,
+        );
+        native.single_slide = Some((s.generation, frame.info.path.clone(), tex, dimensions));
+    }
+    if s.blanked {
+        if let Some(frame) = &s.blank_picture {
+            if native
+                .single_blank
+                .as_ref()
+                .is_none_or(|(path, _, _)| *path != frame.info.path)
+            {
+                let dimensions = [frame.info.width, frame.info.height];
+                let tex = ui.ctx().load_texture(
+                    "single-blank",
+                    egui::ColorImage::from_rgba_unmultiplied(
+                        [dimensions[0] as usize, dimensions[1] as usize],
+                        &frame.rgba,
+                    ),
+                    TextureOptions::LINEAR,
+                );
+                native.single_blank = Some((frame.info.path.clone(), tex, dimensions));
+            }
+            if let Some((_, tex, dimensions)) = &native.single_blank {
+                paint_slide_adapted(
+                    ui.painter(),
+                    screen,
+                    tex.id(),
+                    *dimensions,
+                    crate::settings::SlideColors {
+                        page_background: [0; 3],
+                        fit_padding: [0; 3],
+                    },
+                    Default::default(),
+                );
+            }
+        } else {
+            native.single_blank = None;
+        }
+        return;
+    }
+    if let Some((_, _, tex, dimensions)) = &native.single_slide {
+        let dimensions = *dimensions;
+        let ready = s.full_frame(s.requested).is_some();
+        let zoom = if ready { s.zoom } else { Default::default() };
+        paint_slide_adapted(
+            ui.painter(),
+            screen,
+            tex.id(),
+            dimensions,
+            s.settings.slide_colors,
+            zoom,
+        );
+        // Reveal controls overlay a fixed slide rectangle; gestures never steal their clicks.
+        let over_controls = ui.input(|i| i.pointer.hover_pos()).is_some_and(|p| {
+            (header && p.y < screen.top() + 160.) || (footer && p.y > screen.bottom() - 110.)
+        });
+        if ready && s.route_trial.is_none() && !s.quit_confirmation && !over_controls {
+            if s.toolbox.tool == Tool::Off && s.settings.zoom_enabled {
+                let (view, _) =
+                    zoom_gestures_in(ui, screen, dimensions, s.zoom.view, s.zoom.keep_fitted_area);
+                if view != s.zoom.view {
+                    s.set_zoom_from_action(view);
+                }
+            }
+            slide_tools(ui, s, screen, dimensions);
+        }
+    }
 }

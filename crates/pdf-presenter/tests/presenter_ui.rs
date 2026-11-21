@@ -2076,3 +2076,304 @@ fn quit_modal_buttons_work_in_presenter_and_browser() {
         }
     }
 }
+
+#[test]
+fn single_screen_offer_is_startup_only_and_never_rearmed_by_disconnects() {
+    for initial_count in [0, 1, 2] {
+        for accept in [false, true] {
+            let mut s = studio();
+            let one = s.monitors[0].clone();
+            s.observe_startup_displays(initial_count, (initial_count == 1).then_some("one"));
+            s.set_monitors(vec![one.clone()], 0);
+            s.initialized = false;
+            assert!(!s.startup_single_offer());
+            s.initialized = true;
+            assert_eq!(s.startup_single_offer(), initial_count == 1);
+            s.execute(Action::StartupSingleScreen(accept));
+            assert!(!s.startup_single_offer());
+            if initial_count == 1 && accept {
+                assert!(s.is_single_screen("one"));
+                assert!(s.settings.single_screens.is_empty());
+                assert!(s.routes.presentation.is_empty());
+                s.execute(Action::KeepRoutes);
+                assert_eq!(s.settings.single_screens, ["one"]);
+            } else {
+                assert!(!s.is_single_screen("one"));
+            }
+            s.set_monitors(vec![], 0);
+            s.observe_startup_displays(1, Some("one"));
+            s.set_monitors(vec![one], 0);
+            assert!(!s.startup_single_offer());
+        }
+    }
+    // A pending offer is withdrawn when the startup topology changes, too.
+    let mut s = studio();
+    let one = s.monitors[0].clone();
+    s.observe_startup_displays(1, Some("one"));
+    s.set_monitors(vec![one.clone()], 0);
+    assert!(s.startup_single_offer());
+    s.set_monitors(vec![], 0);
+    s.set_monitors(vec![one], 0);
+    assert!(!s.startup_single_offer());
+}
+
+#[test]
+fn single_screen_trials_preserve_roles_privacy_and_visibility() {
+    for blanked in [false, true] {
+        let mut s = studio();
+        s.blanked = blanked;
+        s.settings.routes = s.routes.clone();
+        s.begin_display_edit();
+        s.draft_single_screens = vec!["one".into()];
+        s.execute(Action::ApplyRoutes);
+        assert!(s.is_single_screen("one"));
+        assert!(!s.is_single_screen("two"));
+        assert_eq!(s.routes.presentation, ["two"]);
+        assert_eq!(s.blanked, blanked);
+        s.execute(Action::RevertRoutes);
+        assert!(!s.is_single_screen("one"));
+        s.begin_display_edit();
+        s.draft_single_screens = vec!["one".into()];
+        s.execute(Action::ApplyRoutes);
+        s.execute(Action::KeepRoutes);
+        let routes = s.routes.clone();
+        s.execute(Action::SwapRoutes); // Single screen is not a group-swap destination.
+        assert_eq!(s.routes, routes);
+        s.set_monitors(vec![s.monitors[1].clone()], 0);
+        assert!(s.routes.presenter.is_empty());
+        assert!(!s.is_single_screen("two"));
+        assert!(!s.startup_single_offer());
+        assert_eq!(s.blanked, blanked);
+    }
+}
+
+#[test]
+fn single_screen_renders_only_slide_reuses_texture_and_keeps_geometry_under_menus() {
+    fn text(shape: &egui::Shape, labels: &mut Vec<String>) {
+        match shape {
+            egui::Shape::Text(t) => labels.push(t.galley.text().to_owned()),
+            egui::Shape::Vec(shapes) => {
+                for s in shapes {
+                    text(s, labels);
+                }
+            }
+            _ => {}
+        }
+    }
+    fn image_rect(shape: &egui::Shape) -> Option<Rect> {
+        match shape {
+            egui::Shape::Mesh(mesh) if matches!(mesh.texture_id, egui::TextureId::Managed(id) if id > 0) => {
+                Some(mesh.calc_bounds())
+            }
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(image_rect),
+            _ => None,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    s.settings.single_screens = vec!["one".into()];
+    let original = s.settings.for_display("one", &s.project());
+    let mut native = UiState::default();
+    let mut render = |s: &mut Studio, events| {
+        let mut raw = input(Vec2::new(1280., 720.));
+        raw.events = events;
+        ctx.run_ui(raw, |ui| {
+            presenter_ui::presenter_on_display(ui, s, &mut native, "one")
+        })
+    };
+    let first = render(&mut s, vec![]);
+    let mut labels = vec![];
+    for shape in &first.shapes {
+        text(&shape.shape, &mut labels);
+    }
+    assert!(
+        labels.is_empty(),
+        "Single screen must hide notes/status/controls: {labels:?}"
+    );
+    let slide = first
+        .shapes
+        .iter()
+        .find_map(|s| image_rect(&s.shape))
+        .unwrap();
+    assert_eq!(slide.size(), Vec2::new(1280., 720.));
+    assert_eq!(s.presenter_views["one"].layout, original);
+    let second = render(&mut s, vec![]);
+    assert!(
+        second.textures_delta.set.is_empty(),
+        "Idle repaint must reuse the slide texture"
+    );
+    let revealed = render(&mut s, vec![egui::Event::PointerMoved(Pos2::new(600., 1.))]);
+    assert_eq!(
+        revealed.shapes.iter().find_map(|s| image_rect(&s.shape)),
+        Some(slide)
+    );
+    labels.clear();
+    for shape in &revealed.shapes {
+        text(&shape.shape, &mut labels);
+    }
+    assert!(labels.iter().any(|label| label == "Menu"));
+    assert!(!labels.iter().any(|label| label.contains("A long note")));
+    s.execute(Action::Go(8)); // Not prepared: retain the last ready image.
+    let pending = render(&mut s, vec![]);
+    assert_eq!(
+        pending.shapes.iter().find_map(|s| image_rect(&s.shape)),
+        Some(slide)
+    );
+    assert!(
+        pending
+            .textures_delta
+            .set
+            .iter()
+            .all(|(id, _)| *id == egui::TextureId::Managed(0)),
+        "Pending navigation must not upload a new slide texture"
+    );
+    s.blanked = true;
+    let blank = render(&mut s, vec![]);
+    assert!(
+        blank
+            .shapes
+            .iter()
+            .find_map(|s| image_rect(&s.shape))
+            .is_none()
+    );
+    s.blanked = false;
+    s.generation += 1;
+    let changed = render(&mut s, vec![]);
+    assert!(
+        changed
+            .shapes
+            .iter()
+            .find_map(|s| image_rect(&s.shape))
+            .is_none()
+    );
+}
+
+#[test]
+fn displays_can_select_single_screen_without_changing_audience_role() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    s.begin_display_edit();
+    let mut native = UiState::default();
+    let mut frame = |s: &mut Studio, events| {
+        let mut raw = input(Vec2::new(1920., 1080.));
+        raw.events = events;
+        ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, s, &mut native))
+    };
+    let mut output = frame(&mut s, vec![]);
+    for _ in 0..3 {
+        output = frame(&mut s, vec![]);
+    }
+    let pos = output
+        .shapes
+        .iter()
+        .find_map(|shape| find(&shape.shape, "Single screen"))
+        .unwrap();
+    for pressed in [true, false] {
+        frame(
+            &mut s,
+            vec![
+                egui::Event::PointerMoved(pos),
+                egui::Event::PointerButton {
+                    pos,
+                    button: egui::PointerButton::Primary,
+                    pressed,
+                    modifiers: Default::default(),
+                },
+            ],
+        );
+    }
+    assert_eq!(s.draft_single_screens, ["one"]);
+    assert!(!s.is_single_screen("one"));
+    s.execute(Action::ApplyRoutes);
+    assert!(s.is_single_screen("one"));
+    assert_eq!(s.routes.presentation, ["two"]);
+    s.execute(Action::KeepRoutes);
+    s.begin_display_edit();
+    s.draft_single_screens.clear();
+    s.execute(Action::ApplyRoutes);
+    assert!(!s.is_single_screen("one"));
+    s.execute(Action::RevertRoutes);
+    assert!(s.is_single_screen("one"));
+}
+
+#[test]
+fn startup_single_prompt_explains_presenter_intent_and_saved_mode_does_not_reoffer() {
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    let one = s.monitors[0].clone();
+    s.observe_startup_displays(1, Some("one"));
+    s.set_monitors(vec![one], 0);
+    let mut native = UiState::default();
+    fn has_text(shape: &egui::Shape, text: &str) -> bool {
+        match shape {
+            egui::Shape::Text(t) => t.galley.text() == text,
+            egui::Shape::Vec(shapes) => shapes.iter().any(|s| has_text(s, text)),
+            _ => false,
+        }
+    }
+    let mut result = ctx.run_ui(input(Vec2::new(1280., 720.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut native)
+    });
+    for _ in 0..3 {
+        result = ctx.run_ui(input(Vec2::new(1280., 720.)), |ui| {
+            presenter_ui::presenter(ui, &mut s, &mut native)
+        });
+    }
+    assert!(result.shapes.iter().any(|shape| has_text(&shape.shape, "PDF Presenter is intended for a presenter setup with separate Presenter and Slides screens.")));
+    s.settings.single_screens = vec!["one".into()];
+    assert!(!s.startup_single_offer());
+    s.poll();
+    assert!(s.startup_single_screen.is_none());
+}
+
+#[test]
+fn single_screen_bottom_controls_reveal_and_hide_without_pinning_layout() {
+    fn contains(shape: &egui::Shape, label: &str) -> bool {
+        match shape {
+            egui::Shape::Text(t) => t.galley.text() == label,
+            egui::Shape::Vec(shapes) => shapes.iter().any(|s| contains(s, label)),
+            _ => false,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    s.settings.single_screens = vec!["one".into()];
+    let mut native = UiState::default();
+    let render = |s: &mut Studio, native: &mut UiState, pos| {
+        let mut raw = input(Vec2::new(1280., 720.));
+        raw.events = vec![egui::Event::PointerMoved(pos)];
+        ctx.run_ui(raw, |ui| {
+            presenter_ui::presenter_on_display(ui, s, native, "one")
+        })
+    };
+    let revealed = render(&mut s, &mut native, Pos2::new(640., 719.));
+    assert!(
+        revealed
+            .shapes
+            .iter()
+            .any(|shape| contains(&shape.shape, "Next"))
+    );
+    native.header_until = std::time::Instant::now();
+    native.footer_until = std::time::Instant::now();
+    let hidden = render(&mut s, &mut native, Pos2::new(640., 360.));
+    assert!(
+        !hidden
+            .shapes
+            .iter()
+            .any(|shape| contains(&shape.shape, "Next") || contains(&shape.shape, "Menu"))
+    );
+    // The original Presenter preferences have not been rewritten to hide its bars.
+    assert!(s.presenter_views["one"].layout.header);
+    assert!(s.presenter_views["one"].layout.footer);
+}

@@ -109,6 +109,26 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
 - `routes.presenter` and `routes.presentation`: arrays of monitor identifiers
   (`native-name#occurrence`), disjoint and unique, at most 32 entries combined.
   Saved preferences are not overwritten by temporary missing-monitor fallback.
+- `single_screens`: optional array added in 0.1.89, default empty. Up to 32 unique
+  monitor IDs, each a nonempty UTF-8 string of at most 1024 bytes; no units.
+  A marker is active only while its monitor is in `routes.presenter`; those
+  windows retain operator-process ownership but use the slide-first single-screen
+  view. Audience routes never use this marker to reveal operator controls.
+  Displays presents this combination as the separate Single screen role. Choosing
+  another role removes that connected monitor's marker. Disconnected markers are
+  retained; group swaps leave active Single screen monitors in place.
+  Apply previews routes and markers together; Keep changes persists both, while
+  Revert, timeout or hotplug discards trial values. Single-screen windows use the
+  global `presentation_fullscreen` default and per-screen `screen_modes` overrides.
+  Existing presenter layouts are preserved and restored when switching back.
+  Old v1 files migrate with an empty array; older binaries ignore this additive
+  field and show the ordinary Presenter view on the operator-owned route.
+  The startup offer/decision is transient, never serialized. It is eligible only
+  on the first native monitor discovery with exactly one screen, after settings
+  load, and is suppressed for an already configured Single screen monitor. A
+  topology change withdraws it permanently for that run; later disconnects or
+  reconnections never create an offer. Round-trip and invalid-boundary tests cover
+  the saved array; startup/hotplug tests cover the transient decision.
 - `presenter_fullscreen`, `presentation_fullscreen`: booleans, default true.
 - `screen_modes`: optional monitor-ID map added in 0.1.87. Values are
   `follow_global`, `always_fullscreen`, or `always_windowed`; unknown values fail

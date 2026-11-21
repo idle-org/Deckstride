@@ -244,6 +244,16 @@ pub fn validate_screen_modes(modes: &BTreeMap<String, ScreenMode>) -> Result<(),
     }
     Ok(())
 }
+pub fn validate_single_screens(displays: &[String]) -> Result<(), String> {
+    let unique: std::collections::HashSet<_> = displays.iter().collect();
+    if displays.len() > 32
+        || unique.len() != displays.len()
+        || displays.iter().any(|id| id.is_empty() || id.len() > 1024)
+    {
+        return Err("Invalid single-screen assignments".into());
+    }
+    Ok(())
+}
 /// Saved visual layouts for one monitor; shared timer behavior uses legacy layouts.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -260,6 +270,7 @@ pub struct Settings {
     pub projects: BTreeMap<String, Layout>,
     pub display_layouts: BTreeMap<String, DisplayLayouts>,
     pub screen_modes: BTreeMap<String, ScreenMode>,
+    pub single_screens: Vec<String>,
     pub routes: Routes,
     pub presenter_fullscreen: bool,
     pub presentation_fullscreen: bool,
@@ -307,6 +318,7 @@ impl Default for Settings {
             projects: BTreeMap::new(),
             display_layouts: BTreeMap::new(),
             screen_modes: BTreeMap::new(),
+            single_screens: Vec::new(),
             routes: Routes::default(),
             presenter_fullscreen: true,
             presentation_fullscreen: true,
@@ -354,6 +366,7 @@ impl Settings {
                 layout.validate()?;
             }
         }
+        validate_single_screens(&self.single_screens)?;
         validate_screen_modes(&self.screen_modes)?;
         self.routes.validate()?;
         self.layout.validate()?;

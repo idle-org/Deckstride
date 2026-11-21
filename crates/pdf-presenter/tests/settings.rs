@@ -359,3 +359,29 @@ fn output_screen_modes_roundtrip_and_fall_back_to_global() {
             .fullscreen_on("one")
     );
 }
+
+#[test]
+fn single_screen_preferences_are_additive_bounded_and_roundtrip() {
+    let old: Settings = toml::from_str("version = 1").unwrap();
+    assert!(old.single_screens.is_empty());
+    let mut s = old;
+    s.single_screens = vec!["one".into(), "disconnected#1".into()];
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("settings.toml");
+    settings::write(&path, &s).unwrap();
+    assert_eq!(
+        settings::read(&path).unwrap().single_screens,
+        s.single_screens
+    );
+    for ids in [
+        vec!["".into()],
+        vec!["a".repeat(1025)],
+        vec!["one".into(), "one".into()],
+        (0..33).map(|i| i.to_string()).collect(),
+    ] {
+        s.single_screens = ids;
+        assert!(s.validate().is_err());
+    }
+    s.single_screens = (0..32).map(|i| i.to_string()).collect();
+    assert!(s.validate().is_ok());
+}

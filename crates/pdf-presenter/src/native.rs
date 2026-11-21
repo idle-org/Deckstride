@@ -759,6 +759,9 @@ impl App {
     }
     fn refresh(&mut self, el: &ActiveEventLoop) {
         let (handles, primary) = monitors(el);
+        if let Some(s) = &mut self.studio {
+            s.observe_startup_displays(handles.len(), handles.first().map(|(m, _)| m.id.as_str()));
+        }
         let changed = self
             .handles
             .iter()
@@ -850,7 +853,14 @@ impl App {
                 desired.push((
                     Role::Presenter,
                     id.clone(),
-                    s.screen_fullscreen(id, s.presenter_fullscreen()),
+                    s.screen_fullscreen(
+                        id,
+                        if s.is_single_screen(id) {
+                            s.presentation_fullscreen()
+                        } else {
+                            s.presenter_fullscreen()
+                        },
+                    ),
                 ));
             }
             if s.browser_open {
@@ -1002,6 +1012,9 @@ impl App {
             self.redraw();
             return;
         }
+        if s.startup_single_offer() {
+            return;
+        }
         // Notes editing must never turn typing or Escape into presentation commands.
         // Unsaved text is only discarded through the explicit editor control.
         if s.notes_editor.is_some() || s.notes_import.is_some() {
@@ -1099,6 +1112,7 @@ impl App {
             .any(|w| w.window.id() == *id && w.window.has_focus())
             && self.studio.as_ref().is_some_and(|s| {
                 !s.quit_confirmation
+                    && !s.startup_single_offer()
                     && s.notes_editor.is_none()
                     && s.notes_import.is_none()
                     && !s.dialog_busy
@@ -1569,6 +1583,7 @@ impl ApplicationHandler for App {
         let navigation_event = role != Role::Presentation
             && self.studio.as_ref().is_some_and(|s| {
                 !s.quit_confirmation
+                    && !s.startup_single_offer()
                     && s.notes_editor.is_none()
                     && s.notes_import.is_none()
                     && !s.dialog_busy
@@ -1668,6 +1683,7 @@ impl ApplicationHandler for App {
                     let allowed = role != Role::Presentation
                         && self.studio.as_ref().is_some_and(|s| {
                             !s.quit_confirmation
+                                && !s.startup_single_offer()
                                 && s.notes_editor.is_none()
                                 && s.notes_import.is_none()
                                 && !s.dialog_busy
@@ -2301,6 +2317,7 @@ mod buffer_tests {
 fn swap_allowed(s: &Studio) -> bool {
     s.initialized
         && !s.quit_confirmation
+        && !s.startup_single_offer()
         && s.notes_editor.is_none()
         && s.notes_import.is_none()
         && !s.dialog_busy

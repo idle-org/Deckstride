@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 0.1.89
+
+- Add a Single screen role in Displays: full-window slides with top/bottom edge
+  controls, using prepared frames and preserving the ordinary Presenter layout.
+  Include a startup-only offer when exactly one screen is initially detected,
+  explaining the intended separate Presenter/Slides setup. Disconnects never
+  create an offer; confirmed choices persist through the existing display trial.
+- Keep audience-host rendering and privacy separate; group swaps leave Single
+  screen assignments in place. Cover settings boundaries, startup/hotplug,
+  manual selection, output visibility, slide geometry and texture reuse in tests.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, build and
+  13 Python helper tests pass. GUI coverage is blocked by `XOpenDisplayFailed`;
+  physical edge-control, placement and latency testing remains pending.
+  Windows/macOS builds were not run.
+
 ### 0.1.88
 
 - Escape and Ctrl+Q request a shared quit-confirmation dialog, also used by Menu

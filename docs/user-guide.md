@@ -44,8 +44,25 @@ fullscreen for the session. `--list-monitors` lists CLI display numbers.
 
 ## Screens and presentation safety
 
+When the application starts with exactly one connected screen, it offers
+**Single-screen mode** and explains that PDF Presenter is intended for a presenter
+setup with separate Presenter and Slides screens. Choose **Keep Presenter view**
+to continue with the usual controls, or **Use single-screen mode**, then **Keep
+changes** to save it. This prompt is only offered at startup; disconnecting screens
+later never enables this mode or creates a new prompt.
+
+You can also select **Single screen** for a monitor in **Displays**, then Apply
+and Keep changes. It fills that screen with the current slide. Move the pointer to
+the top for Menu, Displays, fullscreen and blank/show controls, or to the bottom
+for navigation. Controls overlay the slide without resizing it and hide after the
+pointer leaves the edge. Normal navigation shortcuts and quit confirmation work.
+The view shows no notes or next-slide previews unless you explicitly open another
+operator tool. Choose **Presenter** in Displays to return to its saved layout.
+Single screen uses the Slides fullscreen default and respects per-screen window
+mode overrides. Swap groups leaves Single screen assignments in place.
+
 Both roles default to fullscreen. Displays lists connected screens: assign each
-Unused, Presenter or Slides, including several screens per role. Swap groups
+Unused, Presenter, Slides or Single screen, including several screens per role. Swap groups
 exchanges the draft roles. **Apply changes** previews the assignments
 and fullscreen choices while preserving the current output visibility. **Keep changes** confirms and saves;
 **Revert now**, Escape, or doing nothing for 15 seconds restores the previous setup.

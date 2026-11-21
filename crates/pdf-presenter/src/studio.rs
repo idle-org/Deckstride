@@ -47,6 +47,7 @@ pub enum Action {
     UseGlobal,
     ApplyRoutes,
     SwapRoutes,
+    StartupSingleScreen(bool),
     KeepRoutes,
     RevertRoutes,
     OpenBrowser,
@@ -90,6 +91,7 @@ pub struct RouteTrial {
     presenter_fullscreen: bool,
     presentation_fullscreen: bool,
     screen_modes: std::collections::BTreeMap<String, crate::settings::ScreenMode>,
+    single_screens: Vec<String>,
 }
 #[derive(Default)]
 pub struct PresenterView {
@@ -107,6 +109,9 @@ pub struct Studio {
     pub monitors: Vec<Monitor>,
     pub routes: Routes,
     pub draft_routes: Routes,
+    pub draft_single_screens: Vec<String>,
+    startup_displays_observed: bool,
+    pub startup_single_screen: Option<String>,
     pub draft_screen_modes: std::collections::BTreeMap<String, crate::settings::ScreenMode>,
     pub draft_presenter_fullscreen: bool,
     pub draft_presentation_fullscreen: bool,
@@ -224,6 +229,9 @@ impl Studio {
             monitors: vec![],
             routes: Routes::default(),
             draft_routes: Routes::default(),
+            draft_single_screens: Vec::new(),
+            startup_displays_observed: false,
+            startup_single_screen: None,
             draft_screen_modes: Default::default(),
             draft_presenter_fullscreen: true,
             draft_presentation_fullscreen: true,
@@ -344,6 +352,60 @@ impl Studio {
     pub fn frame_info(&self) -> Option<FrameInfo> {
         self.full_frame(self.requested).map(|f| f.info.clone())
     }
+    /// Called on the first native discovery, including zero displays. Never rearmed by hotplug.
+    pub fn observe_startup_displays(&mut self, count: usize, only_id: Option<&str>) {
+        if !self.startup_displays_observed {
+            self.startup_displays_observed = true;
+            self.startup_single_screen = only_id.filter(|_| count == 1).map(str::to_owned);
+        }
+    }
+    pub fn is_single_screen(&self, id: &str) -> bool {
+        self.routes.presenter.iter().any(|display| display == id)
+            && self
+                .route_trial
+                .as_ref()
+                .map_or(&self.settings.single_screens, |trial| &trial.single_screens)
+                .iter()
+                .any(|display| display == id)
+    }
+    pub fn startup_single_offer(&self) -> bool {
+        self.initialized
+            && self.route_trial.is_none()
+            && !self.quit_confirmation
+            && self.startup_single_screen.as_ref().is_some_and(|id| {
+                self.monitors.len() == 1
+                    && self.monitors[0].id == *id
+                    && self.routes.presenter.contains(id)
+                    && !self.is_single_screen(id)
+            })
+    }
+    pub fn swap_draft_groups(&mut self) {
+        if self.draft_routes.presentation.is_empty()
+            || (!self.draft_routes.presenter.is_empty()
+                && self
+                    .draft_routes
+                    .presenter
+                    .iter()
+                    .all(|id| self.draft_single_screens.contains(id)))
+        {
+            return;
+        }
+        let singles: Vec<_> = self
+            .draft_routes
+            .presenter
+            .iter()
+            .filter(|id| self.draft_single_screens.contains(id))
+            .cloned()
+            .collect();
+        self.draft_routes
+            .presenter
+            .retain(|id| !singles.contains(id));
+        std::mem::swap(
+            &mut self.draft_routes.presenter,
+            &mut self.draft_routes.presentation,
+        );
+        self.draft_routes.presenter.extend(singles);
+    }
     pub fn set_monitors(&mut self, monitors: Vec<Monitor>, primary: usize) {
         let ids = monitors.iter().map(|m| m.id.clone()).collect::<Vec<_>>();
         let changed = self
@@ -357,6 +419,13 @@ impl Studio {
                 .collect::<Vec<_>>();
         let previous_outputs = self.routes.presentation.clone();
         let recovering = !self.monitors.is_empty();
+        if self
+            .startup_single_screen
+            .as_ref()
+            .is_some_and(|id| monitors.len() != 1 || monitors[0].id != *id)
+        {
+            self.startup_single_screen = None;
+        }
         self.monitors = monitors;
         if changed {
             self.execute(Action::RevertRoutes);
@@ -716,16 +785,28 @@ impl Studio {
                 self.layout = self.settings.layout.clone();
                 self.pending_save = true;
             }
+            Action::StartupSingleScreen(accept) => {
+                if !self.startup_single_offer() {
+                    return;
+                }
+                let id = self.startup_single_screen.take().unwrap();
+                if accept {
+                    self.begin_display_edit();
+                    self.draft_single_screens.push(id);
+                    self.execute(Action::ApplyRoutes);
+                }
+            }
             Action::SwapRoutes => {
                 if self.route_trial.is_none()
-                    && !self.routes.presenter.is_empty()
+                    && self
+                        .routes
+                        .presenter
+                        .iter()
+                        .any(|id| !self.is_single_screen(id))
                     && !self.routes.presentation.is_empty()
                 {
                     self.begin_display_edit();
-                    std::mem::swap(
-                        &mut self.draft_routes.presenter,
-                        &mut self.draft_routes.presentation,
-                    );
+                    self.swap_draft_groups();
                     self.execute(Action::ApplyRoutes);
                 }
             }
@@ -737,7 +818,11 @@ impl Studio {
                     return;
                 }
                 if self.draft_routes.presenter.is_empty() {
-                    self.status = "Choose at least one presenter screen.".into();
+                    self.status = "Choose at least one presenter or single-screen display.".into();
+                } else if let Err(e) =
+                    crate::settings::validate_single_screens(&self.draft_single_screens)
+                {
+                    self.status = e;
                 } else if let Err(e) =
                     crate::settings::validate_screen_modes(&self.draft_screen_modes)
                 {
@@ -753,6 +838,7 @@ impl Studio {
                 {
                     self.status = "A selected display is no longer connected.".into();
                 } else {
+                    self.startup_single_screen = None;
                     self.next_route_trial += 1;
                     self.route_trial = Some(RouteTrial {
                         id: self.next_route_trial,
@@ -761,6 +847,7 @@ impl Studio {
                         presenter_fullscreen: self.draft_presenter_fullscreen,
                         presentation_fullscreen: self.draft_presentation_fullscreen,
                         screen_modes: self.draft_screen_modes.clone(),
+                        single_screens: self.draft_single_screens.clone(),
                     });
                     self.routes = self.draft_routes.clone();
                     self.dirty_routes = true;
@@ -775,6 +862,7 @@ impl Studio {
                         self.execute(Action::RevertRoutes);
                         return;
                     }
+                    self.settings.single_screens = trial.single_screens;
                     self.settings.screen_modes = trial.screen_modes;
                     self.settings.routes = self.routes.clone();
                     self.settings.presenter_fullscreen = trial.presenter_fullscreen;
@@ -888,6 +976,7 @@ impl Studio {
                 }
                 let fullscreen = !(self.presenter_fullscreen() && self.presentation_fullscreen());
                 self.draft_routes = self.routes.clone();
+                self.draft_single_screens = self.settings.single_screens.clone();
                 self.draft_screen_modes = self.settings.screen_modes.clone();
                 self.draft_presenter_fullscreen = fullscreen;
                 self.draft_presentation_fullscreen = fullscreen;
@@ -938,6 +1027,7 @@ impl Studio {
             .fullscreen(global)
     }
     pub fn begin_display_edit(&mut self) {
+        self.draft_single_screens = self.settings.single_screens.clone();
         self.draft_screen_modes = self.settings.screen_modes.clone();
         self.draft_routes = self.routes.clone();
         self.draft_presenter_fullscreen = self.settings.presenter_fullscreen;
@@ -993,6 +1083,14 @@ impl Studio {
         }
     }
     pub fn poll(&mut self) {
+        if self.initialized
+            && self
+                .startup_single_screen
+                .as_ref()
+                .is_some_and(|id| self.is_single_screen(id))
+        {
+            self.startup_single_screen = None;
+        }
         while let Ok(c) = self.blank_loader.rx.try_recv() {
             self.blank_busy = false;
             let result = c.result.and_then(|p| {
