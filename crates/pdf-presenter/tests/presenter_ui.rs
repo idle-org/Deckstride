@@ -515,7 +515,7 @@ fn quick_settings_and_preferences_window_remain_interactive() {
     assert_eq!(s.settings.theme, pdf_presenter::theme::Theme::HighContrast);
     assert!(s.menu_open);
     click(&mut s, "English");
-    click(&mut s, "System / Système");
+    click(&mut s, "System language");
     assert_eq!(
         s.settings.language,
         pdf_presenter::localization::Language::System

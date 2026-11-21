@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### 0.1.92
+
+- Extend the existing Canvas Pilot-inspired appearance menu with Spanish, Japanese,
+  Simplified Chinese, German and Brazilian Portuguese alongside English and French;
+  System follows supported native locales and safely falls back to English.
+- Embed the OFL-licensed Noto Sans CJK collection for standalone Japanese and Chinese
+  interface rendering. Catalog lookup is compiled and allocation-free; CJK fonts are
+  installed only when selected and never read from disk at runtime.
+- Stop rebuilding theme visuals and locale/font state on every frame. Both now update
+  only when their selection changes, keeping slide preparation, navigation and output
+  rendering paths unchanged.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, optimized build,
+  13 Python helper tests and the native-window smoke pass. Full GUI coverage is
+  83.89% against the 75% floor.
+
 ### 0.1.91
 
 - Promote releases from preview status and add recurring Linux ARM64, Apple Silicon

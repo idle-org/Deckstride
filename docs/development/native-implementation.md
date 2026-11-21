@@ -90,6 +90,28 @@ This includes pipe transfer to the measurement process, not optical display late
 One sample under concurrent build load is diagnostic evidence, not a p95/worst-case
 benchmark or comparison against Pympress. The source PDF remains untracked and unchanged.
 
+## 0.1.92 themes and interface languages
+
+The existing 20 built-in Canvas Pilot-inspired palettes remain compile-time data.
+English, French, Spanish, Japanese, Simplified Chinese, German and Brazilian
+Portuguese are selectable, with supported native locales resolved once per process.
+Translations use static match tables: there is no catalog parsing, runtime file I/O
+or translation allocation. Detailed worker and operating-system diagnostics retain
+their original wording.
+
+Theme application and locale/font setup now short-circuit when the selected value is
+already active. Japanese and Simplified Chinese share one embedded Noto Sans CJK
+collection; the appropriate face is installed once when a CJK language is selected
+and egui's default embedded fonts are restored when leaving it. This work does not
+change the independent output process, prepared-frame navigation, PDF workers or
+slide texture path.
+
+Linux workspace/native tests, formatting, warnings-denied Clippy/rustdoc, optimized
+build and 13 Python helper tests pass. Whole-application GUI coverage is 83.89%
+against the 75% floor. CJK tests exercise both selected font faces and every theme/
+language combination renders the Presenter, browser and popups. This does not replace
+native Japanese/Chinese visual review or physical multi-display acceptance.
+
 ## Remaining acceptance and hardening
 
 - User physical Windows/macOS/Linux X11/Wayland matrix: routing, swap, mixed DPI,

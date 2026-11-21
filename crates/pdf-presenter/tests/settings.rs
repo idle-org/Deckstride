@@ -1,4 +1,19 @@
 use pdf_presenter::settings::{self, Layout, Routes, Settings};
+
+#[test]
+fn every_interface_language_round_trips_through_settings_v1() {
+    let temp = tempfile::tempdir().unwrap();
+    for language in pdf_presenter::localization::Language::ALL {
+        let path = temp.path().join(format!("{language:?}.toml"));
+        let settings = Settings {
+            language,
+            ..Default::default()
+        };
+        settings::write(&path, &settings).unwrap();
+        assert_eq!(settings::read(&path).unwrap().language, language);
+    }
+}
+
 #[test]
 fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     let temp = tempfile::tempdir().unwrap();

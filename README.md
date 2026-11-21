@@ -45,6 +45,7 @@ slow document operation does not have to freeze navigation.
 | **Notes that belong to the presentation** | Read notes from a sidecar or the PDF, import TXT/Markdown, and double-click the notes pane to edit the current slide. Notes automatically fit the available space. |
 | **Presentation-aware desktop behavior** | PDF Presenter asks supported operating systems to keep the display awake and reports whether protection is active. Closing Presenter also closes its Slides windows. |
 | **Portable by design** | The release binaries include the PDF renderer and application dependencies. Keep the extracted folder anywhere convenient; no Rust or separate PDF software is required. |
+| **Themes and languages** | Choose from 20 built-in palettes and English, French, Spanish, Japanese, Simplified Chinese, German or Brazilian Portuguese. System language detection stays offline. |
 
 On Windows, multi-screen output, per-screen layouts, zoom, tools, and unplugging then
 reconnecting displays have been tested in extended use. Linux and macOS use the same

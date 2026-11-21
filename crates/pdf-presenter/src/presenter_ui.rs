@@ -1,4 +1,4 @@
-use crate::localization::tr;
+use crate::localization::{display_revert_countdown, tr};
 // Native controls for the approved presenter layout and safe slide browser.
 use crate::{
     settings::{Layout, TimerMode, TimerPosition},
@@ -904,13 +904,7 @@ fn presenter_view(
     background.context_menu(|ui| {
         if !s.presentation_started
             && s.route_trial.is_none()
-            && ui
-                .button(if s.settings.language.french() {
-                    "Inverser les écrans…"
-                } else {
-                    "Swap displays…"
-                })
-                .clicked()
+            && ui.button(tr(&locale, "Swap displays…")).clicked()
         {
             s.actions.push(Action::SwapRoutes);
             ui.close();
@@ -1443,17 +1437,9 @@ fn presenter_view(
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.label(format!(
                         "{} {} · {}",
-                        if s.settings.language.french() {
-                            "Diapositive"
-                        } else {
-                            "Go to slide"
-                        },
+                        tr(&locale, "Go to slide"),
                         s.jump,
-                        if s.settings.language.french() {
-                            "Entrée : diffuser · Retour arrière : effacer"
-                        } else {
-                            "Enter to show · Backspace to clear"
-                        }
+                        tr(&locale, "Enter to show · Backspace to clear")
                     ));
                 });
             });
@@ -1465,39 +1451,22 @@ fn presenter_view(
             .as_secs()
             + 1;
         egui::Modal::new(egui::Id::new("confirm-displays")).show(&ctx, |ui| {
-            ui.heading(if s.settings.language.french() {
-                "Conserver ces écrans ?"
-            } else {
-                "Keep these display settings?"
-            });
-            ui.label(if s.settings.language.french() {
-                "Une seule confirmation suffit pour tous les écrans."
-            } else {
-                "Confirm once on any screen to apply to all displays."
-            });
-            ui.label(if s.settings.language.french() {
-                format!("Retour automatique dans {seconds} s. Échap pour annuler.")
-            } else {
-                format!("Automatically reverts in {seconds} seconds. Escape to revert.")
-            });
+            ui.heading(tr(&locale, "Keep these display settings?"));
+            ui.label(tr(
+                &locale,
+                "Confirm once on any screen to apply to all displays.",
+            ));
+            ui.label(display_revert_countdown(&locale, seconds));
             ui.horizontal(|ui| {
                 button(
                     ui,
-                    if s.settings.language.french() {
-                        "Conserver"
-                    } else {
-                        "Keep changes"
-                    },
+                    tr(&locale, "Keep changes"),
                     Action::KeepRoutes,
                     &mut s.actions,
                 );
                 button(
                     ui,
-                    if s.settings.language.french() {
-                        "Annuler"
-                    } else {
-                        "Revert now"
-                    },
+                    tr(&locale, "Revert now"),
                     Action::RevertRoutes,
                     &mut s.actions,
                 );
@@ -1552,11 +1521,7 @@ fn presenter_view(
                 ui.visuals_mut().slider_trailing_fill = true;
                 if display.is_some() {
                     ui.horizontal(|ui| {
-                        ui.strong(if s.settings.language.french() {
-                            "Modifier la disposition de"
-                        } else {
-                            "Edit layout for"
-                        });
+                        ui.strong(tr(&locale, "Edit layout for"));
                         let selected = selected_layout_display
                             .as_ref()
                             .and_then(|selected| {
@@ -1578,11 +1543,10 @@ fn presenter_view(
                                 }
                             });
                     });
-                    ui.label(if s.settings.language.french() {
-                        "Disposition et sauvegardes propres à cet écran. Le fonctionnement du minuteur reste partagé."
-                    } else {
-                        "Layout and saves apply to this display. Timer behavior is shared."
-                    });
+                    ui.label(tr(
+                        &locale,
+                        "Layout and saves apply to this display. Timer behavior is shared.",
+                    ));
                 }
                 ui.label(tr(
                     &locale,
@@ -1713,14 +1677,8 @@ fn presenter_view(
                         });
                         layout_section(ui, tr(&locale, "Header and footer"), |ui| {
                             ui.horizontal_wrapped(|ui| {
-                                ui.checkbox(
-                                    &mut layout.header,
-                                    tr(&locale, "Keep header visible"),
-                                );
-                                ui.checkbox(
-                                    &mut layout.footer,
-                                    tr(&locale, "Keep footer visible"),
-                                );
+                                ui.checkbox(&mut layout.header, tr(&locale, "Keep header visible"));
+                                ui.checkbox(&mut layout.footer, tr(&locale, "Keep footer visible"));
                             });
                             ui.small(tr(
                                 &locale,
@@ -1735,14 +1693,27 @@ fn presenter_view(
                         button(
                             ui,
                             tr(&locale, "Save layout · This project"),
-                            rendered_layout_display.as_deref().map_or(Action::SaveProject, |display| Action::SaveDisplayLayout { display: display.into(), project: true, layout: layout.clone() }),
+                            rendered_layout_display.as_deref().map_or(
+                                Action::SaveProject,
+                                |display| Action::SaveDisplayLayout {
+                                    display: display.into(),
+                                    project: true,
+                                    layout: layout.clone(),
+                                },
+                            ),
                             &mut s.actions,
                         );
                     });
                     button(
                         ui,
                         tr(&locale, "Save layout · All projects"),
-                        rendered_layout_display.as_deref().map_or(Action::SaveGlobal, |display| Action::SaveDisplayLayout { display: display.into(), project: false, layout: layout.clone() }),
+                        rendered_layout_display
+                            .as_deref()
+                            .map_or(Action::SaveGlobal, |display| Action::SaveDisplayLayout {
+                                display: display.into(),
+                                project: false,
+                                layout: layout.clone(),
+                            }),
                         &mut s.actions,
                     );
                 });
@@ -1751,7 +1722,11 @@ fn presenter_view(
                         button(
                             ui,
                             tr(&locale, "Use all-projects default"),
-                            rendered_layout_display.as_deref().map_or(Action::UseGlobal, |display| Action::UseDisplayDefault(display.into())),
+                            rendered_layout_display
+                                .as_deref()
+                                .map_or(Action::UseGlobal, |display| {
+                                    Action::UseDisplayDefault(display.into())
+                                }),
                             &mut s.actions,
                         );
                     });
@@ -1889,11 +1864,7 @@ fn presenter_view(
                 );
                 button(
                     ui,
-                    if s.settings.language.french() {
-                        "Appliquer les modifications"
-                    } else {
-                        "Apply changes"
-                    },
+                    tr(&locale, "Apply changes"),
                     Action::ApplyRoutes,
                     &mut s.actions,
                 );
@@ -2274,37 +2245,21 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     ui.add_space(4.);
     ui.label(format!(
         "{} {} · {} {}",
-        if s.settings.language.french() {
-            "Sélection"
-        } else {
-            "Selected"
-        },
+        tr(&locale, "Selected"),
         if s.count() == 0 {
             0
         } else {
             s.browser_selected + 1
         },
-        if s.settings.language.french() {
-            "Actuelle"
-        } else {
-            "Current"
-        },
+        tr(&locale, "Current"),
         if s.count() == 0 { 0 } else { s.requested + 1 },
     ));
     if !s.jump.is_empty() {
         ui.label(format!(
             "{} {} — {}",
-            if s.settings.language.french() {
-                "Diapositive"
-            } else {
-                "Go to slide"
-            },
+            tr(&locale, "Go to slide"),
             s.jump,
-            if s.settings.language.french() {
-                "Entrée : diffuser, Retour arrière : effacer"
-            } else {
-                "Enter to show; Backspace to clear"
-            }
+            tr(&locale, "Enter to show; Backspace to clear")
         ));
     }
     // Reserve a stable gutter, so neither thumbnail sizing nor scrollbar placement
@@ -2460,32 +2415,18 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                 .show(ui, |ui| {
                     layout_section(
                         ui,
-                        if s.settings.language.french() {
-                            "Image des diapositives masquées"
-                        } else {
-                            "Blank Slides image"
-                        },
+                        tr(&locale, "Blank Slides image"),
                         |ui| {
                             ui.label(if s.settings.blank_picture {
-                                if s.settings.language.french() {
-                                    "Image personnalisée sélectionnée"
-                                } else {
-                                    "Custom picture selected"
-                                }
-                            } else if s.settings.language.french() {
-                                "Écran noir"
+                                tr(&locale, "Custom picture selected")
                             } else {
-                                "Solid black"
+                                tr(&locale, "Solid black")
                             });
                             ui.horizontal_wrapped(|ui| {
                                 if ui
                                     .add_enabled(
                                         s.initialized && !s.dialog_busy && !s.blank_busy,
-                                        egui::Button::new(if s.settings.language.french() {
-                                            "Choisir une image…"
-                                        } else {
-                                            "Choose picture…"
-                                        }),
+                                        egui::Button::new(tr(&locale, "Choose picture…")),
                                     )
                                     .clicked()
                                 {
@@ -2496,11 +2437,7 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                                         s.initialized
                                             && !s.dialog_busy
                                             && (s.settings.blank_picture || s.blank_busy),
-                                        egui::Button::new(if s.settings.language.french() {
-                                            "Utiliser un écran noir"
-                                        } else {
-                                            "Use solid black"
-                                        }),
+                                        egui::Button::new(tr(&locale, "Use solid black")),
                                     )
                                     .clicked()
                                 {
@@ -2510,11 +2447,10 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                                     ui.spinner();
                                 }
                             });
-                            ui.small(if s.settings.language.french() {
-                                "Une copie est conservée et ajustée à tous les écrans de diapositives, sur fond noir."
-                            } else {
-                                "A copy is saved and fitted to all Slides screens against a black background."
-                            });
+                            ui.small(tr(
+                                &locale,
+                                "A copy is saved and fitted to all Slides screens against a black background.",
+                            ));
                         },
                     );
                     #[cfg(target_os = "windows")]
@@ -2522,32 +2458,22 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                         ui.add_space(8.);
                         layout_section(
                             ui,
-                            if s.settings.language.french() {
-                                "Application PDF par défaut"
-                            } else {
-                                "Default PDF application"
-                            },
+                            tr(&locale, "Default PDF application"),
                             |ui| {
-                                ui.label(if s.settings.language.french() {
-                                    "Enregistre PDF Presenter et son icône pour les fichiers PDF de votre compte Windows."
-                                } else {
-                                    "Register PDF Presenter and its icon for PDF files in your Windows account."
-                                });
+                                ui.label(tr(
+                                    &locale,
+                                    "Register PDF Presenter and its icon for PDF files in your Windows account.",
+                                ));
                                 if ui
-                                    .button(if s.settings.language.french() {
-                                        "Définir comme application PDF par défaut…"
-                                    } else {
-                                        "Set as default PDF app…"
-                                    })
+                                    .button(tr(&locale, "Set as default PDF app…"))
                                     .clicked()
                                 {
                                     s.actions.push(Action::RegisterPdfAssociation);
                                 }
-                                ui.small(if s.settings.language.french() {
-                                    "Windows ouvrira Applications par défaut : sélectionnez PDF Presenter pour .pdf afin de confirmer."
-                                } else {
-                                    "Windows will open Default Apps; select PDF Presenter for .pdf to confirm."
-                                });
+                                ui.small(tr(
+                                    &locale,
+                                    "Windows will open Default Apps; select PDF Presenter for .pdf to confirm.",
+                                ));
                             },
                         );
                     }
@@ -2618,11 +2544,7 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                         ui.separator();
                         ui.label(format!(
                             "{}: {}",
-                            if s.settings.language.french() {
-                                "Diapositives préparées"
-                            } else {
-                                "Processed slides"
-                            },
+                            tr(&locale, "Processed slides"),
                             s.cache_path.display()
                         ));
                         ui.label(format!("Configuration: {}", s.settings_path.display()));
@@ -2691,11 +2613,11 @@ fn menu(ui: &mut Ui, s: &mut Studio, preferences_open: &mut bool) {
                     .strong()
                     .color(ui.visuals().weak_text_color()),
             );
-            ui.menu_button(s.settings.theme.name().to_owned(), |ui| {
+            ui.menu_button(s.settings.theme.name(), |ui| {
                 for theme in crate::theme::Theme::ALL {
                     let name = theme.name();
                     changed |= ui
-                        .selectable_value(&mut s.settings.theme, theme.clone(), name)
+                        .selectable_value(&mut s.settings.theme, theme, name)
                         .changed();
                 }
             });

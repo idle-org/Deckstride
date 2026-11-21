@@ -9,7 +9,7 @@ const MUTED: Color32 = Color32::from_rgb(165, 181, 201);
 const CYAN: Color32 = Color32::from_rgb(102, 219, 239);
 const AMBER: Color32 = Color32::from_rgb(246, 197, 119);
 const PURPLE: Color32 = Color32::from_rgb(102, 85, 217);
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Theme {
     #[default]
@@ -76,7 +76,7 @@ impl Theme {
         Self::VerdantRebel,
         Self::WeicatIndustrial,
     ];
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> &'static str {
         match self {
             Self::Midra => "Midra Dark",
             Self::HighContrast => "High Contrast",
@@ -276,6 +276,10 @@ impl Theme {
         }
     }
     pub fn apply(&self, ctx: &egui::Context) {
+        let applied = egui::Id::new("pdf-presenter-theme");
+        if ctx.data(|data| data.get_temp::<Self>(applied)) == Some(*self) {
+            return;
+        }
         let p = self.palette();
         let mut v = if self.is_light() {
             egui::Visuals::light()
@@ -317,6 +321,7 @@ impl Theme {
             w.fg_stroke = egui::Stroke::new(1_f32, p.text);
         }
         ctx.set_visuals(v);
+        ctx.data_mut(|data| data.insert_temp(applied, *self));
     }
 }
 fn sotv_palette(colors: [u32; 8], light: bool) -> Palette {
@@ -348,5 +353,21 @@ fn sotv_palette(colors: [u32; 8], light: bool) -> Palette {
         banner: panel,
         grid: mix(line, bg),
         pattern: [layer, panel],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn repeated_theme_application_keeps_the_existing_style() {
+        let ctx = egui::Context::default();
+        Theme::Midra.apply(&ctx);
+        let first = ctx.global_style();
+        Theme::Midra.apply(&ctx);
+        assert!(std::sync::Arc::ptr_eq(&first, &ctx.global_style()));
+        Theme::CorporateLight.apply(&ctx);
+        assert!(!std::sync::Arc::ptr_eq(&first, &ctx.global_style()));
     }
 }

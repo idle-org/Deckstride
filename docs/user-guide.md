@@ -291,13 +291,18 @@ The numbered screen rectangles in **Displays** reflect each monitor’s pixel as
 ratio, so portrait, standard and ultrawide displays are easier to distinguish.
 They represent proportions, not physical screen size.
 
-Menu → Appearance → Theme offers the same 20 built-in palettes as Canvas Pilot, including light,
-dark and High Contrast. Menu → Appearance → Language offers System, English and Français. System
-uses the native OS locale and falls back to English for other languages. Choices are
-saved globally and apply to all presenter/browser windows; slides are never recolored.
-The controls and preparation progress are translated; detailed worker/OS diagnostics
-remain verbatim. Additional Canvas Pilot languages and external theme/language packs
-are not included in this version.
+Menu → Appearance → Theme offers the same 20 built-in palettes as Canvas Pilot,
+including light, dark and High Contrast. Menu → Appearance → Language offers System,
+English, French, Spanish, Japanese, Simplified Chinese, German and Brazilian
+Portuguese. System uses the native OS locale when it matches one of these choices and
+otherwise falls back to English. Traditional Chinese is not silently treated as
+Simplified Chinese. Choices are saved globally and apply to all presenter/browser
+windows; slides are never recolored.
+
+Translations are built into the executable and need no runtime file reads. Japanese
+and Chinese use the bundled Noto Sans CJK font, loaded only when one of those languages
+is active. Theme styles and language fonts are rebuilt only when their selection
+changes. Detailed worker and operating-system diagnostics remain verbatim.
 
 All slides opens a windowed browser above fullscreen windows and requests focus.
 Opening it again restores/focuses the existing browser. Its Close button dismisses it; Escape requests application quit confirmation.

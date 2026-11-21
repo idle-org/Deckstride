@@ -193,6 +193,8 @@ struct NativeWindow {
     zoom_watch: crate::zoom::PerformanceWatch,
     zoom_slow: bool,
     presentation_base: Option<PresentationBase>,
+    applied_theme: Option<crate::theme::Theme>,
+    applied_language: Option<crate::localization::Language>,
     #[cfg(target_os = "linux")]
     browser_parent: Option<WindowId>,
 }
@@ -253,6 +255,8 @@ impl NativeWindow {
             zoom_watch: Default::default(),
             zoom_slow: false,
             presentation_base: None,
+            applied_theme: None,
+            applied_language: None,
             #[cfg(target_os = "linux")]
             browser_parent: None,
         })
@@ -336,8 +340,14 @@ impl NativeWindow {
             return Err("Display exceeds 40 megapixels".into());
         }
         if let Some(s) = studio.as_ref() {
-            s.settings.theme.apply(&self.ctx);
-            crate::localization::apply(&self.ctx, &s.settings.language);
+            if self.applied_theme != Some(s.settings.theme) {
+                s.settings.theme.apply(&self.ctx);
+                self.applied_theme = Some(s.settings.theme);
+            }
+            if self.applied_language != Some(s.settings.language) {
+                crate::localization::apply(&self.ctx, &s.settings.language);
+                self.applied_language = Some(s.settings.language);
+            }
         }
         let input = self.input.take_egui_input(&self.window);
         let role = self.role;
