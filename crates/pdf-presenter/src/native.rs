@@ -716,6 +716,7 @@ struct App {
     override_presenter: Option<usize>,
     override_output: Option<usize>,
     navigation_hold: Option<(WindowId, Key, crate::navigation::Hold)>,
+    swap_hold: Option<(WindowId, Instant)>,
     #[cfg(target_os = "windows")]
     presenter_focus: Option<PresenterFocusRetry>,
 }
@@ -783,6 +784,7 @@ impl App {
         }
         if let Some(s) = &mut self.studio {
             if changed {
+                self.swap_hold = None;
                 s.set_monitors(
                     self.handles.iter().map(|(m, _)| m.clone()).collect(),
                     primary,
@@ -1060,6 +1062,18 @@ impl App {
         self.navigation_hold = None;
         if let Some(s) = &mut self.studio {
             s.execute(Action::FinishNavigation);
+        }
+    }
+    fn poll_swap(&mut self, now: Instant) {
+        let Some((owner, _)) = self.swap_hold else {
+            return;
+        };
+        let allowed = self.windows.iter().any(|w| {
+            w.window.id() == owner && w.window.has_focus() && !w.ctx.egui_wants_keyboard_input()
+        }) && self.studio.as_ref().is_some_and(swap_allowed);
+        if take_due_swap(&mut self.swap_hold, now, allowed) {
+            self.studio.as_mut().unwrap().execute(Action::SwapRoutes);
+            self.redraw();
         }
     }
     fn repeat_navigation(&mut self, now: Instant) {
@@ -1580,16 +1594,24 @@ impl ApplicationHandler for App {
                 }
             }
             WindowEvent::Focused(false) => {
+                self.swap_hold = None;
                 self.stop_navigation();
                 self.windows[index].ui.navigation_hold = None;
             }
-            WindowEvent::ModifiersChanged(_) => self.stop_navigation(),
+            WindowEvent::ModifiersChanged(_) => {
+                self.swap_hold = None;
+                self.stop_navigation();
+            }
             WindowEvent::KeyboardInput {
                 event,
                 is_synthetic,
                 ..
             } => {
                 if event.state == ElementState::Released {
+                    if matches!(&event.logical_key, Key::Character(c) if c.eq_ignore_ascii_case("s"))
+                    {
+                        self.swap_hold = None;
+                    }
                     if self
                         .navigation_hold
                         .as_ref()
@@ -1598,10 +1620,19 @@ impl ApplicationHandler for App {
                         self.stop_navigation();
                     }
                 } else if !event.repeat && !is_synthetic {
+                    self.swap_hold = None;
                     self.stop_navigation();
                     let native = &self.windows[index];
                     let modifiers = native.input.egui_input().modifiers;
                     let consumed = native.ctx.egui_wants_keyboard_input();
+                    if role != Role::Presentation
+                        && !consumed
+                        && modifiers.is_none()
+                        && matches!(&event.logical_key, Key::Character(c) if c.eq_ignore_ascii_case("s"))
+                        && self.studio.as_ref().is_some_and(swap_allowed)
+                    {
+                        self.swap_hold = Some((id, Instant::now()));
+                    }
                     let direction = navigation_direction(&event.logical_key, modifiers);
                     let allowed = role != Role::Presentation
                         && self.studio.as_ref().is_some_and(|s| {
@@ -1713,6 +1744,7 @@ impl ApplicationHandler for App {
             self.next_monitors = now + Duration::from_millis(750);
         }
         if now >= self.next_poll {
+            self.poll_swap(now);
             self.repeat_navigation(now);
             // egui repaint timers alone do not wake this custom native host.
             // Redraw held mouse controls at their repeat deadline, not at frame rate.
@@ -1843,6 +1875,7 @@ pub fn run(options: crate::poc::Options, path: Option<std::path::PathBuf>) -> Re
         override_presenter: options.presenter,
         override_output: options.audience,
         navigation_hold: None,
+        swap_hold: None,
         #[cfg(target_os = "windows")]
         presenter_focus: None,
     };
@@ -1913,6 +1946,7 @@ pub fn run_output() -> Result<(), Failure> {
         override_presenter: None,
         override_output: None,
         navigation_hold: None,
+        swap_hold: None,
         #[cfg(target_os = "windows")]
         presenter_focus: None,
     };
@@ -2039,6 +2073,7 @@ mod buffer_tests {
                 override_presenter: None,
                 override_output: None,
                 navigation_hold: None,
+                swap_hold: None,
                 #[cfg(target_os = "windows")]
                 presenter_focus: None,
             },
@@ -2096,6 +2131,7 @@ mod buffer_tests {
             override_presenter: None,
             override_output: None,
             navigation_hold: None,
+            swap_hold: None,
             #[cfg(target_os = "windows")]
             presenter_focus: None,
         };
@@ -2269,6 +2305,62 @@ mod buffer_tests {
             &state,
             64,
             192
+        ));
+    }
+}
+
+fn swap_allowed(s: &Studio) -> bool {
+    s.initialized
+        && s.notes_editor.is_none()
+        && s.notes_import.is_none()
+        && !s.dialog_busy
+        && !s.loading
+        && s.route_trial.is_none()
+        && !s.routes.presenter.is_empty()
+        && !s.routes.presentation.is_empty()
+}
+
+fn take_due_swap(hold: &mut Option<(WindowId, Instant)>, now: Instant, allowed: bool) -> bool {
+    if !allowed {
+        *hold = None;
+        return false;
+    }
+    if hold.is_some_and(|(_, start)| now.saturating_duration_since(start) >= Duration::from_secs(1))
+    {
+        *hold = None;
+        return true;
+    }
+    false
+}
+
+#[cfg(test)]
+mod swap_tests {
+    use super::*;
+    #[test]
+    fn hold_requires_one_second_fires_once_and_cancels_when_disallowed() {
+        let now = Instant::now();
+        let mut hold = Some((WindowId::dummy(), now));
+        assert!(!take_due_swap(
+            &mut hold,
+            now + Duration::from_millis(999),
+            true
+        ));
+        assert!(take_due_swap(&mut hold, now + Duration::from_secs(1), true));
+        assert!(!take_due_swap(
+            &mut hold,
+            now + Duration::from_secs(20),
+            true
+        ));
+        hold = Some((WindowId::dummy(), now));
+        assert!(!take_due_swap(
+            &mut hold,
+            now + Duration::from_millis(500),
+            false
+        ));
+        assert!(!take_due_swap(
+            &mut hold,
+            now + Duration::from_secs(2),
+            true
         ));
     }
 }

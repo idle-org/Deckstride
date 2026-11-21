@@ -131,6 +131,7 @@ Useful controls:
 - **Right / Space** — next slide
 - **Left / Shift+Space** — previous slide
 - **Number, then Enter** — jump to a slide
+- **Hold S for one second** — swap Presenter and Slides screens, then Keep or Revert
 - **B** — blank or restore Slides
 - **P / A / H** — pointer, arrow or highlighter
 - **Escape** — cancel the current popup or display proposal; fullscreen has its own button

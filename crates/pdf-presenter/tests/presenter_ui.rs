@@ -1828,3 +1828,24 @@ fn any_presenter_can_edit_and_save_another_presenter_layout() {
         |action| matches!(action, Action::SaveDisplayLayout { display, .. } if display == "two")
     ));
 }
+
+#[test]
+fn explicit_swap_during_show_preserves_visibility_and_uses_reversible_trial() {
+    for blanked in [false, true] {
+        let mut s = studio();
+        s.execute(Action::Go(0));
+        s.blanked = blanked;
+        let original = s.routes.clone();
+        s.execute(Action::SwapRoutes);
+        assert!(s.route_trial.is_some());
+        assert_eq!(s.routes.presenter, original.presentation);
+        assert_eq!(s.routes.presentation, original.presenter);
+        assert_eq!(s.blanked, blanked);
+        let swapped = s.routes.clone();
+        s.execute(Action::SwapRoutes);
+        assert_eq!(s.routes, swapped);
+        s.execute(Action::RevertRoutes);
+        assert_eq!(s.routes, original);
+        assert_eq!(s.blanked, blanked);
+    }
+}

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### 0.1.86
+
+- Hold S for one second in Presenter or All slides to swap display role groups,
+  including during a live show, using the existing timed Keep/Revert trial.
+  Ignore repeats and text editing; cancel on release, focus/modifier changes,
+  other keys or display topology changes. Preserve shown/blanked output.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, build and
+  13 Python tests pass. GUI coverage is unavailable because the native smoke test
+  cannot open a display. Physical screen-swap testing remains pending;
+  Windows/macOS builds were not run.
+
 ### 0.1.85
 
 - Document installation through cargo-binstall using repository release archives,

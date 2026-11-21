@@ -53,6 +53,12 @@ Confirmation controls appear on presenter and output windows so either screen ca
 recover the change. Unconfirmed choices are never saved, and a disconnect cancels
 the trial. Navigation is held until the trial is resolved; explicit blank/show controls remain available.
 
+Hold **S** for one second in Presenter or All slides to swap the whole Presenter
+and Slides groups, including during a show. The same Keep/Revert trial applies.
+A short tap does nothing; release and press again for another swap. Focus loss,
+a modifier or another key cancels the hold. The shortcut is inactive while typing
+in controls, editing/importing notes, loading, or confirming a display trial.
+
 Disabling either fullscreen option shows a positioning warning. Window placement
 can be unreliable in windowed mode, especially on Linux; switch back to fullscreen
 if you experience positioning issues.

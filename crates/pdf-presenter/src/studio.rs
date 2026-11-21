@@ -711,7 +711,7 @@ impl Studio {
             }
             Action::SwapRoutes => {
                 if self.route_trial.is_none()
-                    && !self.presentation_started
+                    && !self.routes.presenter.is_empty()
                     && !self.routes.presentation.is_empty()
                 {
                     self.begin_display_edit();
