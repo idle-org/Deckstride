@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.1.90
+
+- Correct CLI help for confirmed quitting and hold-S screen swapping. Release
+  validation outside the sandbox passes full GUI coverage at 84.83% (75% floor).
+
+- Refresh bundled dependency notices and include vendored dependencies when
+  collecting licenses; only first-party workspace members are excluded.
+
+- Prepare the Linux/Windows preview release containing the display controls,
+  quit confirmation and single-screen view added since 0.1.83. See the
+  [release notes](development/release-notes/v0.1.90.md).
+
 ### 0.1.89
 
 - Add a Single screen role in Displays: full-window slides with top/bottom edge

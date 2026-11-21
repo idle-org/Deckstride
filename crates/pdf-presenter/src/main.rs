@@ -59,8 +59,10 @@ Usage: pdf-presenter [--open PDF_OR_FOLDER] [--windowed]\n\
        pdf-presenter --presenter N --audience N\n\
        pdf-presenter --smoke-test\n\
 Both roles start fullscreen. Select/mirror screens from Displays.\n\
-Keys: arrows/space navigate, number + Enter jumps, B blanks, Escape cancels\n\
-or safely leaves fullscreen. Right-click restores hidden header/footer.\n\
+Keys: arrows/space navigate, number + Enter jumps, B blanks.\n\
+Escape/Ctrl+Q request quit confirmation; Escape first reverts a display trial.\n\
+Hold S for one second to swap Presenter/Slides groups.\n\
+Fullscreen uses explicit controls; right-click restores hidden header/footer.\n\
 All slides opens a windowed browser; click only selects unless enabled.\n\
 PDF/image decoding runs in supervised workers; no external PDF backend needed.",
             env!("CARGO_PKG_VERSION")

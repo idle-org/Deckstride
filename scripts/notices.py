@@ -12,7 +12,7 @@ def main():
         ["cargo", "metadata", "--locked", "--offline", "--format-version", "1"], cwd=ROOT))
     entries, texts = [], {}
     for package in sorted(metadata["packages"], key=lambda p: (p["name"], p["version"])):
-        if package["source"] is None:
+        if package["id"] in metadata["workspace_members"]:
             continue
         root = Path(package["manifest_path"]).parent
         notices = []
