@@ -67,6 +67,17 @@ actual computer, adapters and display arrangement before a live event. The macOS
 artifact is a one-off cross-build in v0.1.83 and has not yet had native Mac runtime
 testing. [Installation and update details →](docs/user-guide.md#install-and-update)
 
+If you already have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall)
+installed, you can install a prebuilt release directly:
+
+```sh
+cargo binstall pdf-presenter --git https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter --version 0.1.83 --strategies crate-meta-data
+```
+
+Replace `0.1.83` with the published version you want from the release page. This
+uses the repository's release archives and requires an available build for your
+platform. Then run `pdf-presenter`.
+
 ## Set up a show
 
 1. **Open a PDF or picture folder.** Use Menu, drag and drop, or open an associated

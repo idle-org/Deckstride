@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.85
+
+- Document installation through cargo-binstall using repository release archives,
+  an explicit published version and the prebuilt-only strategy. Verify the Linux
+  v0.1.83 download and binary resolution with a dry run.
+
 ### 0.1.84
 
 - Rewrite the root README for presenters: lead with the tested multi-screen workflow,
