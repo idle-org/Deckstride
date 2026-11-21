@@ -549,6 +549,7 @@ fn quick_settings_and_preferences_window_remain_interactive() {
     click(&mut s, "Preferences…");
     assert!(s.preferences_open);
     assert!(!s.menu_open);
+    click(&mut s, "Performance");
     click(&mut s, "Expunge unused cache now");
     assert!(s.cache_busy, "The Preferences window must submit cleanup");
     assert!(s.preferences_open);
@@ -1801,7 +1802,7 @@ fn preferences_window_stays_on_the_presenter_that_opened_it() {
         output
             .shapes
             .iter()
-            .any(|shape| contains(&shape.shape, "Memory and cache"))
+            .any(|shape| contains(&shape.shape, "Appearance"))
     };
     assert!(render(0, "one"));
     assert!(!render(1, "two"));
@@ -1809,11 +1810,13 @@ fn preferences_window_stays_on_the_presenter_that_opened_it() {
 
 #[test]
 fn preferences_show_the_running_executable_path() {
-    fn contains(shape: &egui::Shape, text: &str) -> bool {
+    fn find(shape: &egui::Shape, text: &str) -> Option<Pos2> {
         match shape {
-            egui::Shape::Text(label) => label.galley.text() == text,
-            egui::Shape::Vec(shapes) => shapes.iter().any(|shape| contains(shape, text)),
-            _ => false,
+            egui::Shape::Text(label) if label.galley.text() == text => {
+                Some(label.pos + label.galley.size() * 0.5)
+            }
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|shape| find(shape, text)),
+            _ => None,
         }
     }
     let ctx = Context::default();
@@ -1829,17 +1832,35 @@ fn preferences_show_the_running_executable_path() {
             presenter_ui::presenter(root, &mut s, &mut ui)
         });
     }
+    let storage = output
+        .shapes
+        .iter()
+        .find_map(|shape| find(&shape.shape, "Storage"))
+        .expect("Preferences should expose a Storage tab");
+    for pressed in [true, false] {
+        let mut raw = input(Vec2::new(1280., 900.));
+        raw.events = vec![
+            egui::Event::PointerMoved(storage),
+            egui::Event::PointerButton {
+                pos: storage,
+                button: egui::PointerButton::Primary,
+                pressed,
+                modifiers: Default::default(),
+            },
+        ];
+        output = ctx.run_ui(raw, |root| presenter_ui::presenter(root, &mut s, &mut ui));
+    }
     assert!(
         output
             .shapes
             .iter()
-            .any(|shape| contains(&shape.shape, "Application executable"))
+            .any(|shape| find(&shape.shape, "Application executable").is_some())
     );
     assert!(
         output
             .shapes
             .iter()
-            .any(|shape| contains(&shape.shape, &expected))
+            .any(|shape| find(&shape.shape, &expected).is_some())
     );
 }
 

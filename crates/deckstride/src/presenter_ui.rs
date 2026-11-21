@@ -2468,6 +2468,156 @@ fn appearance_preferences(ui: &mut Ui, s: &mut Studio) {
     });
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum PreferencesTab {
+    #[default]
+    General,
+    Performance,
+    Storage,
+}
+
+fn general_preferences(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    appearance_preferences(ui, s);
+    ui.add_space(8.);
+    layout_section(ui, tr(&locale, "Blank Slides image"), |ui| {
+        ui.label(if s.settings.blank_picture {
+            tr(&locale, "Custom picture selected")
+        } else {
+            tr(&locale, "Solid black")
+        });
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add_enabled(
+                    s.initialized && !s.dialog_busy && !s.blank_busy,
+                    egui::Button::new(tr(&locale, "Choose picture…")),
+                )
+                .clicked()
+            {
+                s.actions.push(Action::PickBlankPicture);
+            }
+            if ui
+                .add_enabled(
+                    s.initialized && !s.dialog_busy && (s.settings.blank_picture || s.blank_busy),
+                    egui::Button::new(tr(&locale, "Use solid black")),
+                )
+                .clicked()
+            {
+                s.actions.push(Action::ClearBlankPicture);
+            }
+            if s.blank_busy {
+                ui.spinner();
+            }
+        });
+        ui.small(tr(
+            &locale,
+            "A copy is saved and fitted to all Slides screens against a black background.",
+        ));
+    });
+    #[cfg(target_os = "windows")]
+    {
+        ui.add_space(8.);
+        layout_section(ui, tr(&locale, "Default PDF application"), |ui| {
+            ui.label(tr(
+                &locale,
+                "Register Deckstride and its icon for PDF files in your Windows account.",
+            ));
+            if ui.button(tr(&locale, "Set as default PDF app…")).clicked() {
+                s.actions.push(Action::RegisterPdfAssociation);
+            }
+            ui.small(tr(
+                &locale,
+                "Windows will open Default Apps; select Deckstride for .pdf to confirm.",
+            ));
+        });
+    }
+}
+
+fn performance_preferences(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    layout_section(ui, tr(&locale, "Memory and cache"), |ui| {
+        ui.label(tr(
+            &locale,
+            "RAM budget per process (presenter + output each use this allowance):",
+        ));
+        if ui
+            .add(egui::Slider::new(&mut s.settings.buffer_mib, 64..=16384).text("MiB"))
+            .changed()
+        {
+            s.remember_buffer_budget();
+        }
+        ui.small(tr(
+            &locale,
+            "Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px.",
+        ));
+        ui.separator();
+        let mut changed = false;
+        ui.horizontal_wrapped(|ui| {
+            ui.label(tr(&locale, "Maximum total size (MiB)"));
+            changed |= ui
+                .add(
+                    egui::DragValue::new(&mut s.settings.disk_cache.max_mib)
+                        .range(64..=1048576)
+                        .speed(64),
+                )
+                .changed();
+        });
+        ui.horizontal_wrapped(|ui| {
+            ui.label(tr(&locale, "Expire after (days since rendering)"));
+            changed |= ui
+                .add(egui::DragValue::new(&mut s.settings.disk_cache.max_days).range(1..=3650))
+                .changed();
+        });
+        if changed {
+            s.remember_cache_policy();
+        }
+        ui.small(tr(
+            &locale,
+            "Oldest files are removed first. Active decks are protected and may exceed the limit. Automatic cleanup runs once at startup, after loading and preparation finish.",
+        ));
+        if ui
+            .add_enabled(
+                !s.cache_busy && !s.loading && s.initialized,
+                egui::Button::new(tr(&locale, "Expunge unused cache now")),
+            )
+            .clicked()
+        {
+            s.clean_cache(true);
+        }
+        if s.cache_busy {
+            ui.spinner();
+        }
+        ui.small(&s.cache_status);
+    });
+}
+
+fn storage_preferences(ui: &mut Ui, s: &Studio) {
+    let locale = ui.ctx().clone();
+    layout_section(ui, tr(&locale, "Storage and preparation"), |ui| {
+        ui.label(s.preparation_status());
+        ui.separator();
+        ui.label(egui::RichText::new(tr(&locale, "Application executable")).strong());
+        let executable = s.executable_path().display().to_string();
+        ui.add(
+            egui::Label::new(egui::RichText::new(&executable).monospace())
+                .selectable(true)
+                .wrap(),
+        )
+        .on_hover_text(&executable);
+        ui.small(tr(
+            &locale,
+            "This is the running portable executable. Use its containing folder to find or remove the application.",
+        ));
+        ui.separator();
+        ui.label(format!(
+            "{}: {}",
+            tr(&locale, "Processed slides"),
+            s.cache_path.display()
+        ));
+        ui.label(format!("Configuration: {}", s.settings_path.display()));
+    });
+}
+
 fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
     let locale = ctx.clone();
     let mut window_open = true;
@@ -2483,165 +2633,33 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
         .max_size((screen - Vec2::splat(24.)).max(Vec2::splat(1.)))
         .show(ctx, |ui| {
             ui.spacing_mut().item_spacing = Vec2::new(8., 8.);
+            let tab_id = egui::Id::new("preferences-tab");
+            let mut tab = ctx
+                .data(|data| data.get_temp::<PreferencesTab>(tab_id))
+                .unwrap_or_default();
+            ui.horizontal(|ui| {
+                ui.selectable_value(&mut tab, PreferencesTab::General, tr(&locale, "General"));
+                ui.selectable_value(
+                    &mut tab,
+                    PreferencesTab::Performance,
+                    tr(&locale, "Performance"),
+                );
+                ui.selectable_value(&mut tab, PreferencesTab::Storage, tr(&locale, "Storage"));
+            });
+            ctx.data_mut(|data| data.insert_temp(tab_id, tab));
+            ui.separator();
             let scroll_height = (ui.available_height() - 52.).max(180.);
             egui::ScrollArea::vertical()
-                .id_salt("preferences-scroll")
+                .id_salt(("preferences-scroll", tab as u8))
                 .auto_shrink([false, false])
                 .max_height(scroll_height)
                 .show(ui, |ui| {
-                    appearance_preferences(ui, s);
-                    ui.add_space(8.);
-                    layout_section(
-                        ui,
-                        tr(&locale, "Blank Slides image"),
-                        |ui| {
-                            ui.label(if s.settings.blank_picture {
-                                tr(&locale, "Custom picture selected")
-                            } else {
-                                tr(&locale, "Solid black")
-                            });
-                            ui.horizontal_wrapped(|ui| {
-                                if ui
-                                    .add_enabled(
-                                        s.initialized && !s.dialog_busy && !s.blank_busy,
-                                        egui::Button::new(tr(&locale, "Choose picture…")),
-                                    )
-                                    .clicked()
-                                {
-                                    s.actions.push(Action::PickBlankPicture);
-                                }
-                                if ui
-                                    .add_enabled(
-                                        s.initialized
-                                            && !s.dialog_busy
-                                            && (s.settings.blank_picture || s.blank_busy),
-                                        egui::Button::new(tr(&locale, "Use solid black")),
-                                    )
-                                    .clicked()
-                                {
-                                    s.actions.push(Action::ClearBlankPicture);
-                                }
-                                if s.blank_busy {
-                                    ui.spinner();
-                                }
-                            });
-                            ui.small(tr(
-                                &locale,
-                                "A copy is saved and fitted to all Slides screens against a black background.",
-                            ));
-                        },
-                    );
-                    #[cfg(target_os = "windows")]
-                    {
-                        ui.add_space(8.);
-                        layout_section(
-                            ui,
-                            tr(&locale, "Default PDF application"),
-                            |ui| {
-                                ui.label(tr(
-                                    &locale,
-                                    "Register Deckstride and its icon for PDF files in your Windows account.",
-                                ));
-                                if ui
-                                    .button(tr(&locale, "Set as default PDF app…"))
-                                    .clicked()
-                                {
-                                    s.actions.push(Action::RegisterPdfAssociation);
-                                }
-                                ui.small(tr(
-                                    &locale,
-                                    "Windows will open Default Apps; select Deckstride for .pdf to confirm.",
-                                ));
-                            },
-                        );
+                    ui.set_width(ui.available_width());
+                    match tab {
+                        PreferencesTab::General => general_preferences(ui, s),
+                        PreferencesTab::Performance => performance_preferences(ui, s),
+                        PreferencesTab::Storage => storage_preferences(ui, s),
                     }
-                    ui.add_space(8.);
-                    layout_section(ui, tr(&locale, "Memory and cache"), |ui| {
-                        ui.label(tr(
-                            &locale,
-                            "RAM budget per process (presenter + output each use this allowance):",
-                        ));
-                        if ui
-                            .add(
-                                egui::Slider::new(&mut s.settings.buffer_mib, 64..=16384)
-                                    .text("MiB"),
-                            )
-                            .changed()
-                        {
-                            s.remember_buffer_budget();
-                        }
-                        ui.small(tr(
-                            &locale,
-                            "Raise only within available RAM; OS paging can cause delays. Screen rendering is capped at 4096 px.",
-                        ));
-                        ui.separator();
-                        let mut changed = false;
-                        ui.horizontal_wrapped(|ui| {
-                            ui.label(tr(&locale, "Maximum total size (MiB)"));
-                            changed |= ui
-                                .add(
-                                    egui::DragValue::new(&mut s.settings.disk_cache.max_mib)
-                                        .range(64..=1048576)
-                                        .speed(64),
-                                )
-                                .changed();
-                        });
-                        ui.horizontal_wrapped(|ui| {
-                            ui.label(tr(&locale, "Expire after (days since rendering)"));
-                            changed |= ui
-                                .add(
-                                    egui::DragValue::new(&mut s.settings.disk_cache.max_days)
-                                        .range(1..=3650),
-                                )
-                                .changed();
-                        });
-                        if changed {
-                            s.remember_cache_policy();
-                        }
-                        ui.small(tr(
-                            &locale,
-                            "Oldest files are removed first. Active decks are protected and may exceed the limit. Automatic cleanup runs once at startup, after loading and preparation finish.",
-                        ));
-                        if ui
-                            .add_enabled(
-                                !s.cache_busy && !s.loading && s.initialized,
-                                egui::Button::new(tr(&locale, "Expunge unused cache now")),
-                            )
-                            .clicked()
-                        {
-                            s.clean_cache(true);
-                        }
-                        if s.cache_busy {
-                            ui.spinner();
-                        }
-                        ui.small(&s.cache_status);
-                    });
-                    ui.add_space(8.);
-                    layout_section(ui, tr(&locale, "Storage and preparation"), |ui| {
-                        ui.label(s.preparation_status());
-                        ui.separator();
-                        ui.label(
-                            egui::RichText::new(tr(&locale, "Application executable")).strong(),
-                        );
-                        let executable = s.executable_path().display().to_string();
-                        ui.add(
-                            egui::Label::new(egui::RichText::new(&executable).monospace())
-                                .selectable(true)
-                                .wrap(),
-                        )
-                        .on_hover_text(&executable);
-                        ui.small(tr(
-                            &locale,
-                            "This is the running portable executable. Use its containing folder to find or remove the application.",
-                        ));
-                        ui.separator();
-                        ui.label(format!(
-                            "{}: {}",
-                            tr(&locale, "Processed slides"),
-                            s.cache_path.display()
-                        ));
-                        ui.label(format!("Configuration: {}", s.settings_path.display()));
-                    });
                 });
             ui.separator();
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

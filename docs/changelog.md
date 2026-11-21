@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.99
+
+- Organize Preferences into General, Performance and Storage tabs. Each tab has its
+  own small-screen scroll position, and every Presenter remembers its selected tab.
+
 ### 0.1.98
 
 - Shorten the Presenter menu by removing its duplicate All slides command and moving
