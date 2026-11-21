@@ -221,7 +221,8 @@ identity/checksums and reads frames into RAM: a restart cannot literally take ze
 time. A warm full-size cached frame appears directly, without an unnecessary preview
 render. Sources and their folders remain unchanged.
 
-The footer shows the active operation, slides prepared/total, cache reuse, decoded
+The footer shows the open PDF or picture-folder name and full source path, along
+with the active operation, slides prepared/total, cache reuse, decoded
 RAM usage, and an approximate ETA once there are enough completed slides. It also
 shows output-process buffering separately. A compact progress notification remains
 visible during initial preparation if the footer is hidden. Routine rolling-buffer

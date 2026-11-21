@@ -552,7 +552,7 @@ fn quick_settings_and_preferences_window_remain_interactive() {
     click(&mut s, "Pause timer");
     assert!(!s.timer.running(std::time::Instant::now(), s.timer_limit()));
     click(&mut s, "Menu");
-    click(&mut s, "Demo");
+    click(&mut s, "demo.pdf");
     assert!(!s.menu_open, "Outside click should dismiss the dropdown");
     click(&mut s, "Menu");
     frame(
@@ -1111,6 +1111,54 @@ fn hidden_footer_hides_routine_rolling_buffer_status() {
             .shapes
             .iter()
             .any(|shape| contains_text(&shape.shape, "Rolling buffer"))
+    );
+}
+
+#[test]
+fn source_name_and_path_are_in_the_footer_instead_of_the_header() {
+    fn contains_exact(shape: &egui::Shape, expected: &str) -> bool {
+        match shape {
+            egui::Shape::Text(text) => text.galley.text() == expected,
+            egui::Shape::Vec(shapes) => shapes.iter().any(|shape| contains_exact(shape, expected)),
+            _ => false,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    let path = std::path::PathBuf::from("shows").join("conference.pdf");
+    s.deck.as_mut().unwrap().path = path.clone();
+    s.layout.header = true;
+    s.layout.footer = true;
+    let mut native = UiState::default();
+    let visible = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut native)
+    });
+    for expected in ["conference.pdf", &path.display().to_string()] {
+        assert!(
+            visible
+                .shapes
+                .iter()
+                .any(|shape| contains_exact(&shape.shape, expected)),
+            "missing {expected}"
+        );
+    }
+    assert!(
+        !visible
+            .shapes
+            .iter()
+            .any(|shape| contains_exact(&shape.shape, "Demo"))
+    );
+
+    s.layout.footer = false;
+    native.footer_until = std::time::Instant::now() - std::time::Duration::from_secs(1);
+    let hidden = ctx.run_ui(input(Vec2::new(1280., 900.)), |ui| {
+        presenter_ui::presenter(ui, &mut s, &mut native)
+    });
+    assert!(
+        !hidden
+            .shapes
+            .iter()
+            .any(|shape| contains_exact(&shape.shape, &path.display().to_string()))
     );
 }
 

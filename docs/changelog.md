@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### 0.1.93
+
+- Move the open source name out of the Presenter header and into a dedicated bottom
+  footer row with its full canonical path. Long paths truncate to the available
+  width and remain available on hover; hiding the footer hides the source details.
+
 ### 0.1.92
 
 - Extend the existing Canvas Pilot-inspired appearance menu with Spanish, Japanese,

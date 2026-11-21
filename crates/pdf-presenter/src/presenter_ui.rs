@@ -12,6 +12,7 @@ use std::{
     time::{Duration, Instant},
 };
 const BROWSER_SCROLL_HANDLE: Color32 = Color32::from_rgb(70, 210, 175);
+const PRESENTER_FOOTER_HEIGHT: f32 = 112.;
 /// Composite a fitted slide over independent page and padding colors in every view.
 pub fn paint_slide(
     painter: &egui::Painter,
@@ -952,7 +953,7 @@ fn presenter_view(
             body.min.y += header_height;
         }
         if view.layout.footer {
-            body.max.y -= 90.;
+            body.max.y -= PRESENTER_FOOTER_HEIGHT;
         }
         if view.layout.slide_progress {
             let height = view
@@ -1272,15 +1273,6 @@ fn presenter_view(
                                 .show(ui, |ui| menu(ui, s, &mut view.preferences_open));
                         });
                     view.menu_open = menu_open;
-                    ui.add_sized(
-                        [100., 20.],
-                        egui::Label::new(
-                            s.deck
-                                .as_ref()
-                                .map_or("PDF Presenter", |d| d.title.as_str()),
-                        )
-                        .truncate(),
-                    );
                     if ui.button(tr(&locale, "Displays")).clicked() {
                         s.begin_display_edit();
                     }
@@ -1346,8 +1338,8 @@ fn presenter_view(
     }
     if footer {
         let rect = Rect::from_min_size(
-            Pos2::new(screen.left(), screen.bottom() - 90.),
-            Vec2::new(screen.width(), 90.),
+            Pos2::new(screen.left(), screen.bottom() - PRESENTER_FOOTER_HEIGHT),
+            Vec2::new(screen.width(), PRESENTER_FOOTER_HEIGHT),
         );
         ui.painter().rect_filled(rect, 0., ui.visuals().window_fill);
         ui.scope_builder(egui::UiBuilder::new().max_rect(rect.shrink(8.)), |ui| {
@@ -1400,6 +1392,28 @@ fn presenter_view(
                     })
                     .desired_height(4.),
                 );
+            }
+            if let Some(deck) = &s.deck {
+                let path = deck.path.display().to_string();
+                let name = deck
+                    .path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or(&path);
+                ui.horizontal(|ui| {
+                    ui.strong(name).on_hover_text(&path);
+                    ui.separator();
+                    ui.add_sized(
+                        [ui.available_width(), 18.],
+                        egui::Label::new(
+                            egui::RichText::new(&path)
+                                .small()
+                                .color(ui.visuals().weak_text_color()),
+                        )
+                        .truncate(),
+                    )
+                    .on_hover_text(&path);
+                });
             }
         });
     }
