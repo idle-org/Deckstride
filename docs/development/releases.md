@@ -1,10 +1,10 @@
-# Manual preview releases
+# Manual releases
 
 The standalone `rust_realease` tool (sibling checkout `../rust_realease`) consumes
 root `rust-release.toml` and `Cross.toml`. Jenkins still only validates/publishes
-badges. The release configuration selects Linux x86_64 GNU and Windows x86_64 GNU.
-macOS remains an implementation target, but is not advertised as a prepared release
-artifact until a linked native build and runtime acceptance are available.
+badges. The release configuration selects Linux x86_64 GNU, Linux ARM64 musl,
+Windows x86_64 GNU, and both Apple Silicon and Intel macOS 13+ targets. Releases are
+ordinary releases below 1.0; do not pass `--prerelease` during publication.
 
 Build local artifacts without a token or contacting Gitea:
 
@@ -15,9 +15,10 @@ CROSS_CONTAINER_ENGINE=podman ../rust_realease/target/release/rust_realease . \
 
 Use the installed `rust_realease` command instead if preferred. Cross must have
 access to its configured images. Outputs live under `dist/` (the tool prints the final release directory), including
-raw executables, binstall `.tgz` archives, a Linux portable `.tgz`, a Windows
-portable `.zip`, and `SHA256SUMS`. The binaries themselves need no companion assets.
-Portable bundles add the license, quickstart and optional Python Linux launcher.
+raw executables, binstall `.tgz` archives, portable bundles, `SHA256SUMS` and an
+artifact manifest. Windows portable bundles use ZIP; other targets use `.tgz`.
+The binaries themselves need no companion assets. Portable bundles add the license,
+quickstart and optional Python Linux launcher.
 Wayland shells resolve icons through the matching installed desktop entry;
 X11 and Windows also receive the embedded native window icon directly.
 The Windows PE icon is embedded at build time using winresource/windres.
@@ -27,16 +28,17 @@ ignored and never included in archives. Dependency notices are embedded (`--lice
 and regenerated with `python3 scripts/notices.py` after dependency changes.
 
 Before publication, run all checks in [CI](ci.md), inspect bundle contents and
-checksums, and test extracted binaries on clean Windows/Linux machines. Physical
-multiscreen, sleep and performance acceptance remains in [the plan](plan.md).
-Version 0.1.33 is prepared as a **preview**, not a production-readiness claim.
+checksums, and test extracted binaries on available native platforms. Cross-built
+macOS artifacts require the generated release-page workaround and native Mac testing
+when available. Physical multiscreen, sleep and performance acceptance remains in
+[the plan](plan.md).
 
-Publication is a separate explicit action: create local `v0.1.33` at the reviewed
+Publication is a separate explicit action: create the version tag at the reviewed
 commit, push that commit/tag, then run:
 
 ```sh
-rust_realease . --package pdf-presenter --prerelease \
-  --message-file docs/development/release-notes/v0.1.33.md \
+rust_realease . --package pdf-presenter \
+  --message-file docs/development/release-notes/vVERSION.md \
   --token-file ../gitea-token.txt
 ```
 

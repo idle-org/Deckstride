@@ -2,12 +2,14 @@
 
 ## Install and update
 
-Download a preview from the [releases page](https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases).
-Choose the portable ZIP for Windows x86_64 or portable `.tgz` for Linux x86_64,
-extract the whole archive, and run `pdf-presenter.exe` or `./pdf-presenter`.
+Download the latest version from the [releases page](https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases).
+Choose the portable ZIP for Windows x86_64 or the portable `.tgz` matching Linux
+x86_64, Linux ARM64, Apple Silicon macOS or Intel macOS. Extract the whole archive,
+then run `pdf-presenter.exe` or `./pdf-presenter` as directed on the release page.
 No Rust toolchain, Python or separate PDF renderer is needed to run the application.
 Linux uses the system desktop services and X11/Wayland libraries. Windows binaries
-are unsigned; macOS packages are not currently provided. Release assets include
+are unsigned; macOS packages are unsigned and require the release-page workaround.
+Release assets include
 `SHA256SUMS` for checking downloads.
 
 For optional Linux application-menu and Wayland icon integration, keep the extracted
@@ -26,9 +28,9 @@ and run its executable. Settings and saved layouts live in your user configurati
 directory, outside the extracted folder. If you installed the Linux launcher, rerun
 its installer from the new location so it points to the updated binary.
 
-These are preview releases: physical display routing, sleep prevention and
-clean-machine compatibility still need acceptance testing. Rehearse on the displays
-you plan to use before a live event.
+Physical display routing, sleep prevention and clean-machine compatibility still
+need broader acceptance testing. Rehearse on the displays you plan to use before a
+live event.
 
 ## Open your slides
 

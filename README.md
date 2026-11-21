@@ -60,21 +60,23 @@ and download the archive for your computer.
 | --- | --- | --- |
 | Windows x86_64 | `pdf-presenter-portable-x86_64-pc-windows-gnu-v….zip` | `pdf-presenter.exe` |
 | Linux x86_64 | `pdf-presenter-portable-x86_64-unknown-linux-gnu-v….tgz` | `./pdf-presenter` |
-| Apple Silicon macOS 13+ | v0.1.83 `pdf-presenter-aarch64-apple-darwin-v….tgz` | Follow the release-page instructions for the unsigned executable |
+| Linux ARM64 | `pdf-presenter-portable-aarch64-unknown-linux-musl-v….tgz` | `./pdf-presenter` |
+| Apple Silicon macOS 13+ | `pdf-presenter-portable-aarch64-apple-darwin-v….tgz` | Follow the release-page macOS instructions |
+| Intel macOS 13+ | `pdf-presenter-portable-x86_64-apple-darwin-v….tgz` | Follow the release-page macOS instructions |
 
-Windows and macOS builds are currently unsigned. Releases are previews, so test the
-actual computer, adapters and display arrangement before a live event. The macOS
-artifact is a one-off cross-build in v0.1.83 and has not yet had native Mac runtime
+Windows and macOS builds are currently unsigned. Releases are ready for normal use;
+test the actual computer, adapters and display arrangement before a live event.
+macOS artifacts are cross-built on Linux and have not yet had native Mac runtime
 testing. [Installation and update details →](docs/user-guide.md#install-and-update)
 
 If you already have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall)
 installed, you can install a prebuilt release directly:
 
 ```sh
-cargo binstall pdf-presenter --git https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter --version 0.1.83 --strategies crate-meta-data
+cargo binstall pdf-presenter --git https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter --version 0.1.91 --strategies crate-meta-data
 ```
 
-Replace `0.1.83` with the published version you want from the release page. This
+Replace `0.1.91` with the published version you want from the release page. This
 uses the repository's release archives and requires an available build for your
 platform. Then run `pdf-presenter`.
 
@@ -144,8 +146,8 @@ Useful controls:
 
 PDF Presenter is independent open-source software under the [MIT license](LICENSE).
 Development includes LLM-generated or LLM-assisted work with human review. The
-project is used in professional settings, while preview limitations and physical
-acceptance work remain documented rather than hidden.
+project is used in professional settings, while physical acceptance work remains
+documented rather than hidden.
 
 ---
 

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.91
+
+- Promote releases from preview status and add recurring Linux ARM64, Apple Silicon
+  macOS and Intel macOS artifacts alongside Linux x86_64 and Windows x86_64.
+- Pin the macOS 13 cross-build environment, package portable archives for every
+  target, and document the expanded download and cargo-binstall choices.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests and 13 Python
+  helper tests pass; full GUI coverage is 84.79% against the 75% floor.
+
 ### 0.1.90
 
 - Correct CLI help for confirmed quitting and hold-S screen swapping. Release

@@ -2,17 +2,34 @@
 tag-prefix = "v"
 
 [build]
-targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu"]
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-pc-windows-gnu",
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+]
 profile = "release"
 locked = true
+
+[build.apple]
+image = "ghcr.io/rust-cross/cargo-zigbuild@sha256:9b4f6b3eb9e8f9fefb3960fe288ddba576627d66d9eff851ce7f62d2455564a5"
+deployment-target = "13.0"
+sdk-root = "/opt/MacOSX11.3.sdk"
 
 [package]
 format = "both"
 
 [[package.bundles]]
 name = "portable"
-targets = ["x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu"]
-formats = { x86_64-pc-windows-gnu = "zip", x86_64-unknown-linux-gnu = "tgz" }
+targets = [
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-musl",
+  "x86_64-pc-windows-gnu",
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+]
+formats = { x86_64-pc-windows-gnu = "zip", x86_64-unknown-linux-gnu = "tgz", aarch64-unknown-linux-musl = "tgz", aarch64-apple-darwin = "tgz", x86_64-apple-darwin = "tgz" }
 archive-name = "{name}-{bundle}-{target}-v{version}"
 root = "{name}-{bundle}-{target}-v{version}"
 cargo-binaries = "all"
