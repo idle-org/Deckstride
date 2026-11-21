@@ -8,6 +8,9 @@
   Canvas Pilot-compatible manifests, persist beside settings, load offline at startup
   and appear in the existing selectors without restarting.
 - Add editable example packs, ready-to-import ZIPs and pack-format documentation.
+- Publish the full five-target release with Linux x86_64, Linux ARM64, Windows x86_64,
+  Apple Silicon macOS and Intel macOS portable and cargo-binstall archives; see the
+  [release notes](development/release-notes/v0.1.101.md).
 
 ### 0.1.100
 
