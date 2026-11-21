@@ -64,6 +64,12 @@ enum ResolvedLanguage {
     PtBr,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ActiveLanguage {
+    builtin: ResolvedLanguage,
+    pack: Option<String>,
+}
+
 fn language_id() -> egui::Id {
     egui::Id::new("deckstride-language")
 }
@@ -100,19 +106,31 @@ fn system_language() -> ResolvedLanguage {
 }
 
 pub fn apply(ctx: &egui::Context, language: &Language) {
+    apply_selected(ctx, language, None);
+}
+
+pub fn apply_selected(ctx: &egui::Context, language: &Language, pack: Option<&str>) {
     let resolved = language.resolved();
-    let previous = ctx.data(|data| data.get_temp::<ResolvedLanguage>(language_id()));
-    if previous == Some(resolved) {
+    let active = ActiveLanguage {
+        builtin: resolved,
+        pack: pack.map(str::to_owned),
+    };
+    let previous = ctx.data(|data| data.get_temp::<ActiveLanguage>(language_id()));
+    if previous.as_ref() == Some(&active) {
         return;
     }
-    if matches!(resolved, ResolvedLanguage::Ja | ResolvedLanguage::ZhCn) {
+    if pack.is_none() && matches!(resolved, ResolvedLanguage::Ja | ResolvedLanguage::ZhCn) {
         ctx.set_fonts(cjk_fonts(resolved));
-    } else if previous
-        .is_some_and(|language| matches!(language, ResolvedLanguage::Ja | ResolvedLanguage::ZhCn))
-    {
+    } else if previous.is_some_and(|language| {
+        language.pack.is_none()
+            && matches!(
+                language.builtin,
+                ResolvedLanguage::Ja | ResolvedLanguage::ZhCn
+            )
+    }) {
         ctx.set_fonts(egui::FontDefinitions::default());
     }
-    ctx.data_mut(|data| data.insert_temp(language_id(), resolved));
+    ctx.data_mut(|data| data.insert_temp(language_id(), active));
 }
 
 fn cjk_fonts(language: ResolvedLanguage) -> egui::FontDefinitions {
@@ -136,10 +154,18 @@ fn cjk_fonts(language: ResolvedLanguage) -> egui::FontDefinitions {
 }
 
 pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
-    match ctx
-        .data(|data| data.get_temp::<ResolvedLanguage>(language_id()))
-        .unwrap_or(ResolvedLanguage::En)
+    let active = ctx
+        .data(|data| data.get_temp::<ActiveLanguage>(language_id()))
+        .unwrap_or(ActiveLanguage {
+            builtin: ResolvedLanguage::En,
+            pack: None,
+        });
+    if let Some(locale) = active.pack
+        && let Some(translated) = crate::packs::translation(&locale, text)
     {
+        return translated;
+    }
+    match active.builtin {
         ResolvedLanguage::En => text,
         ResolvedLanguage::Fr => fr(text),
         ResolvedLanguage::Es => es(text),
@@ -152,7 +178,8 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
 
 pub fn display_revert_countdown(ctx: &egui::Context, seconds: u64) -> String {
     match ctx
-        .data(|data| data.get_temp::<ResolvedLanguage>(language_id()))
+        .data(|data| data.get_temp::<ActiveLanguage>(language_id()))
+        .map(|active| active.builtin)
         .unwrap_or(ResolvedLanguage::En)
     {
         ResolvedLanguage::Fr => {

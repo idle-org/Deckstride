@@ -286,7 +286,9 @@ pub struct Settings {
     pub zoom_enabled: bool,
     pub zoom_keep_fitted_area: bool,
     pub theme: crate::theme::Theme,
+    pub theme_pack: Option<String>,
     pub language: crate::localization::Language,
+    pub language_pack: Option<String>,
 }
 /// Choose a per-process decoded-frame budget from available physical RAM.
 /// Prefer 15%, with a soft 512 MiB floor that never exceeds 20% (except the
@@ -337,7 +339,9 @@ impl Default for Settings {
             zoom_enabled: false,
             zoom_keep_fitted_area: false,
             theme: Default::default(),
+            theme_pack: None,
             language: Default::default(),
+            language_pack: None,
         }
     }
 }
@@ -345,6 +349,17 @@ impl Settings {
     pub fn validate(&self) -> Result<(), String> {
         if self.version != 1 {
             return Err(format!("Unsupported settings version {}", self.version));
+        }
+        if self
+            .theme_pack
+            .as_deref()
+            .is_some_and(|choice| !crate::packs::valid_theme_choice(choice))
+            || self
+                .language_pack
+                .as_deref()
+                .is_some_and(|locale| !crate::packs::valid_id(locale))
+        {
+            return Err("Invalid language or theme pack choice".into());
         }
         self.disk_cache.validate()?;
         if !(64..=16384).contains(&self.buffer_mib) {

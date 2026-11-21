@@ -24,7 +24,9 @@ fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     settings.buffer_mib = 2048;
     settings.auto_show = false;
     settings.theme = deckstride::theme::Theme::CorporateLight;
+    settings.theme_pack = Some("example-theme/night".into());
     settings.language = deckstride::localization::Language::Fr;
+    settings.language_pack = Some("eo-example".into());
     let mut project = Layout::default();
     project.previous.show = true; // Explicit opt-in survives saving and loading.
     project.current.show = false;
@@ -46,7 +48,9 @@ fn settings_roundtrip_preserves_project_overrides_and_hidden_bars() {
     assert_eq!(loaded.buffer_mib, 2048);
     assert!(!loaded.auto_show);
     assert_eq!(loaded.theme, settings.theme);
+    assert_eq!(loaded.theme_pack, settings.theme_pack);
     assert_eq!(loaded.language, settings.language);
+    assert_eq!(loaded.language_pack, settings.language_pack);
     let bytes = std::fs::read(&path).unwrap();
     settings.version = 2;
     assert!(settings::write(&path, &settings).is_err());

@@ -45,7 +45,7 @@ slow document operation does not have to freeze navigation.
 | **Notes that belong to the presentation** | Read notes from a sidecar or the PDF, import TXT/Markdown, and double-click the notes pane to edit the current slide. Notes automatically fit the available space. |
 | **Presentation-aware desktop behavior** | Deckstride asks supported operating systems to keep the display awake and reports whether protection is active. Closing Presenter also closes its Slides windows. |
 | **Portable by design** | The release binaries include the PDF renderer and application dependencies. Keep the extracted folder anywhere convenient; no Rust or separate PDF software is required. |
-| **Themes and languages** | Choose from 20 built-in palettes and English, French, Spanish, Japanese, Simplified Chinese, German or Brazilian Portuguese. System language detection stays offline. |
+| **Themes and languages** | Choose from 20 built-in palettes and seven interface languages, or import bounded offline language/theme packs. |
 
 On Windows, multi-screen output, per-screen layouts, zoom, tools, and unplugging then
 reconnecting displays have been tested in extended use. Linux and macOS use the same
@@ -141,6 +141,19 @@ Useful controls:
 [Notes, layouts and controls →](docs/user-guide.md) ·
 [Notes file formats →](docs/interfaces/presentation-notes.md) ·
 [Preparation, cache and RAM behavior →](docs/user-guide.md#preparation-processed-slides-and-ram)
+
+## Add languages and themes
+
+Open **Preferences → General → Appearance** and choose **Import language pack…**
+or **Import theme pack…**. Imported choices appear in the existing Language and
+Theme selectors without restarting Deckstride. Packs stay offline and contain data
+only.
+
+Editable examples and ready-to-import ZIPs:
+
+- [Language pack example](docs/packs/deckstride-language-pack.zip)
+- [Theme pack example](docs/packs/deckstride-theme-pack.zip)
+- [Pack format and limits](docs/packs/README.md)
 
 ## Open source
 

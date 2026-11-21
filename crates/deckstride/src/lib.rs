@@ -82,6 +82,8 @@ pub mod studio;
 
 /// Presenter interface language.
 pub mod localization;
+/// Bounded runtime language and theme packs.
+pub mod packs;
 /// Standalone presenter palettes.
 pub mod theme;
 

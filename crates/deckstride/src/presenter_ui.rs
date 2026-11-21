@@ -2415,31 +2415,133 @@ fn appearance_preferences(ui: &mut Ui, s: &mut Studio) {
             .show(ui, |ui| {
                 ui.label(tr(&locale, "Theme"));
                 egui::ComboBox::from_id_salt("preferences-theme")
-                    .selected_text(s.settings.theme.name())
+                    .selected_text(match s.settings.theme_pack.as_deref() {
+                        Some(choice) => crate::packs::packed_theme(choice)
+                            .map_or_else(|| format!("{choice} (unavailable)"), |(_, _, name)| name),
+                        None => s.settings.theme.name().to_owned(),
+                    })
                     .show_ui(ui, |ui| {
                         for theme in crate::theme::Theme::ALL {
-                            changed |= ui
-                                .selectable_value(&mut s.settings.theme, theme, theme.name())
-                                .changed();
+                            if ui
+                                .selectable_label(
+                                    s.settings.theme_pack.is_none() && s.settings.theme == theme,
+                                    theme.name(),
+                                )
+                                .clicked()
+                            {
+                                s.settings.theme = theme;
+                                s.settings.theme_pack = None;
+                                changed = true;
+                            }
+                        }
+                        let packed = crate::packs::theme_choices();
+                        if !packed.is_empty() {
+                            ui.separator();
+                        }
+                        for (choice, name) in packed {
+                            if ui
+                                .selectable_label(
+                                    s.settings.theme_pack.as_deref() == Some(choice.as_str()),
+                                    name,
+                                )
+                                .clicked()
+                            {
+                                s.settings.theme_pack = Some(choice);
+                                changed = true;
+                            }
                         }
                     });
                 ui.end_row();
                 ui.label(tr(&locale, "Language"));
                 egui::ComboBox::from_id_salt("preferences-language")
-                    .selected_text(s.settings.language.name())
+                    .selected_text(match s.settings.language_pack.as_deref() {
+                        Some(locale) => crate::packs::language_name(locale)
+                            .unwrap_or_else(|| format!("{locale} (unavailable)")),
+                        None => s.settings.language.name().to_owned(),
+                    })
                     .show_ui(ui, |ui| {
                         for language in crate::localization::Language::ALL {
-                            changed |= ui
-                                .selectable_value(
-                                    &mut s.settings.language,
-                                    language,
+                            if ui
+                                .selectable_label(
+                                    s.settings.language_pack.is_none()
+                                        && s.settings.language == language,
                                     language.name(),
                                 )
-                                .changed();
+                                .clicked()
+                            {
+                                s.settings.language = language;
+                                s.settings.language_pack = None;
+                                changed = true;
+                            }
+                        }
+                        let packed: Vec<_> = crate::packs::language_packs()
+                            .into_iter()
+                            .flat_map(|pack| pack.languages)
+                            .collect();
+                        if !packed.is_empty() {
+                            ui.separator();
+                        }
+                        for language in packed {
+                            let name = format!("{} — {}", language.native_name, language.name);
+                            if ui
+                                .selectable_label(
+                                    s.settings.language_pack.as_deref()
+                                        == Some(language.locale.as_str()),
+                                    name,
+                                )
+                                .clicked()
+                            {
+                                s.settings.language_pack = Some(language.locale);
+                                changed = true;
+                            }
                         }
                     });
                 ui.end_row();
             });
+        ui.horizontal_wrapped(|ui| {
+            if ui
+                .add_enabled(
+                    s.initialized && !s.dialog_busy,
+                    egui::Button::new(tr(&locale, "Import language pack…")),
+                )
+                .clicked()
+            {
+                s.actions.push(Action::PickLanguagePack);
+            }
+            if ui
+                .add_enabled(
+                    s.initialized && !s.dialog_busy,
+                    egui::Button::new(tr(&locale, "Import theme pack…")),
+                )
+                .clicked()
+            {
+                s.actions.push(Action::PickThemePack);
+            }
+        });
+        let language_packs = crate::packs::language_packs();
+        let theme_packs = crate::packs::theme_packs();
+        if !language_packs.is_empty() || !theme_packs.is_empty() {
+            egui::CollapsingHeader::new(tr(&locale, "Installed packs"))
+                .id_salt("installed-appearance-packs")
+                .show(ui, |ui| {
+                    for pack in language_packs {
+                        ui.label(format!(
+                            "{} · r{} · {} language(s)",
+                            pack.id,
+                            pack.revision,
+                            pack.languages.len()
+                        ));
+                    }
+                    for pack in theme_packs {
+                        ui.label(format!(
+                            "{} · r{} · {} theme(s)",
+                            pack.id,
+                            pack.revision,
+                            pack.themes.len()
+                        ));
+                    }
+                });
+        }
         ui.separator();
         for (label, color) in [
             (
@@ -2463,6 +2565,16 @@ fn appearance_preferences(ui: &mut Ui, s: &mut Studio) {
         if changed {
             s.new_output = true;
             s.save_preferences();
+            crate::theme::apply_selected(
+                &locale,
+                s.settings.theme,
+                s.settings.theme_pack.as_deref(),
+            );
+            crate::localization::apply_selected(
+                &locale,
+                &s.settings.language,
+                s.settings.language_pack.as_deref(),
+            );
             ui.ctx().request_repaint();
         }
     });

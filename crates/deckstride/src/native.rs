@@ -194,7 +194,9 @@ struct NativeWindow {
     zoom_slow: bool,
     presentation_base: Option<PresentationBase>,
     applied_theme: Option<crate::theme::Theme>,
+    applied_theme_pack: Option<Option<String>>,
     applied_language: Option<crate::localization::Language>,
+    applied_language_pack: Option<Option<String>>,
     #[cfg(target_os = "linux")]
     browser_parent: Option<WindowId>,
 }
@@ -256,7 +258,9 @@ impl NativeWindow {
             zoom_slow: false,
             presentation_base: None,
             applied_theme: None,
+            applied_theme_pack: None,
             applied_language: None,
+            applied_language_pack: None,
             #[cfg(target_os = "linux")]
             browser_parent: None,
         })
@@ -340,13 +344,27 @@ impl NativeWindow {
             return Err("Display exceeds 40 megapixels".into());
         }
         if let Some(s) = studio.as_ref() {
-            if self.applied_theme != Some(s.settings.theme) {
-                s.settings.theme.apply(&self.ctx);
+            if self.applied_theme != Some(s.settings.theme)
+                || self.applied_theme_pack.as_ref() != Some(&s.settings.theme_pack)
+            {
+                crate::theme::apply_selected(
+                    &self.ctx,
+                    s.settings.theme,
+                    s.settings.theme_pack.as_deref(),
+                );
                 self.applied_theme = Some(s.settings.theme);
+                self.applied_theme_pack = Some(s.settings.theme_pack.clone());
             }
-            if self.applied_language != Some(s.settings.language) {
-                crate::localization::apply(&self.ctx, &s.settings.language);
+            if self.applied_language != Some(s.settings.language)
+                || self.applied_language_pack.as_ref() != Some(&s.settings.language_pack)
+            {
+                crate::localization::apply_selected(
+                    &self.ctx,
+                    &s.settings.language,
+                    s.settings.language_pack.as_deref(),
+                );
                 self.applied_language = Some(s.settings.language);
+                self.applied_language_pack = Some(s.settings.language_pack.clone());
             }
         }
         let input = self.input.take_egui_input(&self.window);
@@ -1171,7 +1189,11 @@ impl App {
                 #[cfg(target_os = "windows")]
                 if matches!(
                     action,
-                    Action::Pick(_) | Action::PickNotes | Action::PickBlankPicture
+                    Action::Pick(_)
+                        | Action::PickNotes
+                        | Action::PickBlankPicture
+                        | Action::PickLanguagePack
+                        | Action::PickThemePack
                 ) && !s.dialog_busy
                 {
                     use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};

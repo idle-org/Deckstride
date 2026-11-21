@@ -56,6 +56,10 @@ pub enum Request {
     PickNotes {
         owner: Option<isize>,
     },
+    PickPack {
+        language: bool,
+        owner: Option<isize>,
+    },
     PrepareNotes {
         path: PathBuf,
         cache: PathBuf,
@@ -275,6 +279,23 @@ pub fn run() -> Result<(), String> {
                 Request::PickNotes { owner } => {
                     reply.picked = picker_dialog(owner)?
                         .add_filter("Notes (TXT, Markdown)", &["txt", "md"])
+                        .pick_file();
+                }
+                Request::PickPack { language, owner } => {
+                    reply.picked = picker_dialog(owner)?
+                        .set_title(if language {
+                            "Import language pack"
+                        } else {
+                            "Import theme pack"
+                        })
+                        .add_filter(
+                            if language {
+                                "Language pack"
+                            } else {
+                                "Theme pack"
+                            },
+                            &["zip"],
+                        )
                         .pick_file();
                 }
                 Request::PrepareNotes {

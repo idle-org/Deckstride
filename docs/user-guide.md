@@ -17,7 +17,7 @@ folder in a permanent location and run `python3 install-linux-launcher.py` there
 Python is only needed for this optional installer; no administrator privileges
 are required.
 
-On Windows, use **Menu → Preferences… → Set as default PDF app…** to register the
+On Windows, use **Menu → Preferences… → General → Set as default PDF app…** to register the
 portable executable for the current user. Windows opens
 Default Apps for the required confirmation. Once Deckstride is selected for
 `.pdf`, Explorer uses the icon embedded in `deckstride.exe` for PDF files. Keep
@@ -27,7 +27,7 @@ To update, close Deckstride, download and extract the new portable release,
 and run its executable. Settings and saved layouts live in your user configuration
 directory, outside the extracted folder. If you installed the Linux launcher, rerun
 its installer from the new location so it points to the updated binary.
-**Menu → Preferences… → Storage and preparation** shows the full path of the
+**Menu → Preferences… → Storage** shows the full path of the
 currently running executable, so you can find its portable folder when updating or
 removing the application.
 
@@ -222,7 +222,7 @@ fit; separate copies for every smaller resolution would waste RAM. The current
 renderer limit is 4096 pixels per side, shown in the Preferences window. Resolution changes start a
 new preparation pass with a new buffer identity.
 
-Processed frames are kept in the application's persistent cache; **Menu → Preferences… → Storage and preparation** shows its
+Processed frames are kept in the application's persistent cache; **Menu → Preferences… → Storage** shows its
 location. Reopening with unchanged source contents, resolution and renderer reuses
 those frames without PDF rasterization or image decoding. It still verifies source
 identity/checksums and reads frames into RAM: a restart cannot literally take zero
@@ -243,7 +243,7 @@ Navigation then performs no application slide-file reads, PDF rendering or image
 decoding. Raster composition still happens, and the OS can page memory under pressure.
 The entire deck stays resident when it fits the configured RAM budget.
 
-**Menu → Preferences… → Memory and cache** controls the decoded-slide allowance for **each process**, default
+**Menu → Preferences… → Performance** controls the decoded-slide allowance for **each process**, default
 15% of available RAM, with a soft 512 MiB minimum that yields when it would
 exceed 20% of available RAM. The adjustable range is 64–16384 MiB. Saved budgets
 are preserved; the automatic default is chosen when no budget has been saved. Presenter and output can each consume
@@ -300,18 +300,26 @@ The numbered screen rectangles in **Displays** reflect each monitor’s pixel as
 ratio, so portrait, standard and ultrawide displays are easier to distinguish.
 They represent proportions, not physical screen size.
 
-Menu → Appearance → Theme offers the same 20 built-in palettes as Canvas Pilot,
-including light, dark and High Contrast. Menu → Appearance → Language offers System,
-English, French, Spanish, Japanese, Simplified Chinese, German and Brazilian
+**Preferences → General → Appearance** offers the same 20 built-in palettes as
+Canvas Pilot, including light, dark and High Contrast. Its Language selector offers
+System, English, French, Spanish, Japanese, Simplified Chinese, German and Brazilian
 Portuguese. System uses the native OS locale when it matches one of these choices and
 otherwise falls back to English. Traditional Chinese is not silently treated as
 Simplified Chinese. Choices are saved globally and apply to all presenter/browser
 windows; slides are never recolored.
 
-Translations are built into the executable and need no runtime file reads. Japanese
-and Chinese use the bundled Noto Sans CJK font, loaded only when one of those languages
-is active. Theme styles and language fonts are rebuilt only when their selection
-changes. Detailed worker and operating-system diagnostics remain verbatim.
+Choose **Import language pack…** or **Import theme pack…** in the same section to
+install a bounded ZIP. Installed languages and themes join the selectors immediately
+and load offline on later starts. Higher revisions update a pack; equal or older
+revisions are rejected. The ZIP is copied beside settings and is never extracted or
+executed. The [pack guide](packs/README.md) includes editable sources and
+ready-to-import examples.
+
+Built-in translations need no runtime file reads; imported catalogs are read once at
+startup and retained in memory. Japanese and Chinese use the bundled Noto Sans CJK
+font, loaded only when one of those built-in languages is active. Theme styles and
+language fonts are rebuilt only when their selection changes. Detailed worker and
+operating-system diagnostics remain verbatim.
 
 All slides opens a windowed browser above fullscreen windows and requests focus.
 Opening it again restores/focuses the existing browser. Its Close button dismisses it; Escape requests application quit confirmation.
@@ -467,7 +475,7 @@ output. It cannot predict compositor/hardware delays or guarantee a frame rate.
 
 ### Disk cache cleanup
 
-In **Menu → Preferences… → Memory and cache**, set the maximum total size in MiB and
+In **Menu → Preferences… → Performance**, set the maximum total size in MiB and
 lifetime in days since rendering (defaults: 10 GiB and 30 days). Automatic cleanup runs once at startup, after initial document loading and slide
 preparation complete, deleting expired files and then the oldest files to meet the
 size target. Changing limits takes effect at the next startup; manual expunge remains
@@ -477,7 +485,7 @@ background. Active decks are protected and may temporarily exceed either limit.
 The cleanup report shows removed and remaining data; deleted slides regenerate
 when reopened. Source documents and presenter notes are preserved.
 
-Choose **Menu → Preferences… → Blank Slides image → Choose picture…** to replace the
+Choose **Menu → Preferences… → General → Blank Slides image → Choose picture…** to replace the
 black blanking screen with your own picture on every Slides screen. The app
 saves a copy, fits the whole image against black, and remembers it across restarts.
 The original may then be moved or removed. Use **Use solid black** to reset.

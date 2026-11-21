@@ -53,6 +53,12 @@ pub struct Palette {
     pub purple: Color32,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum AppliedTheme {
+    Builtin(Theme),
+    Pack(String),
+}
+
 impl Theme {
     pub const ALL: [Self; 20] = [
         Self::Midra,
@@ -276,53 +282,77 @@ impl Theme {
         }
     }
     pub fn apply(&self, ctx: &egui::Context) {
-        let applied = egui::Id::new("deckstride-theme");
-        if ctx.data(|data| data.get_temp::<Self>(applied)) == Some(*self) {
-            return;
-        }
-        let p = self.palette();
-        let mut v = if self.is_light() {
-            egui::Visuals::light()
-        } else {
-            egui::Visuals::dark()
-        };
-        v.override_text_color = Some(p.text);
-        v.panel_fill = p.bg;
-        v.window_fill = p.panel;
-        v.extreme_bg_color = p.field;
-        v.faint_bg_color = p.bg;
-        v.hyperlink_color = p.cyan;
-        v.warn_fg_color = p.amber;
-        v.error_fg_color = if self.is_light() {
-            Color32::from_rgb(165, 30, 40)
-        } else {
-            Color32::LIGHT_RED
-        };
-        v.window_stroke = egui::Stroke::new(1_f32, p.line);
-        v.selection.bg_fill = p.purple;
-        v.selection.stroke.color = p.text;
-        for (w, fill) in [
-            (&mut v.widgets.noninteractive, p.panel),
-            (&mut v.widgets.inactive, p.field),
-            (&mut v.widgets.hovered, p.panel.lerp_to_gamma(p.text, 0.08)),
-            (&mut v.widgets.active, p.purple),
-            (&mut v.widgets.open, p.panel),
-        ] {
-            w.bg_fill = fill;
-            w.weak_bg_fill = fill;
-            w.bg_stroke = egui::Stroke::new(
-                if *self == Self::HighContrast {
-                    2_f32
-                } else {
-                    1_f32
-                },
-                p.line,
-            );
-            w.fg_stroke = egui::Stroke::new(1_f32, p.text);
-        }
-        ctx.set_visuals(v);
-        ctx.data_mut(|data| data.insert_temp(applied, *self));
+        apply_palette(
+            ctx,
+            AppliedTheme::Builtin(*self),
+            self.palette(),
+            self.is_light(),
+            *self == Self::HighContrast,
+        );
     }
+}
+
+pub fn apply_selected(ctx: &egui::Context, builtin: Theme, packed: Option<&str>) {
+    if let Some(choice) = packed
+        && let Some((palette, light, _)) = crate::packs::packed_theme(choice)
+    {
+        apply_palette(
+            ctx,
+            AppliedTheme::Pack(choice.to_owned()),
+            palette,
+            light,
+            false,
+        );
+    } else {
+        builtin.apply(ctx);
+    }
+}
+
+fn apply_palette(
+    ctx: &egui::Context,
+    choice: AppliedTheme,
+    p: Palette,
+    light: bool,
+    high_contrast: bool,
+) {
+    let applied = egui::Id::new("deckstride-theme");
+    if ctx.data(|data| data.get_temp::<AppliedTheme>(applied)) == Some(choice.clone()) {
+        return;
+    }
+    let mut v = if light {
+        egui::Visuals::light()
+    } else {
+        egui::Visuals::dark()
+    };
+    v.override_text_color = Some(p.text);
+    v.panel_fill = p.bg;
+    v.window_fill = p.panel;
+    v.extreme_bg_color = p.field;
+    v.faint_bg_color = p.bg;
+    v.hyperlink_color = p.cyan;
+    v.warn_fg_color = p.amber;
+    v.error_fg_color = if light {
+        Color32::from_rgb(165, 30, 40)
+    } else {
+        Color32::LIGHT_RED
+    };
+    v.window_stroke = egui::Stroke::new(1_f32, p.line);
+    v.selection.bg_fill = p.purple;
+    v.selection.stroke.color = p.text;
+    for (w, fill) in [
+        (&mut v.widgets.noninteractive, p.panel),
+        (&mut v.widgets.inactive, p.field),
+        (&mut v.widgets.hovered, p.panel.lerp_to_gamma(p.text, 0.08)),
+        (&mut v.widgets.active, p.purple),
+        (&mut v.widgets.open, p.panel),
+    ] {
+        w.bg_fill = fill;
+        w.weak_bg_fill = fill;
+        w.bg_stroke = egui::Stroke::new(if high_contrast { 2_f32 } else { 1_f32 }, p.line);
+        w.fg_stroke = egui::Stroke::new(1_f32, p.text);
+    }
+    ctx.set_visuals(v);
+    ctx.data_mut(|data| data.insert_temp(applied, choice));
 }
 fn sotv_palette(colors: [u32; 8], light: bool) -> Palette {
     let [bg, panel, field, layer, text, subtle, accent, line] =

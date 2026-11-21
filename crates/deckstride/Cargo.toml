@@ -27,6 +27,7 @@ hayro = "=0.9.0"
 chrono = "0.4"
 rfd = "=0.15.4"
 sysinfo = { version = "=0.37.2", default-features = false, features = ["system"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))'.dependencies]
 keepawake = "=0.6.1"

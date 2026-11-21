@@ -23,6 +23,8 @@ pub enum Action {
     Pick(bool),
     PickNotes,
     PickBlankPicture,
+    PickLanguagePack,
+    PickThemePack,
     SetBlankPicture(PathBuf),
     ClearBlankPicture,
     #[cfg(target_os = "windows")]
@@ -221,6 +223,14 @@ impl Studio {
             settings_path = dir.path().join("settings.toml");
             cache_path = dir.path().join("cache");
         }
+        let pack_errors = if smoke {
+            Vec::new()
+        } else {
+            settings_path
+                .parent()
+                .map(crate::packs::load)
+                .unwrap_or_else(|| vec!["Settings directory unavailable for packs".into()])
+        };
         let io = Bridge::with_program(Duration::from_secs(10), worker_program.clone());
         io.submit(0, 0, Request::LoadSettings(settings_path.clone()));
         Self {
@@ -247,7 +257,14 @@ impl Studio {
             blank_picture: None,
             blank_busy: false,
             blank_loader: Bridge::with_program(Duration::from_secs(15), worker_program.clone()),
-            status: "Ready — open a PDF or picture folder, or drop it here.".into(),
+            status: if pack_errors.is_empty() {
+                "Ready — open a PDF or picture folder, or drop it here.".into()
+            } else {
+                format!(
+                    "Some language/theme packs were skipped: {}",
+                    pack_errors.join("; ")
+                )
+            },
             awake_status: "Sleep protection starting…".into(),
             generation: 0,
             frames: HashMap::new(),
@@ -629,6 +646,25 @@ impl Studio {
                         },
                     );
                     self.status = "Choose a TXT or Markdown notes file.".into();
+                }
+            }
+            pack_action @ (Action::PickLanguagePack | Action::PickThemePack) => {
+                if self.initialized && !self.dialog_busy {
+                    let language = matches!(pack_action, Action::PickLanguagePack);
+                    self.dialog_busy = self.dialog.submit(
+                        0,
+                        if language { 3 } else { 4 },
+                        Request::PickPack {
+                            language,
+                            owner: self.dialog_owner,
+                        },
+                    );
+                    self.status = if language {
+                        "Choose a Deckstride language-pack ZIP."
+                    } else {
+                        "Choose a Deckstride theme-pack ZIP."
+                    }
+                    .into();
                 }
             }
             Action::ImportNotes(import) => {
@@ -1313,6 +1349,19 @@ impl Studio {
                     if let Some(path) = p.reply.picked {
                         if c.tag == 2 {
                             self.execute(Action::SetBlankPicture(path));
+                        } else if c.tag == 3 || c.tag == 4 {
+                            let result =
+                                crate::packs::pack_root(&self.settings_path).and_then(|root| {
+                                    if c.tag == 3 {
+                                        crate::packs::install_language(root, &path)
+                                            .map(|id| format!("Installed language pack {id}."))
+                                    } else {
+                                        crate::packs::install_theme(root, &path)
+                                            .map(|id| format!("Installed theme pack {id}."))
+                                    }
+                                });
+                            self.status = result
+                                .unwrap_or_else(|error| format!("Could not install pack: {error}"));
                         } else if c.tag == 1 {
                             if c.generation == self.generation {
                                 self.execute(Action::ImportNotes(path));

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "example-theme",
+  "revision": 1,
+  "themes": [
+    {
+      "id": "night",
+      "name": "Example Night",
+      "light": false,
+      "colors": {
+        "canvas": "#15202b",
+        "banner": "#203040",
+        "grid": "#3e5870",
+        "layer": "#26394a",
+        "pattern": ["#24384a", "#182634"],
+        "bg": "#101820",
+        "panel": "#192733",
+        "field": "#0d151c",
+        "line": "#42627d",
+        "text": "#eef7ff",
+        "muted": "#aec7d9",
+        "cyan": "#65d9ef",
+        "amber": "#f0c674",
+        "purple": "#554b9a"
+      }
+    }
+  ],
+  "notices": "Original example palette for Deckstride. CC0-1.0; attribution is not required."
+}

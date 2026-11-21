@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "id": "example-language",
+  "revision": 1,
+  "languages": [
+    {
+      "locale": "eo-example",
+      "name": "Example Esperanto",
+      "native_name": "Ekzempla Esperanto"
+    }
+  ]
+}

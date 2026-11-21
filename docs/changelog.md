@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 0.1.101
+
+- Import bounded, data-only language and theme ZIP packs from Preferences. Packs use
+  Canvas Pilot-compatible manifests, persist beside settings, load offline at startup
+  and appear in the existing selectors without restarting.
+- Add editable example packs, ready-to-import ZIPs and pack-format documentation.
+
 ### 0.1.100
 
 - Keep the Preferences window size stable while the pointer moves by removing a
