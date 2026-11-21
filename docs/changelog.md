@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### 0.1.87
+
+- Add per-screen Follow global / Always fullscreen / Always windowed choices in
+  Displays. Overrides follow monitor identity through role swaps and hotplug,
+  bypass global fullscreen commands, and use the existing Keep/Revert trial.
+  Save bounded v1 settings and send resolved per-output modes to the independent
+  host, including matching viewport acknowledgments for mixed-mode mirrors.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, build and
+  13 Python tests pass. GUI coverage cannot complete without an accessible display
+  (`XOpenDisplayFailed`). Physical mixed-mode display testing remains pending;
+  Windows/macOS builds were not run.
+
 ### 0.1.86
 
 - Hold S for one second in Presenter or All slides to swap display role groups,

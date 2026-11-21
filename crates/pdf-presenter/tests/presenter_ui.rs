@@ -1849,3 +1849,128 @@ fn explicit_swap_during_show_preserves_visibility_and_uses_reversible_trial() {
         assert_eq!(s.blanked, blanked);
     }
 }
+
+#[test]
+fn screen_overrides_survive_global_commands_swap_and_hotplug_and_require_confirmation() {
+    use pdf_presenter::settings::ScreenMode::{AlwaysFullscreen, AlwaysWindowed};
+    for blanked in [false, true] {
+        let mut s = studio();
+        s.blanked = blanked;
+        s.begin_display_edit();
+        s.draft_screen_modes = [
+            ("one".into(), AlwaysWindowed),
+            ("two".into(), AlwaysFullscreen),
+        ]
+        .into();
+        s.execute(Action::ApplyRoutes);
+        assert!(!s.screen_fullscreen("one", true));
+        assert!(s.screen_fullscreen("two", false));
+        assert!(s.settings.screen_modes.is_empty());
+        s.execute(Action::RevertRoutes);
+        assert!(s.screen_fullscreen("one", true));
+        s.begin_display_edit();
+        s.draft_screen_modes = [
+            ("one".into(), AlwaysWindowed),
+            ("two".into(), AlwaysFullscreen),
+        ]
+        .into();
+        s.execute(Action::ApplyRoutes);
+        s.execute(Action::KeepRoutes);
+        let saved = s.settings.screen_modes.clone();
+        for global in [false, true] {
+            s.execute(Action::ToggleFullscreen);
+            assert_eq!(s.presenter_fullscreen(), global);
+            assert_eq!(s.presentation_fullscreen(), global);
+            assert!(!s.screen_fullscreen("one", global));
+            assert!(s.screen_fullscreen("two", global));
+            assert_eq!(s.screen_fullscreen("other", global), global);
+            assert_eq!(s.blanked, blanked);
+            s.execute(Action::KeepRoutes);
+            assert_eq!(s.settings.screen_modes, saved);
+        }
+        s.execute(Action::SwapRoutes);
+        assert!(!s.screen_fullscreen("one", s.presentation_fullscreen()));
+        assert!(s.screen_fullscreen("two", s.presenter_fullscreen()));
+        s.execute(Action::RevertRoutes);
+        s.begin_display_edit();
+        s.draft_screen_modes.clear();
+        s.execute(Action::ApplyRoutes);
+        s.set_monitors(vec![s.monitors[0].clone()], 0);
+        assert!(s.route_trial.is_none());
+        assert_eq!(s.settings.screen_modes, saved);
+        assert!(!s.screen_fullscreen("one", true));
+        assert_eq!(s.blanked, blanked);
+    }
+}
+
+#[test]
+fn displays_dropdown_edits_only_selected_screen_until_applied() {
+    fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
+        match shape {
+            egui::Shape::Text(t) if t.galley.text() == label => Some(t.pos + t.galley.size() * 0.5),
+            egui::Shape::Vec(shapes) => shapes.iter().find_map(|s| find(s, label)),
+            _ => None,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.settings.language = pdf_presenter::localization::Language::En;
+    s.begin_display_edit();
+    let mut native = UiState::default();
+    let mut frame = |s: &mut Studio, events| {
+        let mut raw = input(Vec2::new(1920., 1080.));
+        raw.events = events;
+        ctx.run_ui(raw, |ui| presenter_ui::presenter(ui, s, &mut native))
+    };
+    for label in ["Follow global", "Always windowed"] {
+        let mut output = frame(&mut s, vec![]);
+        for _ in 0..3 {
+            output = frame(&mut s, vec![]);
+        }
+        let pos = output
+            .shapes
+            .iter()
+            .find_map(|shape| find(&shape.shape, label))
+            .unwrap_or_else(|| panic!("Missing {label}"));
+        for pressed in [true, false] {
+            frame(
+                &mut s,
+                vec![
+                    egui::Event::PointerMoved(pos),
+                    egui::Event::PointerButton {
+                        pos,
+                        button: egui::PointerButton::Primary,
+                        pressed,
+                        modifiers: Default::default(),
+                    },
+                ],
+            );
+        }
+    }
+    assert_eq!(
+        s.draft_screen_modes.get("one"),
+        Some(&pdf_presenter::settings::ScreenMode::AlwaysWindowed)
+    );
+    assert!(!s.draft_screen_modes.contains_key("two"));
+    assert!(s.settings.screen_modes.is_empty());
+    assert!(s.screen_fullscreen("one", true));
+    s.execute(Action::ApplyRoutes);
+    assert!(!s.screen_fullscreen("one", true));
+}
+
+#[test]
+fn output_viewport_accepts_screen_override_instead_of_global_mode() {
+    let mut s = studio();
+    s.settings.screen_modes.insert(
+        "two".into(),
+        pdf_presenter::settings::ScreenMode::AlwaysWindowed,
+    );
+    s.output_viewport = Some(pdf_presenter::output::OutputViewport {
+        monitor: "two".into(),
+        fullscreen: false,
+        size: [800, 600],
+    });
+    assert_eq!(s.presentation_viewport(), Some([800, 600]));
+    s.output_viewport.as_mut().unwrap().fullscreen = true;
+    assert_eq!(s.presentation_viewport(), Some([1920, 1080]));
+}

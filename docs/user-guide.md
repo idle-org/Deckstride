@@ -59,6 +59,13 @@ A short tap does nothing; release and press again for another swap. Focus loss,
 a modifier or another key cancels the hold. The shortcut is inactive while typing
 in controls, editing/importing notes, loading, or confirming a display trial.
 
+Each screen in **Displays** has a **Window mode** dropdown:
+**Follow global**, **Always fullscreen**, or **Always windowed**. Forced modes
+ignore Enter/Exit fullscreen commands and the global fullscreen checkboxes.
+They stay with the screen when you swap roles or reconnect it. Apply and Keep
+changes save the choices; Revert restores the previous modes. All slides remains
+an ordinary window regardless of its screen's mode.
+
 Disabling either fullscreen option shows a positioning warning. Window placement
 can be unreliable in windowed mode, especially on Linux; switch back to fullscreen
 if you experience positioning issues.

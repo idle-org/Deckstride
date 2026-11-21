@@ -1808,6 +1808,23 @@ fn presenter_view(
                                     }
                                 });
                             });
+                            use crate::settings::ScreenMode;
+                            let mut mode = s.draft_screen_modes.get(&m.id).copied().unwrap_or_default();
+                            ui.horizontal(|ui| {
+                                ui.label(tr(&locale, "Window mode"));
+                                egui::ComboBox::from_id_salt(("screen-mode", &m.id))
+                                    .selected_text(tr(&locale, mode.label()))
+                                    .show_ui(ui, |ui| {
+                                        for option in [ScreenMode::FollowGlobal, ScreenMode::AlwaysFullscreen, ScreenMode::AlwaysWindowed] {
+                                            ui.selectable_value(&mut mode, option, tr(&locale, option.label()));
+                                        }
+                                    });
+                            });
+                            if mode == ScreenMode::FollowGlobal {
+                                s.draft_screen_modes.remove(&m.id);
+                            } else {
+                                s.draft_screen_modes.insert(m.id.clone(), mode);
+                            }
                             s.draft_routes.presenter.retain(|id| id != &m.id);
                             s.draft_routes.presentation.retain(|id| id != &m.id);
                             match role {
@@ -1848,7 +1865,9 @@ fn presenter_view(
                     &locale,
                     "Output visibility is preserved while previewing display changes.",
                 ));
-                if !s.draft_presenter_fullscreen || !s.draft_presentation_fullscreen {
+                ui.small(tr(&locale, "Always fullscreen/windowed overrides global fullscreen commands for this screen."));
+                if s.draft_routes.presenter.iter().any(|id| !s.draft_screen_modes.get(id).copied().unwrap_or_default().fullscreen(s.draft_presenter_fullscreen))
+                    || s.draft_routes.presentation.iter().any(|id| !s.draft_screen_modes.get(id).copied().unwrap_or_default().fullscreen(s.draft_presentation_fullscreen)) {
                     ui.colored_label(
                         ui.visuals().warn_fg_color,
                         tr(&locale, "Window positioning can be unreliable in windowed mode, especially on Linux. Switch back to fullscreen if you experience positioning issues."),

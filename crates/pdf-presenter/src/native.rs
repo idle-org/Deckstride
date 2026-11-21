@@ -847,7 +847,11 @@ impl App {
         let mut desired = vec![];
         if let Some(s) = &self.studio {
             for id in &s.routes.presenter {
-                desired.push((Role::Presenter, id.clone(), s.presenter_fullscreen()));
+                desired.push((
+                    Role::Presenter,
+                    id.clone(),
+                    s.screen_fullscreen(id, s.presenter_fullscreen()),
+                ));
             }
             if s.browser_open {
                 let id = s
@@ -865,7 +869,7 @@ impl App {
         if let Some(h) = &self.host {
             for id in &h.state.monitors {
                 if self.handles.iter().any(|(m, _)| &m.id == id) {
-                    desired.push((Role::Presentation, id.clone(), h.state.fullscreen));
+                    desired.push((Role::Presentation, id.clone(), h.state.fullscreen_on(id)));
                 }
             }
         }
@@ -1253,6 +1257,17 @@ impl App {
                         },
                         monitors: s.routes.presentation.clone(),
                         fullscreen: s.presentation_fullscreen(),
+                        screen_fullscreen: s
+                            .routes
+                            .presentation
+                            .iter()
+                            .map(|id| {
+                                (
+                                    id.clone(),
+                                    s.screen_fullscreen(id, s.presentation_fullscreen()),
+                                )
+                            })
+                            .collect(),
                         blanked: s.blanked,
                         blank_picture: s.blank_picture.as_ref().map(|f| f.info.clone()),
                         ..Default::default()
@@ -1772,7 +1787,7 @@ impl ApplicationHandler for App {
                             crate::output::OutputViewport {
                                 monitor: id.clone(),
                                 size: [size.width, size.height],
-                                fullscreen: host.state.fullscreen,
+                                fullscreen: host.state.fullscreen_on(id),
                             }
                         })
                 });

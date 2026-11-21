@@ -211,6 +211,39 @@ impl Default for SlideColors {
         }
     }
 }
+/// Per-monitor preference that takes priority over role-wide fullscreen commands.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScreenMode {
+    #[default]
+    FollowGlobal,
+    AlwaysFullscreen,
+    AlwaysWindowed,
+}
+impl ScreenMode {
+    pub fn fullscreen(self, global: bool) -> bool {
+        match self {
+            Self::FollowGlobal => global,
+            Self::AlwaysFullscreen => true,
+            Self::AlwaysWindowed => false,
+        }
+    }
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::FollowGlobal => "Follow global",
+            Self::AlwaysFullscreen => "Always fullscreen",
+            Self::AlwaysWindowed => "Always windowed",
+        }
+    }
+}
+pub fn validate_screen_modes(modes: &BTreeMap<String, ScreenMode>) -> Result<(), String> {
+    if modes.len() > 128 || modes.keys().any(|id| id.is_empty() || id.len() > 1024) {
+        return Err(
+            "Invalid screen modes: at most 128 nonempty monitor IDs of at most 1024 bytes".into(),
+        );
+    }
+    Ok(())
+}
 /// Saved visual layouts for one monitor; shared timer behavior uses legacy layouts.
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
@@ -226,6 +259,7 @@ pub struct Settings {
     pub layout: Layout,
     pub projects: BTreeMap<String, Layout>,
     pub display_layouts: BTreeMap<String, DisplayLayouts>,
+    pub screen_modes: BTreeMap<String, ScreenMode>,
     pub routes: Routes,
     pub presenter_fullscreen: bool,
     pub presentation_fullscreen: bool,
@@ -272,6 +306,7 @@ impl Default for Settings {
             layout: Layout::default(),
             projects: BTreeMap::new(),
             display_layouts: BTreeMap::new(),
+            screen_modes: BTreeMap::new(),
             routes: Routes::default(),
             presenter_fullscreen: true,
             presentation_fullscreen: true,
@@ -319,6 +354,7 @@ impl Settings {
                 layout.validate()?;
             }
         }
+        validate_screen_modes(&self.screen_modes)?;
         self.routes.validate()?;
         self.layout.validate()?;
         for layout in self.projects.values() {

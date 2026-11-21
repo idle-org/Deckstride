@@ -214,3 +214,14 @@ slide, and a failed read leaves blank output black. Worker requests
 `PickBlankPicture { owner }` and `BlankPicture { source, path }` select and
 import/load the asset; source null loads the stored copy. See
 [blank picture](blank-picture.md) for bounds.
+
+## Per-screen window mode — 0.1.87
+
+HostState adds `screen_fullscreen`, a monitor-ID-to-boolean map containing the
+resolved mode for each assigned Slides monitor (at most 32 route entries).
+Missing entries fall back to the existing `fullscreen` role-wide boolean.
+The presenter resolves saved or trial overrides before sending; the map contains
+no presenter layout, notes or paths. Placement and OutputViewport acknowledgments
+use the same per-monitor value. Full state updates replace the map; lightweight
+zoom/overlay updates preserve it. Values round-trip through JSON; both processes
+must still run the same executable build.

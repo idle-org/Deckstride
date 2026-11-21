@@ -192,6 +192,13 @@ pub fn tr<'a>(ctx: &egui::Context, text: &'a str) -> &'a str {
         "Unused" => "Inutilisé",
         "Presenter" => "Présentateur",
         "Slides" => "Diapositives",
+        "Window mode" => "Mode de fenêtre",
+        "Follow global" => "Suivre le réglage global",
+        "Always fullscreen" => "Toujours en plein écran",
+        "Always windowed" => "Toujours en fenêtre",
+        "Always fullscreen/windowed overrides global fullscreen commands for this screen." => {
+            "Le mode toujours plein écran/fenêtre ignore les commandes globales pour cet écran."
+        }
         "Swap groups" => "Inverser les groupes",
         "Window positioning can be unreliable in windowed mode, especially on Linux. Switch back to fullscreen if you experience positioning issues." => {
             "Le positionnement des fenêtres peut être peu fiable en mode fenêtré, surtout sous Linux. Revenez au plein écran si vous rencontrez des problèmes de positionnement."

@@ -87,6 +87,7 @@ pub struct RouteTrial {
     previous: Routes,
     presenter_fullscreen: bool,
     presentation_fullscreen: bool,
+    screen_modes: std::collections::BTreeMap<String, crate::settings::ScreenMode>,
 }
 #[derive(Default)]
 pub struct PresenterView {
@@ -104,6 +105,7 @@ pub struct Studio {
     pub monitors: Vec<Monitor>,
     pub routes: Routes,
     pub draft_routes: Routes,
+    pub draft_screen_modes: std::collections::BTreeMap<String, crate::settings::ScreenMode>,
     pub draft_presenter_fullscreen: bool,
     pub draft_presentation_fullscreen: bool,
     pub route_trial: Option<RouteTrial>,
@@ -219,6 +221,7 @@ impl Studio {
             monitors: vec![],
             routes: Routes::default(),
             draft_routes: Routes::default(),
+            draft_screen_modes: Default::default(),
             draft_presenter_fullscreen: true,
             draft_presentation_fullscreen: true,
             route_trial: None,
@@ -731,6 +734,10 @@ impl Studio {
                 }
                 if self.draft_routes.presenter.is_empty() {
                     self.status = "Choose at least one presenter screen.".into();
+                } else if let Err(e) =
+                    crate::settings::validate_screen_modes(&self.draft_screen_modes)
+                {
+                    self.status = e;
                 } else if let Err(e) = self.draft_routes.validate() {
                     self.status = e;
                 } else if self
@@ -749,6 +756,7 @@ impl Studio {
                         previous: self.routes.clone(),
                         presenter_fullscreen: self.draft_presenter_fullscreen,
                         presentation_fullscreen: self.draft_presentation_fullscreen,
+                        screen_modes: self.draft_screen_modes.clone(),
                     });
                     self.routes = self.draft_routes.clone();
                     self.dirty_routes = true;
@@ -763,6 +771,7 @@ impl Studio {
                         self.execute(Action::RevertRoutes);
                         return;
                     }
+                    self.settings.screen_modes = trial.screen_modes;
                     self.settings.routes = self.routes.clone();
                     self.settings.presenter_fullscreen = trial.presenter_fullscreen;
                     self.settings.presentation_fullscreen = trial.presentation_fullscreen;
@@ -876,6 +885,7 @@ impl Studio {
                 }
                 let fullscreen = !(self.presenter_fullscreen() && self.presentation_fullscreen());
                 self.draft_routes = self.routes.clone();
+                self.draft_screen_modes = self.settings.screen_modes.clone();
                 self.draft_presenter_fullscreen = fullscreen;
                 self.draft_presentation_fullscreen = fullscreen;
                 self.execute(Action::ApplyRoutes);
@@ -902,7 +912,17 @@ impl Studio {
             _ => {}
         }
     }
+    pub fn screen_fullscreen(&self, display: &str, global: bool) -> bool {
+        self.route_trial
+            .as_ref()
+            .map_or(&self.settings.screen_modes, |trial| &trial.screen_modes)
+            .get(display)
+            .copied()
+            .unwrap_or_default()
+            .fullscreen(global)
+    }
     pub fn begin_display_edit(&mut self) {
+        self.draft_screen_modes = self.settings.screen_modes.clone();
         self.draft_routes = self.routes.clone();
         self.draft_presenter_fullscreen = self.settings.presenter_fullscreen;
         self.draft_presentation_fullscreen = self.settings.presentation_fullscreen;
@@ -1467,7 +1487,8 @@ impl Studio {
             .find_map(|id| self.monitors.iter().find(|m| &m.id == id))?;
         if let Some(viewport) = &self.output_viewport
             && viewport.monitor == monitor.id
-            && viewport.fullscreen == self.presentation_fullscreen()
+            && viewport.fullscreen
+                == self.screen_fullscreen(&monitor.id, self.presentation_fullscreen())
             && viewport.size.iter().all(|v| *v > 0)
         {
             return Some(viewport.size);

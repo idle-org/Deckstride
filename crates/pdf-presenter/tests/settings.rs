@@ -303,3 +303,59 @@ fn display_layout_profiles_roundtrip_migrate_and_validate() {
         .collect();
     assert!(bad.validate().is_err());
 }
+
+#[test]
+fn screen_modes_migrate_validate_and_roundtrip() {
+    use settings::ScreenMode::{AlwaysFullscreen, AlwaysWindowed, FollowGlobal};
+    let old: Settings = toml::from_str("version = 1").unwrap();
+    assert!(old.screen_modes.is_empty());
+    for global in [false, true] {
+        assert_eq!(FollowGlobal.fullscreen(global), global);
+        assert!(AlwaysFullscreen.fullscreen(global));
+        assert!(!AlwaysWindowed.fullscreen(global));
+    }
+    let mut s = old;
+    s.screen_modes = [
+        ("one".into(), AlwaysFullscreen),
+        ("two".into(), AlwaysWindowed),
+        ("three".into(), FollowGlobal),
+    ]
+    .into();
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("settings.toml");
+    settings::write(&path, &s).unwrap();
+    assert_eq!(settings::read(&path).unwrap().screen_modes, s.screen_modes);
+    assert!(toml::from_str::<Settings>("[screen_modes]\none = 'invalid'").is_err());
+    for id in [String::new(), "a".repeat(1025)] {
+        s.screen_modes.insert(id.clone(), AlwaysWindowed);
+        assert!(s.validate().is_err());
+        s.screen_modes.remove(&id);
+    }
+    s.screen_modes = (0..129)
+        .map(|i| (i.to_string(), AlwaysFullscreen))
+        .collect();
+    assert!(s.validate().is_err());
+    s.screen_modes.remove("128");
+    assert!(s.validate().is_ok());
+}
+
+#[test]
+fn output_screen_modes_roundtrip_and_fall_back_to_global() {
+    use pdf_presenter::output::HostState;
+    let state = HostState {
+        fullscreen: true,
+        screen_fullscreen: [("one".into(), false), ("two".into(), true)].into(),
+        ..Default::default()
+    };
+    let loaded: HostState = serde_json::from_slice(&serde_json::to_vec(&state).unwrap()).unwrap();
+    assert!(!loaded.fullscreen_on("one"));
+    assert!(loaded.fullscreen_on("two"));
+    assert!(loaded.fullscreen_on("unknown"));
+    let mut legacy = serde_json::to_value(state).unwrap();
+    legacy.as_object_mut().unwrap().remove("screen_fullscreen");
+    assert!(
+        serde_json::from_value::<HostState>(legacy)
+            .unwrap()
+            .fullscreen_on("one")
+    );
+}

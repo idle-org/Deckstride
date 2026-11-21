@@ -47,10 +47,20 @@ pub struct HostState {
     pub buffer_mib: u32,
     pub monitors: Vec<String>,
     pub fullscreen: bool,
+    #[serde(default)]
+    pub screen_fullscreen: std::collections::BTreeMap<String, bool>,
     pub blanked: bool,
     #[serde(default)]
     pub blank_picture: Option<FrameInfo>,
     pub quit: bool,
+}
+impl HostState {
+    pub fn fullscreen_on(&self, monitor: &str) -> bool {
+        self.screen_fullscreen
+            .get(monitor)
+            .copied()
+            .unwrap_or(self.fullscreen)
+    }
 }
 /// Actual size of the reference Slides window, never Presenter content.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

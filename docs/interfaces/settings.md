@@ -110,6 +110,19 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   (`native-name#occurrence`), disjoint and unique, at most 32 entries combined.
   Saved preferences are not overwritten by temporary missing-monitor fallback.
 - `presenter_fullscreen`, `presentation_fullscreen`: booleans, default true.
+- `screen_modes`: optional monitor-ID map added in 0.1.87. Values are
+  `follow_global`, `always_fullscreen`, or `always_windowed`; unknown values fail
+  deserialization. At most 128 entries, with nonempty UTF-8 keys of at most 1024
+  bytes. No units. Missing maps/entries follow the role's global fullscreen flag;
+  old v1 files need no migration. Forced choices override global fullscreen
+  commands and the `--windowed` global startup default. Choices stay attached to
+  the monitor ID across role swaps, mirrors, disconnects and reconnects, including
+  unused monitors. The All slides auxiliary window remains windowed.
+  Apply previews the map in the timed display trial; only Keep changes saves it.
+  Revert, timeout and hotplug restore confirmed preferences. The UI removes an
+  entry when Follow global is selected; explicit `follow_global` entries also
+  round-trip unchanged. Older binaries ignore this additive map and discard it
+  on resave. See the example and settings round-trip/boundary tests.
 - `browser_monitor`: optional monitor ID; missing/unavailable means presenter screen.
 - `thumbnail_size`: logical width in pixels, finite 100–400; default 220.
 - `disk_cache.max_mib`: integer 64–1048576 MiB, default 10240 (10 GiB).

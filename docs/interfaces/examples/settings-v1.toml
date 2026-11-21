@@ -49,3 +49,9 @@ size = 35.0
 [display_layouts."Secondary#1".projects."0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"]
 slide_progress = true
 slide_progress_height = 40.0
+
+# Per-screen mode overrides (0.1.87+), independent of display roles.
+[screen_modes]
+"Primary#1" = "always_windowed"
+"Secondary#1" = "always_fullscreen"
+"Third#1" = "follow_global"
