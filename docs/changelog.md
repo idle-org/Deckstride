@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.97
+
+- Publish future release assets to both Gitea and GitHub from one reviewed build,
+  using a separate named token for each service.
+
 ### 0.1.96
 
 - Rename the application, crate, executable, repository links, desktop identity,

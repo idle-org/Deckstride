@@ -4,7 +4,7 @@ default-members = ["crates/deckstride"]
 resolver = "3"
 
 [workspace.package]
-version = "0.1.96"
+version = "0.1.97"
 edition = "2024"
 license = "MIT"
 repository = "https://proxy.dandaedre.com/gitea/idle-org/deckstride"

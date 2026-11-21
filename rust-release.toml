@@ -1,6 +1,18 @@
 [release]
 tag-prefix = "v"
 
+[[release.endpoints]]
+name = "gitea"
+provider = "gitea"
+repository = "https://proxy.dandaedre.com/gitea/idle-org/deckstride"
+token-env = "GITEA_TOKEN"
+
+[[release.endpoints]]
+name = "github"
+provider = "github"
+repository = "https://github.com/idle-org/Deckstride"
+token-env = "GITHUB_TOKEN"
+
 [build]
 targets = [
   "x86_64-unknown-linux-gnu",
@@ -43,6 +55,3 @@ files = [
 [[repository.fallbacks]]
 origin = "https://git.dandaedre.com/idle-org/deckstride"
 fallback-url = "https://proxy.dandaedre.com/gitea/idle-org/deckstride"
-
-[gitea]
-token-env = "GITEA_TOKEN"

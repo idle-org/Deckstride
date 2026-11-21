@@ -39,8 +39,13 @@ commit, push that commit/tag, then run:
 ```sh
 rust_realease . --package deckstride \
   --message-file docs/development/release-notes/vVERSION.md \
-  --token-file ../gitea-token.txt
+  --token-file ../release-tokens.json
 ```
+
+`release-tokens.json` is an untracked JSON object with `gitea` and `github`
+keys. The matching tokens need repository read and release write access. As an
+alternative, set `GITEA_TOKEN` and `GITHUB_TOKEN` in the release environment.
+The publisher uploads and verifies the same artifacts on both services.
 
 `--dry-run` previews without remote mutation. Before tagging, its missing-tag
 prerequisite is expected. Do not use automatic tag/push options as part of local
