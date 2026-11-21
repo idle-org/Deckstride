@@ -2648,18 +2648,18 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
             });
             ctx.data_mut(|data| data.insert_temp(tab_id, tab));
             ui.separator();
-            let scroll_height = (ui.available_height() - 52.).max(180.);
+            // Reserve the close row, separator and both surrounding item gaps. If
+            // this is short by even one gap, the body asks the resizable window to
+            // grow again on every repaint.
+            let scroll_height = (ui.available_height() - 60.).max(180.);
             egui::ScrollArea::vertical()
                 .id_salt(("preferences-scroll", tab as u8))
                 .auto_shrink([false, false])
                 .max_height(scroll_height)
-                .show(ui, |ui| {
-                    ui.set_width(ui.available_width());
-                    match tab {
-                        PreferencesTab::General => general_preferences(ui, s),
-                        PreferencesTab::Performance => performance_preferences(ui, s),
-                        PreferencesTab::Storage => storage_preferences(ui, s),
-                    }
+                .show(ui, |ui| match tab {
+                    PreferencesTab::General => general_preferences(ui, s),
+                    PreferencesTab::Performance => performance_preferences(ui, s),
+                    PreferencesTab::Storage => storage_preferences(ui, s),
                 });
             ui.separator();
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

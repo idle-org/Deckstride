@@ -931,11 +931,17 @@ fn browser_thumbnails_fill_resized_window_without_stretching_tiles() {
 
 #[test]
 fn floating_windows_can_grow_and_shrink_after_content_is_drawn() {
-    for id in ["layout-window", "displays-window", "slide-preview"] {
+    for id in [
+        "layout-window",
+        "displays-window",
+        "preferences-window",
+        "slide-preview",
+    ] {
         let ctx = Context::default();
         let mut s = studio();
         s.layout_open = id == "layout-window";
         s.displays_open = id == "displays-window";
+        s.preferences_open = id == "preferences-window";
         if id == "slide-preview" {
             s.browser_preview = Some((s.generation, 0));
         }
@@ -955,6 +961,22 @@ fn floating_windows_can_grow_and_shrink_after_content_is_drawn() {
             frame(vec![]);
         }
         let rect = || ctx.memory(|m| m.area_rect(egui::Id::new(id))).unwrap();
+        if id == "preferences-window" {
+            let before = rect();
+            for offset in [
+                Vec2::new(20., 20.),
+                Vec2::new(-40., 80.),
+                Vec2::new(100., -60.),
+                Vec2::new(-120., -90.),
+            ] {
+                frame(vec![egui::Event::PointerMoved(before.center() + offset)]);
+            }
+            let after = rect();
+            assert!(
+                (after.size() - before.size()).length() < 1.,
+                "Preferences must not resize on mouse movement: {before:?} -> {after:?}"
+            );
+        }
         for delta in [Vec2::new(120., 80.), Vec2::new(-180., -180.)] {
             let before = rect();
             let start = before.right_bottom() - Vec2::splat(2.);

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### 0.1.100
+
+- Keep the Preferences window size stable while the pointer moves by removing a
+  self-referential width constraint and reserving the full footer spacing.
+
 ### 0.1.99
 
 - Organize Preferences into General, Performance and Storage tabs. Each tab has its
