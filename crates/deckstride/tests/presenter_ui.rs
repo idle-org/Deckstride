@@ -505,6 +505,16 @@ fn quick_settings_and_preferences_window_remain_interactive() {
         }
     };
     click(&mut s, "Menu");
+    click(&mut s, "Quit");
+    assert!(
+        s.actions
+            .iter()
+            .any(|action| matches!(action, Action::Exit)),
+        "Quit should be directly reachable without scrolling at 1080p"
+    );
+    assert!(!s.menu_open);
+    s.actions.clear();
+    click(&mut s, "Menu");
     click(&mut s, "Autoplay");
     click(&mut s, "Play automatically");
     assert!(s.settings.autoplay_enabled);
@@ -514,22 +524,16 @@ fn quick_settings_and_preferences_window_remain_interactive() {
     assert!(s.menu_open);
     click(&mut s, "Menu");
     click(&mut s, "Menu");
-    click(&mut s, "Appearance");
+    click(&mut s, "Preferences…");
+    assert!(s.preferences_open);
+    assert!(!s.menu_open);
     click(&mut s, "Midra Dark");
-    assert!(
-        s.menu_open,
-        "Opening a theme selector must keep its parents open"
-    );
     click(&mut s, "High Contrast");
     assert_eq!(s.settings.theme, deckstride::theme::Theme::HighContrast);
-    assert!(s.menu_open);
-    click(&mut s, "English");
-    click(&mut s, "System language");
-    assert_eq!(
-        s.settings.language,
-        deckstride::localization::Language::System
-    );
-    assert!(s.menu_open);
+    assert!(s.preferences_open);
+    click(&mut s, "Close");
+    assert!(!s.preferences_open);
+    click(&mut s, "Menu");
     let zoom_enabled = s.settings.zoom_enabled;
     click(&mut s, "Enable page zoom");
     assert_eq!(s.settings.zoom_enabled, !zoom_enabled);

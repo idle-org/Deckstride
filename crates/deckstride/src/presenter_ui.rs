@@ -1267,8 +1267,7 @@ fn presenter_view(
                         .show(|ui| {
                             egui::ScrollArea::vertical()
                                 .max_height(
-                                    (screen.bottom() - trigger.rect.bottom() - 16.)
-                                        .clamp(80., 720.),
+                                    (screen.bottom() - trigger.rect.bottom() - 16.).max(80.),
                                 )
                                 .show(ui, |ui| menu(ui, s, &mut view.preferences_open));
                         });
@@ -2406,6 +2405,69 @@ pub fn browser(ui: &mut Ui, s: &mut Studio, native: &mut UiState) {
     quit_confirmation(ui.ctx(), s);
 }
 
+fn appearance_preferences(ui: &mut Ui, s: &mut Studio) {
+    let locale = ui.ctx().clone();
+    layout_section(ui, tr(&locale, "Appearance"), |ui| {
+        let mut changed = false;
+        egui::Grid::new("preferences-appearance-grid")
+            .num_columns(2)
+            .spacing(Vec2::new(12., 8.))
+            .show(ui, |ui| {
+                ui.label(tr(&locale, "Theme"));
+                egui::ComboBox::from_id_salt("preferences-theme")
+                    .selected_text(s.settings.theme.name())
+                    .show_ui(ui, |ui| {
+                        for theme in crate::theme::Theme::ALL {
+                            changed |= ui
+                                .selectable_value(&mut s.settings.theme, theme, theme.name())
+                                .changed();
+                        }
+                    });
+                ui.end_row();
+                ui.label(tr(&locale, "Language"));
+                egui::ComboBox::from_id_salt("preferences-language")
+                    .selected_text(s.settings.language.name())
+                    .show_ui(ui, |ui| {
+                        for language in crate::localization::Language::ALL {
+                            changed |= ui
+                                .selectable_value(
+                                    &mut s.settings.language,
+                                    language,
+                                    language.name(),
+                                )
+                                .changed();
+                        }
+                    });
+                ui.end_row();
+            });
+        ui.separator();
+        for (label, color) in [
+            (
+                "Page background",
+                &mut s.settings.slide_colors.page_background,
+            ),
+            (
+                "Fit padding color",
+                &mut s.settings.slide_colors.fit_padding,
+            ),
+        ] {
+            ui.horizontal(|ui| {
+                ui.label(tr(&locale, label));
+                changed |= ui.color_edit_button_srgb(color).changed();
+            });
+        }
+        ui.small(tr(
+            &locale,
+            "Page background fills transparency; fit padding fills space around the slide.",
+        ));
+        if changed {
+            s.new_output = true;
+            s.save_preferences();
+            ui.ctx().request_repaint();
+        }
+    });
+}
+
 fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
     let locale = ctx.clone();
     let mut window_open = true;
@@ -2416,7 +2478,7 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
         .open(&mut window_open)
         .collapsible(false)
         .resizable(true)
-        .default_size(Vec2::new(620., 640.).min(screen - Vec2::splat(32.)))
+        .default_size(Vec2::new(620., 760.).min(screen - Vec2::splat(32.)))
         .min_size(Vec2::new(360., 320.))
         .max_size((screen - Vec2::splat(24.)).max(Vec2::splat(1.)))
         .show(ctx, |ui| {
@@ -2427,6 +2489,8 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                 .auto_shrink([false, false])
                 .max_height(scroll_height)
                 .show(ui, |ui| {
+                    appearance_preferences(ui, s);
+                    ui.add_space(8.);
                     layout_section(
                         ui,
                         tr(&locale, "Blank Slides image"),
@@ -2626,12 +2690,6 @@ fn menu(ui: &mut Ui, s: &mut Studio, preferences_open: &mut bool) {
         },
     );
     ui.separator();
-    button(
-        ui,
-        tr(&locale, "All slides"),
-        Action::OpenBrowser,
-        &mut s.actions,
-    );
     ui.menu_button(tr(&locale, "Autoplay"), |ui| {
         ui.set_min_width(250.);
         let mut changed = ui
@@ -2660,67 +2718,6 @@ fn menu(ui: &mut Ui, s: &mut Studio, preferences_open: &mut bool) {
             s.autoplay_settings_changed();
             ui.ctx().request_repaint();
         }
-    });
-    ui.menu_button(tr(&locale, "Appearance"), |ui| {
-        ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
-            ui.set_min_width(250.);
-            let mut changed = false;
-            ui.label(
-                egui::RichText::new(tr(&locale, "Theme"))
-                    .small()
-                    .strong()
-                    .color(ui.visuals().weak_text_color()),
-            );
-            ui.menu_button(s.settings.theme.name(), |ui| {
-                for theme in crate::theme::Theme::ALL {
-                    let name = theme.name();
-                    changed |= ui
-                        .selectable_value(&mut s.settings.theme, theme, name)
-                        .changed();
-                }
-            });
-            ui.add_space(6.);
-            ui.separator();
-            ui.add_space(4.);
-            ui.label(
-                egui::RichText::new(tr(&locale, "Language"))
-                    .small()
-                    .strong()
-                    .color(ui.visuals().weak_text_color()),
-            );
-            ui.menu_button(s.settings.language.name(), |ui| {
-                for language in crate::localization::Language::ALL {
-                    changed |= ui
-                        .selectable_value(&mut s.settings.language, language, language.name())
-                        .changed();
-                }
-            });
-            ui.separator();
-            for (label, color) in [
-                (
-                    "Page background",
-                    &mut s.settings.slide_colors.page_background,
-                ),
-                (
-                    "Fit padding color",
-                    &mut s.settings.slide_colors.fit_padding,
-                ),
-            ] {
-                ui.horizontal(|ui| {
-                    ui.label(tr(&locale, label));
-                    changed |= ui.color_edit_button_srgb(color).changed();
-                });
-            }
-            ui.small(tr(
-                &locale,
-                "Page background fills transparency; fit padding fills space around the slide.",
-            ));
-            if changed {
-                s.new_output = true;
-                s.save_preferences();
-                ui.ctx().request_repaint();
-            }
-        });
     });
     ui.separator();
     ui.label(

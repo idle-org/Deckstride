@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.98
+
+- Shorten the Presenter menu by removing its duplicate All slides command and moving
+  theme, language and slide colors into the Preferences window. Keep zoom, fitted
+  zoom behavior, automatic Slides output and Autoplay available directly.
+- Keep the menu vertically scrollable on small screens while leaving Quit visible
+  without scrolling at ordinary Presenter window sizes.
+
 ### 0.1.97
 
 - Publish future release assets to both Gitea and GitHub from one reviewed build,
