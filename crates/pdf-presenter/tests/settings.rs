@@ -355,6 +355,32 @@ fn screen_modes_migrate_validate_and_roundtrip() {
 }
 
 #[test]
+fn autoplay_settings_migrate_validate_and_round_trip() {
+    let legacy: Settings = toml::from_str("version = 1").unwrap();
+    assert!(!legacy.autoplay_enabled);
+    assert_eq!(legacy.autoplay_seconds, 5.0);
+    assert!(!legacy.autoplay_loop);
+
+    let mut settings = legacy;
+    settings.autoplay_enabled = true;
+    settings.autoplay_seconds = 12.5;
+    settings.autoplay_loop = true;
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("settings.toml");
+    settings::write(&path, &settings).unwrap();
+    let loaded = settings::read(&path).unwrap();
+    assert!(loaded.autoplay_enabled);
+    assert_eq!(loaded.autoplay_seconds, 12.5);
+    assert!(loaded.autoplay_loop);
+
+    for invalid in [0.0, 0.24, 3600.01, f32::INFINITY, f32::NAN] {
+        let mut invalid_settings = loaded.clone();
+        invalid_settings.autoplay_seconds = invalid;
+        assert!(invalid_settings.validate().is_err());
+    }
+}
+
+#[test]
 fn output_screen_modes_roundtrip_and_fall_back_to_global() {
     use pdf_presenter::output::HostState;
     let state = HostState {

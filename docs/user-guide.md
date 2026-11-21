@@ -47,6 +47,11 @@ do not queue additional dialogs.
 A single connected monitor starts presenter-only rehearsal; `--windowed` disables
 fullscreen for the session. `--list-monitors` lists CLI display numbers.
 
+Use **Menu → Autoplay** to enable automatic slide changes, choose the time each
+visible slide remains on screen, and optionally loop from the final slide back to
+the first. Slow preparation never shortens a slide's display time. Manual navigation,
+zooming or blanking restarts the interval; dialogs and display confirmation pause it.
+
 ## Screens and presentation safety
 
 When the application starts with exactly one connected screen, it offers

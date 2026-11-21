@@ -505,6 +505,15 @@ fn quick_settings_and_preferences_window_remain_interactive() {
         }
     };
     click(&mut s, "Menu");
+    click(&mut s, "Autoplay");
+    click(&mut s, "Play automatically");
+    assert!(s.settings.autoplay_enabled);
+    assert!(s.menu_open);
+    click(&mut s, "Loop");
+    assert!(s.settings.autoplay_loop);
+    assert!(s.menu_open);
+    click(&mut s, "Menu");
+    click(&mut s, "Menu");
     click(&mut s, "Appearance");
     click(&mut s, "Midra Dark");
     assert!(

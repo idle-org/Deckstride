@@ -289,6 +289,13 @@ fn fr(text: &str) -> &str {
         "Menu" => "Menu",
         "Displays" => "Écrans",
         "All slides" => "Toutes les diapositives",
+        "Autoplay" => "Lecture automatique",
+        "Play automatically" => "Lire automatiquement",
+        "Timing" => "Durée",
+        "Loop" => "Boucler",
+        "Timing starts when the slide is visible." => {
+            "Le décompte commence lorsque la diapositive est visible."
+        }
         "Layout" => "Disposition",
         "Show slides" => "Afficher les diapositives",
         "Blank slides" => "Masquer les diapositives",
@@ -507,6 +514,11 @@ fn es(text: &str) -> &str {
         "Menu" => "Menú",
         "Displays" => "Pantallas",
         "All slides" => "Todas las diapositivas",
+        "Autoplay" => "Reproducción automática",
+        "Play automatically" => "Reproducir automáticamente",
+        "Timing" => "Duración",
+        "Loop" => "Repetir",
+        "Timing starts when the slide is visible." => "El tiempo comienza cuando la diapositiva está visible.",
         "Layout" => "Diseño",
         "Layout…" => "Diseño…",
         "Presenter layout" => "Diseño del presentador",
@@ -658,6 +670,11 @@ fn ja(text: &str) -> &str {
         "Menu" => "メニュー",
         "Displays" => "ディスプレイ",
         "All slides" => "すべてのスライド",
+        "Autoplay" => "自動再生",
+        "Play automatically" => "自動的に再生",
+        "Timing" => "表示時間",
+        "Loop" => "ループ",
+        "Timing starts when the slide is visible." => "スライドが表示されてから時間の計測を開始します。",
         "Layout" => "レイアウト",
         "Layout…" => "レイアウト…",
         "Presenter layout" => "発表者レイアウト",
@@ -800,6 +817,8 @@ fn zh_cn(text: &str) -> &str {
         "Theme" => "主题", "Language" => "语言", "Appearance" => "外观",
         "Preferences" => "首选项", "Preferences…" => "首选项…", "Quick settings" => "快速设置",
         "Menu" => "菜单", "Displays" => "显示器", "All slides" => "所有幻灯片",
+        "Autoplay" => "自动播放", "Play automatically" => "自动播放幻灯片", "Timing" => "播放时长", "Loop" => "循环",
+        "Timing starts when the slide is visible." => "幻灯片显示后才开始计时。",
         "Layout" => "布局", "Layout…" => "布局…", "Presenter layout" => "演讲者布局",
         "Presenter" => "演讲者", "Slides" => "幻灯片", "Single screen" => "单屏模式", "Unused" => "未使用",
         "Previous" => "上一张", "Current" => "当前", "Next" => "下一张",
@@ -863,6 +882,8 @@ fn de(text: &str) -> &str {
         "Theme" => "Design", "Language" => "Sprache", "Appearance" => "Darstellung",
         "Preferences" => "Einstellungen", "Preferences…" => "Einstellungen…", "Quick settings" => "Schnelleinstellungen",
         "Menu" => "Menü", "Displays" => "Bildschirme", "All slides" => "Alle Folien", "Layout" => "Layout",
+        "Autoplay" => "Automatische Wiedergabe", "Play automatically" => "Automatisch abspielen", "Timing" => "Anzeigedauer", "Loop" => "Wiederholen",
+        "Timing starts when the slide is visible." => "Die Zeitmessung beginnt, sobald die Folie sichtbar ist.",
         "Layout…" => "Layout…", "Presenter layout" => "Präsentatorlayout", "Presenter" => "Präsentator",
         "Slides" => "Folien", "Single screen" => "Einzelbildschirm", "Unused" => "Unbenutzt",
         "Previous" => "Zurück", "Current" => "Aktuell", "Next" => "Weiter", "PREVIOUS" => "VORHERIGE",
@@ -905,6 +926,8 @@ fn pt_br(text: &str) -> &str {
         "Theme" => "Tema", "Language" => "Idioma", "Appearance" => "Aparência",
         "Preferences" => "Preferências", "Preferences…" => "Preferências…", "Quick settings" => "Configurações rápidas",
         "Menu" => "Menu", "Displays" => "Telas", "All slides" => "Todos os slides", "Layout" => "Layout",
+        "Autoplay" => "Reprodução automática", "Play automatically" => "Reproduzir automaticamente", "Timing" => "Duração", "Loop" => "Repetir",
+        "Timing starts when the slide is visible." => "A contagem começa quando o slide está visível.",
         "Layout…" => "Layout…", "Presenter layout" => "Layout do apresentador", "Presenter" => "Apresentador",
         "Slides" => "Slides", "Single screen" => "Tela única", "Unused" => "Não usada", "Previous" => "Anterior",
         "Current" => "Atual", "Next" => "Próximo", "PREVIOUS" => "ANTERIOR", "CURRENT" => "ATUAL", "NEXT" => "PRÓXIMO",
@@ -968,16 +991,17 @@ mod tests {
     #[test]
     fn catalogs_translate_core_presenter_controls_and_fall_back_to_english() {
         let ctx = egui::Context::default();
-        for (language, expected) in [
-            (Language::Fr, "Écrans"),
-            (Language::Es, "Pantallas"),
-            (Language::Ja, "ディスプレイ"),
-            (Language::ZhCn, "显示器"),
-            (Language::De, "Bildschirme"),
-            (Language::PtBr, "Telas"),
+        for (language, expected, autoplay) in [
+            (Language::Fr, "Écrans", "Lecture automatique"),
+            (Language::Es, "Pantallas", "Reproducción automática"),
+            (Language::Ja, "ディスプレイ", "自動再生"),
+            (Language::ZhCn, "显示器", "自动播放"),
+            (Language::De, "Bildschirme", "Automatische Wiedergabe"),
+            (Language::PtBr, "Telas", "Reprodução automática"),
         ] {
             apply(&ctx, &language);
             assert_eq!(tr(&ctx, "Displays"), expected);
+            assert_eq!(tr(&ctx, "Autoplay"), autoplay);
             assert_eq!(
                 tr(&ctx, "untranslated diagnostic"),
                 "untranslated diagnostic"

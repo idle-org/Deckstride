@@ -2632,6 +2632,35 @@ fn menu(ui: &mut Ui, s: &mut Studio, preferences_open: &mut bool) {
         Action::OpenBrowser,
         &mut s.actions,
     );
+    ui.menu_button(tr(&locale, "Autoplay"), |ui| {
+        ui.set_min_width(250.);
+        let mut changed = ui
+            .checkbox(
+                &mut s.settings.autoplay_enabled,
+                tr(&locale, "Play automatically"),
+            )
+            .changed();
+        ui.horizontal(|ui| {
+            ui.label(tr(&locale, "Timing"));
+            changed |= ui
+                .add(
+                    egui::DragValue::new(&mut s.settings.autoplay_seconds)
+                        .range(0.25..=3600.0)
+                        .speed(0.25)
+                        .max_decimals(2)
+                        .suffix(" s"),
+                )
+                .changed();
+        });
+        changed |= ui
+            .checkbox(&mut s.settings.autoplay_loop, tr(&locale, "Loop"))
+            .changed();
+        ui.small(tr(&locale, "Timing starts when the slide is visible."));
+        if changed {
+            s.autoplay_settings_changed();
+            ui.ctx().request_repaint();
+        }
+    });
     ui.menu_button(tr(&locale, "Appearance"), |ui| {
         ui.with_layout(egui::Layout::top_down(egui::Align::Min), |ui| {
             ui.set_min_width(250.);

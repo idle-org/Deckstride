@@ -33,6 +33,18 @@ flushed temporary file. Unknown fields are ignored and not preserved on round tr
   document open; false starts/opens blanked. Manual navigation preserves blanking.
   Since 0.1.51, display topology/fullscreen changes and host recovery preserve
   the current output visibility; only explicit blank controls change it.
+- `autoplay_enabled`: boolean, default false; `autoplay_seconds`: finite floating
+  seconds from 0.25 through 3600, default 5; and `autoplay_loop`: boolean, default
+  false (0.1.95). The interval begins only after the requested slide is visible on
+  Slides, so rendering delays do not consume a slide's display time. With no Slides
+  route, a ready Presenter/single-screen frame counts as visible. Manual navigation,
+  zoom and blank/unblank restart the interval. Blanking, loading, display trials,
+  startup recovery, file dialogs, notes editing/import and quit confirmation pause
+  autoplay and resume with a fresh interval. At the final slide autoplay stops unless
+  loop is enabled; a one-slide deck never repeatedly navigates. The enabled state,
+  timing and loop preference are global and saved immediately. Runtime deadlines and
+  final-slide state are transient. Older v1 files use the defaults; older binaries
+  ignore and discard these additive fields on resave.
 - `theme`: built-in palette enum in snake_case, default `midra` (0.1.14). Values:
   `midra`, `high_contrast`, `foxified_dark`, `corporate_light`, `bluecore`,
   `dupont_monsanto`, `eden_green`, `foxified_light`, `hci`, `iron_docks`, `peaceframe`,

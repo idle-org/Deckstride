@@ -2,6 +2,9 @@ version = 1
 # Optional slide-first view on an operator-owned route (0.1.89+).
 single_screens = ["Primary#1"]
 auto_show = true
+autoplay_enabled = false
+autoplay_seconds = 5.0
+autoplay_loop = false
 blank_picture = false
 zoom_enabled = false
 zoom_keep_fitted_area = false

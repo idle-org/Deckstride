@@ -279,6 +279,9 @@ pub struct Settings {
     pub buffer_mib: u32,
     pub disk_cache: crate::cache::Policy,
     pub auto_show: bool,
+    pub autoplay_enabled: bool,
+    pub autoplay_seconds: f32,
+    pub autoplay_loop: bool,
     pub blank_picture: bool,
     pub zoom_enabled: bool,
     pub zoom_keep_fitted_area: bool,
@@ -327,6 +330,9 @@ impl Default for Settings {
             buffer_mib: default_buffer_mib(),
             disk_cache: Default::default(),
             auto_show: true,
+            autoplay_enabled: false,
+            autoplay_seconds: 5.0,
+            autoplay_loop: false,
             blank_picture: false,
             zoom_enabled: false,
             zoom_keep_fitted_area: false,
@@ -343,6 +349,9 @@ impl Settings {
         self.disk_cache.validate()?;
         if !(64..=16384).contains(&self.buffer_mib) {
             return Err("RAM buffer must be 64–16384 MiB per process".into());
+        }
+        if !self.autoplay_seconds.is_finite() || !(0.25..=3600.0).contains(&self.autoplay_seconds) {
+            return Err("Autoplay timing must be 0.25–3600 seconds".into());
         }
         if self.projects.len() > 4096 || !(100. ..=400.).contains(&self.thumbnail_size) {
             return Err("Invalid settings limits".into());

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.95
+
+- Add an Autoplay menu with persistent Play automatically, per-slide timing and
+  loop controls. Timing starts only once the requested slide is visible; transient
+  dialogs and safety states pause playback, while manual interaction restarts the
+  interval.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, build and
+  13 Python helper tests pass. Full GUI coverage is 83.94% against the 75% floor.
+
 ### 0.1.94
 
 - Show the full, selectable path of the running portable executable under

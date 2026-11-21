@@ -161,6 +161,8 @@ pub struct Studio {
     pub cache_status: String,
     startup_cache_pending: bool,
     navigation_settle: Option<Instant>,
+    autoplay_deadline: Option<Instant>,
+    autoplay_finished: bool,
     pub fg: Bridge,
     pub bg: Bridge,
     pub io: Bridge,
@@ -281,6 +283,8 @@ impl Studio {
             cache_status: String::new(),
             startup_cache_pending: true,
             navigation_settle: None,
+            autoplay_deadline: None,
+            autoplay_finished: false,
             fg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             bg: Bridge::with_program(Duration::from_secs(30), worker_program.clone()),
             io,
@@ -500,6 +504,63 @@ impl Studio {
     pub fn presentation_action(&mut self) {
         self.timer
             .presentation_action(Instant::now(), self.layout.timer_autostart);
+        self.restart_autoplay();
+    }
+    fn restart_autoplay(&mut self) {
+        self.autoplay_deadline = None;
+        self.autoplay_finished = false;
+    }
+    pub fn autoplay_settings_changed(&mut self) {
+        self.restart_autoplay();
+        self.save_preferences();
+    }
+    fn poll_autoplay_at(&mut self, now: Instant) -> bool {
+        let paused = !self.settings.autoplay_enabled
+            || !self.initialized
+            || self.loading
+            || self.pending_open.is_some()
+            || self.blanked
+            || self.dialog_busy
+            || self.route_trial.is_some()
+            || self.startup_single_offer()
+            || self.notes_editor.is_some()
+            || self.notes_import.is_some()
+            || self.quit_confirmation
+            || self.count() == 0;
+        if paused {
+            self.autoplay_deadline = None;
+            return false;
+        }
+        if self.autoplay_finished {
+            return false;
+        }
+        let visible = self.displayed == Some(self.requested)
+            || (self.routes.presentation.is_empty() && self.frame(self.requested).is_some());
+        if !visible {
+            self.autoplay_deadline = None;
+            return false;
+        }
+        let deadline = self
+            .autoplay_deadline
+            .get_or_insert_with(|| now + Duration::from_secs_f32(self.settings.autoplay_seconds));
+        if now < *deadline {
+            return false;
+        }
+        let next = if self.requested + 1 < self.count() {
+            Some(self.requested + 1)
+        } else if self.settings.autoplay_loop && self.count() > 1 {
+            Some(0)
+        } else {
+            None
+        };
+        self.autoplay_deadline = None;
+        if let Some(next) = next {
+            self.execute(Action::Go(next));
+            true
+        } else {
+            self.autoplay_finished = true;
+            false
+        }
     }
     pub fn execute(&mut self, action: Action) {
         match action {
@@ -678,6 +739,7 @@ impl Studio {
                     return;
                 }
                 if page < self.count() {
+                    self.restart_autoplay();
                     if page != self.requested
                         && self.fg_busy
                         && !self.loading
@@ -1338,6 +1400,7 @@ impl Studio {
                             self.requested = 0;
                             self.presentation_started = false;
                             self.timer = crate::timer::Timer::default();
+                            self.restart_autoplay();
                             self.displayed = None;
                             self.layout = self.settings.for_project(&info.key);
                             self.presenter_views.clear();
@@ -1531,6 +1594,7 @@ impl Studio {
         {
             self.clean_cache(false);
         }
+        self.poll_autoplay_at(Instant::now());
     }
     fn schedule(&mut self, page: usize, edge: u32, foreground: bool) {
         // Reserve both worker slots before admission, including progressive previews.
@@ -1834,6 +1898,57 @@ impl Studio {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn autoplay_times_visible_slides_pauses_and_loops_safely() {
+        let mut s = Studio::new(true, None);
+        s.initialized = true;
+        s.deck = Some(DeckInfo {
+            path: "test.pdf".into(),
+            key: "test".into(),
+            title: "Test".into(),
+            names: vec![String::new(); 3],
+            notes: vec![],
+            warnings: vec![],
+            sha256: String::new(),
+        });
+        s.settings.autoplay_enabled = true;
+        s.settings.autoplay_seconds = 2.0;
+        s.blanked = false;
+        s.displayed = Some(0);
+        let start = Instant::now();
+        assert!(!s.poll_autoplay_at(start));
+        assert!(!s.poll_autoplay_at(start + Duration::from_millis(1999)));
+        assert!(s.poll_autoplay_at(start + Duration::from_secs(2)));
+        assert_eq!(s.requested, 1);
+
+        // A render/output delay never consumes the new slide's interval.
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(20)));
+        assert_eq!(s.requested, 1);
+        s.displayed = Some(1);
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(20)));
+        assert!(s.poll_autoplay_at(start + Duration::from_secs(22)));
+        assert_eq!(s.requested, 2);
+
+        s.displayed = Some(2);
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(22)));
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(24)));
+        assert_eq!(s.requested, 2, "autoplay stops at the final slide");
+
+        s.settings.autoplay_loop = true;
+        s.autoplay_settings_changed();
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(30)));
+        assert!(s.poll_autoplay_at(start + Duration::from_secs(32)));
+        assert_eq!(s.requested, 0);
+
+        s.displayed = Some(0);
+        s.blanked = true;
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(40)));
+        s.blanked = false;
+        assert!(!s.poll_autoplay_at(start + Duration::from_secs(50)));
+        assert!(s.poll_autoplay_at(start + Duration::from_secs(52)));
+        assert_eq!(s.requested, 1, "unblanking starts a fresh interval");
+    }
 
     #[test]
     fn repeated_navigation_coalesces_rendering_and_clamps_without_blanking() {
