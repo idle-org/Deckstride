@@ -1,9 +1,12 @@
 # Native settings, version 1
 
-`settings.toml` is stored in `$XDG_CONFIG_HOME/pdf-presenter` (otherwise
-`~/.config/pdf-presenter`) on Linux. `directories::ProjectDirs` with qualifier `com`,
-organization `Beffroi`, application `PdfPresenter` supplies other platforms' standard
-per-user config/cache directories. The UI reports the actual configuration path.
+`settings.toml` is stored in `$XDG_CONFIG_HOME/deckstride` (otherwise
+`~/.config/deckstride`) on Linux. `directories::ProjectDirs` with qualifier `com`,
+organization `Beffroi`, application `Deckstride` supplies other platforms' standard
+per-user config/cache directories. On first start after the rename, Deckstride
+copies valid settings from the former application directory when the new file does
+not exist. It keeps using an existing warm slide cache until the new cache has been
+populated, avoiding a forced rerender. The UI reports the actual configuration path.
 There is no separate project file or source-side settings write.
 
 The top-level `version = 1` is mandatory semantically (omitted defaults to 1).

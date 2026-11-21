@@ -1,11 +1,11 @@
-PDF Presenter — preview release
+Deckstride — preview release
 
-Windows: extract the ZIP and run pdf-presenter.exe. Its icon is embedded.
-Linux: extract the tarball and run ./pdf-presenter. Optional menu/taskbar
+Windows: extract the ZIP and run deckstride.exe. Its icon is embedded.
+Linux: extract the tarball and run ./deckstride. Optional menu/taskbar
 integration: keep the extracted folder in a permanent location, then run
 python3 install-linux-launcher.py. No root privileges are needed. Python is
-only needed for this optional installer, never for running PDF Presenter.
-To remove integration delete ~/.local/share/applications/pdf-presenter.desktop
+only needed for this optional installer, never for running Deckstride.
+To remove integration delete ~/.local/share/applications/deckstride.desktop
 (or the corresponding file under your XDG_DATA_HOME).
 Wayland shells use that desktop entry to resolve the application icon.
 

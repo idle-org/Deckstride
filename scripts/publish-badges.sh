@@ -15,7 +15,7 @@ for name do
     [ -f "$src" ] && [ -s "$src" ] && [ ! -L "$src" ] || { echo "Invalid badge source: $src" >&2; exit 2; }
 done
 dest=$root
-for component in idle-org pdf-presenter; do
+for component in idle-org deckstride; do
     dest="$dest/$component"
     [ ! -L "$dest" ] || { echo "Refusing directory symlink: $dest" >&2; exit 2; }
     if [ -e "$dest" ]; then

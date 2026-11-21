@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### 0.1.96
+
+- Rename the application, crate, executable, repository links, desktop identity,
+  CI publication paths and future packages to Deckstride. Existing releases remain
+  unchanged; valid settings migrate to the new location and warm rendered-slide
+  caches remain available after the rename.
+- Retain the current application icon pending review of a separate Deckstride logo
+  proposal.
+
 ### 0.1.95
 
 - Add an Autoplay menu with persistent Play automatically, per-slide timing and
@@ -876,7 +885,7 @@
 
 ### 0.1.0
 
-- Prepared the standalone PDF Presenter repository with a tested navigation/blanking
+- Prepared the standalone Deckstride repository with a tested navigation/blanking
   core, an explicit bootstrap executable, agent guidance and implementation plan.
 - Added Jenkins validation, whole-workspace coverage and isolated three-badge
   publication, plus generated application/repository artwork. PDF rendering and

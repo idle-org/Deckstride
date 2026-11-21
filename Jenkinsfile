@@ -12,7 +12,7 @@ pipeline {
         PYTHONUNBUFFERED = '1'
         PYTHONDONTWRITEBYTECODE = '1'
         NO_COLOR = '1'
-        PDF_PRESENTER_HEADLESS_CI = '1'
+        DECKSTRIDE_HEADLESS_CI = '1'
         CARGO_TERM_COLOR = 'never'
         BADGE_ROOT = '/mnt/assets/coverage'
     }
@@ -60,7 +60,7 @@ pipeline {
                     sh '''
                         set -eu
                         uv run --no-project --python ">=3.11" python -m unittest discover -s tests -v
-                        unset PDF_PRESENTER_GUI_TESTS
+                        unset DECKSTRIDE_GUI_TESTS
                         cargo test --locked --workspace --all-features
                         cargo build --locked --workspace --all-features
                         uv run --no-project --python ">=3.11" python scripts/ci.py tests-passed
@@ -72,7 +72,7 @@ pipeline {
             steps {
                 sh '''
                     set -eu
-                    unset PDF_PRESENTER_GUI_TESTS
+                    unset DECKSTRIDE_GUI_TESTS
                     uv run --no-project --python ">=3.11" python scripts/ci.py coverage
                 '''
             }

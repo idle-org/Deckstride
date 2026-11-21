@@ -28,7 +28,7 @@ def config():
 
 
 def coverage_floor():
-    key = "headless-line-floor" if os.environ.get("PDF_PRESENTER_HEADLESS_CI") == "1" else "line-floor"
+    key = "headless-line-floor" if os.environ.get("DECKSTRIDE_HEADLESS_CI") == "1" else "line-floor"
     return config()[key]
 
 

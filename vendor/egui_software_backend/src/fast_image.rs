@@ -1,4 +1,4 @@
-//! PDF Presenter patch: bounded scanline sampling for cropped, untinted image quads.
+//! Deckstride patch: bounded scanline sampling for cropped, untinted image quads.
 //! Keep general meshes, fonts, wrapping, full images and tinting on the upstream path.
 use crate::{BufferMutRef, EguiTexture};
 use alloc::vec::Vec;

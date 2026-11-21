@@ -1,11 +1,11 @@
-# Using PDF Presenter
+# Using Deckstride
 
 ## Install and update
 
-Download the latest version from the [releases page](https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases).
+Download the latest version from the [releases page](https://proxy.dandaedre.com/gitea/idle-org/deckstride/releases).
 Choose the portable ZIP for Windows x86_64 or the portable `.tgz` matching Linux
 x86_64, Linux ARM64, Apple Silicon macOS or Intel macOS. Extract the whole archive,
-then run `pdf-presenter.exe` or `./pdf-presenter` as directed on the release page.
+then run `deckstride.exe` or `./deckstride` as directed on the release page.
 No Rust toolchain, Python or separate PDF renderer is needed to run the application.
 Linux uses the system desktop services and X11/Wayland libraries. Windows binaries
 are unsigned; macOS packages are unsigned and require the release-page workaround.
@@ -19,11 +19,11 @@ are required.
 
 On Windows, use **Menu → Preferences… → Set as default PDF app…** to register the
 portable executable for the current user. Windows opens
-Default Apps for the required confirmation. Once PDF Presenter is selected for
-`.pdf`, Explorer uses the icon embedded in `pdf-presenter.exe` for PDF files. Keep
+Default Apps for the required confirmation. Once Deckstride is selected for
+`.pdf`, Explorer uses the icon embedded in `deckstride.exe` for PDF files. Keep
 the extracted folder in a permanent location; repeat the action after moving it.
 
-To update, close PDF Presenter, download and extract the new portable release,
+To update, close Deckstride, download and extract the new portable release,
 and run its executable. Settings and saved layouts live in your user configuration
 directory, outside the extracted folder. If you installed the Linux launcher, rerun
 its installer from the new location so it points to the updated binary.
@@ -55,7 +55,7 @@ zooming or blanking restarts the interval; dialogs and display confirmation paus
 ## Screens and presentation safety
 
 When the application starts with exactly one connected screen, it offers
-**Single-screen mode** and explains that PDF Presenter is intended for a presenter
+**Single-screen mode** and explains that Deckstride is intended for a presenter
 setup with separate Presenter and Slides screens. Choose **Keep Presenter view**
 to continue with the usual controls, or **Use single-screen mode**, then **Keep
 changes** to save it. This prompt is only offered at startup; disconnecting screens
@@ -374,7 +374,7 @@ If your Niri rules still tile it, you can add this optional rule to your own con
 
 ```kdl
 window-rule {
-    match app-id="^pdf-presenter$" title="^PDF Presenter — All slides$"
+    match app-id="^deckstride$" title="^Deckstride — All slides$"
     open-floating true
 }
 ```
@@ -398,7 +398,7 @@ its embedded notes. For an image folder, the named file sits beside the folder a
 uses image filenames as keys. See the [notes format](interfaces/presentation-notes.md).
 
 **Double-click the notes pane** to edit that slide. If the named notes file does not
-exist, PDF Presenter creates it with all notes found across the presentation before
+exist, Deckstride creates it with all notes found across the presentation before
 opening the editable text. Creation and saving happen in the background.
 
 Choose **Save notes** to update this page and its auto-fit presenter text. Other

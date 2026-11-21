@@ -669,6 +669,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckstride"
+version = "0.1.96"
+dependencies = [
+ "bytemuck",
+ "chrono",
+ "directories",
+ "egui",
+ "egui-winit",
+ "egui_software_backend",
+ "font8x8",
+ "hayro",
+ "image",
+ "keepawake",
+ "libc",
+ "rfd",
+ "serde",
+ "serde_json",
+ "sha2",
+ "softbuffer",
+ "sys-locale",
+ "sysinfo",
+ "tempfile",
+ "toml 0.8.23",
+ "wayland-client",
+ "wayland-protocols",
+ "winit",
+ "winresource",
+ "x11-dl",
+]
+
+[[package]]
 name = "derive_builder"
 version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2241,37 +2272,6 @@ dependencies = [
  "redox_syscall 0.5.18",
  "smallvec",
  "windows-link 0.2.1",
-]
-
-[[package]]
-name = "pdf-presenter"
-version = "0.1.95"
-dependencies = [
- "bytemuck",
- "chrono",
- "directories",
- "egui",
- "egui-winit",
- "egui_software_backend",
- "font8x8",
- "hayro",
- "image",
- "keepawake",
- "libc",
- "rfd",
- "serde",
- "serde_json",
- "sha2",
- "softbuffer",
- "sys-locale",
- "sysinfo",
- "tempfile",
- "toml 0.8.23",
- "wayland-client",
- "wayland-protocols",
- "winit",
- "winresource",
- "x11-dl",
 ]
 
 [[package]]

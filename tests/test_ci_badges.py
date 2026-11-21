@@ -89,15 +89,15 @@ class BadgeTests(unittest.TestCase):
                 public = self.root / "public"
                 public.mkdir(exist_ok=True)
                 self.assertEqual(self.publish(public, "version", "test", "coverage").returncode, 0)
-                self.assertEqual((public / "idle-org/pdf-presenter/main/coverage.svg").read_bytes(), measured)
+                self.assertEqual((public / "idle-org/deckstride/main/coverage.svg").read_bytes(), measured)
                 self.assertFalse(Path("coverage/.coverage-ready-42").exists())
                 self.assertIn("failing", Path("coverage/test.svg").read_text())
 
     def test_headless_floor_is_explicit_and_still_enforces_threshold_and_tool_errors(self):
         for enabled, floor in [("", 75), ("0", 75), ("1", 60)]:
-            with patch.dict(os.environ, {"PDF_PRESENTER_HEADLESS_CI": enabled}):
+            with patch.dict(os.environ, {"DECKSTRIDE_HEADLESS_CI": enabled}):
                 self.assertEqual(ci.coverage_floor(), floor)
-        with patch.dict(os.environ, {"PDF_PRESENTER_HEADLESS_CI": "1"}):
+        with patch.dict(os.environ, {"DECKSTRIDE_HEADLESS_CI": "1"}):
             for covered, status, expected in [(6521, 0, 0), (6000, 0, 0), (5999, 0, 1), (6521, 7, 7)]:
                 with self.subTest(covered=covered, status=status), contextlib.redirect_stdout(io.StringIO()):
                     self.assertEqual(ci.measure(self.report(covered), ci.coverage_floor(), status), expected)
@@ -148,7 +148,7 @@ class BadgeTests(unittest.TestCase):
         public = self.root / "public"
         public.mkdir()
         self.assertEqual(self.publish(public, "version", "test", "coverage").returncode, 0)
-        destination = public / "idle-org/pdf-presenter/main"
+        destination = public / "idle-org/deckstride/main"
         for directory in (public / "idle-org", destination.parent, destination):
             self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o755)
         for path in destination.iterdir():
@@ -174,7 +174,7 @@ class BadgeTests(unittest.TestCase):
     def test_readme_urls_and_exact_archive_selection(self):
         text = (ROOT / "README.md").read_text()
         for kind in ("version", "test", "coverage"):
-            self.assertEqual(text.count(f"https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/{kind}.svg"), 1)
+            self.assertEqual(text.count(f"https://assets.dandaedre.com/coverage/idle-org/deckstride/main/{kind}.svg"), 1)
         self.assertIn("artifacts: 'coverage/version.svg,coverage/test.svg,coverage/coverage.svg'",
                       (ROOT / "Jenkinsfile").read_text())
 

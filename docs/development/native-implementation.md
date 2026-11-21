@@ -250,7 +250,7 @@ memory remains additional. The source SHA-256 was unchanged after the test.
 Reproduce explicitly with an authorized local deck (never a CI/private fixture upload):
 
 ```sh
-PDF_PRESENTER_STRESS_PDF=/path/to/Ravenous.pdf cargo test --locked --release \
+DECKSTRIDE_STRESS_PDF=/path/to/Ravenous.pdf cargo test --locked --release \
   --test preparation real_pdf_exceeds_budget_and_keeps_navigating -- --ignored --nocapture
 ```
 
@@ -337,7 +337,7 @@ only Linux development checks were run for this subject.
 
 
 The software renderer is bundled with a narrow cropped-quad optimization; see
-[`vendor/egui_software_backend/PDF-PRESENTER-PATCH.md`](../../vendor/egui_software_backend/PDF-PRESENTER-PATCH.md)
+[`vendor/egui_software_backend/DECKSTRIDE-PATCH.md`](../../vendor/egui_software_backend/DECKSTRIDE-PATCH.md)
 for provenance and the precise changes. Fixed-point bilinear scanlines reuse two
 filtered rows and bounded coordinate tables. Large crops use four disjoint bands
 on a lazily initialized pool capped at four CPU threads per native process. This

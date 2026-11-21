@@ -1,23 +1,23 @@
 <p align="center">
-  <img src="crates/pdf-presenter/assets/app-icon.png" width="96" height="96" alt="PDF Presenter icon">
+  <img src="crates/deckstride/assets/app-icon.png" width="96" height="96" alt="Deckstride icon">
 </p>
-<h1 align="center">PDF Presenter</h1>
+<h1 align="center">Deckstride</h1>
 <p align="center"><strong>A fast, portable presenter for PDFs and picture folders.</strong></p>
 <p align="center">Fullscreen slides for the room. Notes, previews and controls for you.</p>
 
 <p align="center">
-  <a href="docs/changelog.md"><img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/version.svg" alt="Version"></a>
-  <a href="docs/development/ci.md"><img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/test.svg" alt="Tests"></a>
-  <a href="docs/development/ci.md"><img src="https://assets.dandaedre.com/coverage/idle-org/pdf-presenter/main/coverage.svg" alt="Coverage"></a>
+  <a href="docs/changelog.md"><img src="https://assets.dandaedre.com/coverage/idle-org/deckstride/main/version.svg" alt="Version"></a>
+  <a href="docs/development/ci.md"><img src="https://assets.dandaedre.com/coverage/idle-org/deckstride/main/test.svg" alt="Tests"></a>
+  <a href="docs/development/ci.md"><img src="https://assets.dandaedre.com/coverage/idle-org/deckstride/main/coverage.svg" alt="Coverage"></a>
 </p>
 
 <p align="center">
-  <a href="https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases"><strong>Download PDF Presenter</strong></a> ·
+  <a href="https://proxy.dandaedre.com/gitea/idle-org/deckstride/releases"><strong>Download Deckstride</strong></a> ·
   <a href="docs/user-guide.md">User guide</a> ·
-  <a href="https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/issues">Report an issue</a>
+  <a href="https://proxy.dandaedre.com/gitea/idle-org/deckstride/issues">Report an issue</a>
 </p>
 
-PDF Presenter gives each connected screen a job: **Presenter**, **Slides**, or
+Deckstride gives each connected screen a job: **Presenter**, **Slides**, or
 **Unused**. Keep the current slide, next slide, notes and timers in front of you
 while one or more other screens show only the presentation. You can also mirror the
 Presenter view, rehearse on one monitor, or change the arrangement during a session.
@@ -43,7 +43,7 @@ slow document operation does not have to freeze navigation.
 | **Shared zoom** | Opt in to zoom, pan or fit a page to width from Presenter or Slides. Both views stay on the same part of the page. |
 | **Safe slide browsing** | Browse resizable thumbnails without changing the live slide. Double-click to preview, or enable **Change on click** when direct switching is useful. |
 | **Notes that belong to the presentation** | Read notes from a sidecar or the PDF, import TXT/Markdown, and double-click the notes pane to edit the current slide. Notes automatically fit the available space. |
-| **Presentation-aware desktop behavior** | PDF Presenter asks supported operating systems to keep the display awake and reports whether protection is active. Closing Presenter also closes its Slides windows. |
+| **Presentation-aware desktop behavior** | Deckstride asks supported operating systems to keep the display awake and reports whether protection is active. Closing Presenter also closes its Slides windows. |
 | **Portable by design** | The release binaries include the PDF renderer and application dependencies. Keep the extracted folder anywhere convenient; no Rust or separate PDF software is required. |
 | **Themes and languages** | Choose from 20 built-in palettes and English, French, Spanish, Japanese, Simplified Chinese, German or Brazilian Portuguese. System language detection stays offline. |
 
@@ -54,32 +54,28 @@ on the machines that will run the show.
 
 ## Download and run
 
-Open the [release page](https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter/releases)
+Open the [release page](https://proxy.dandaedre.com/gitea/idle-org/deckstride/releases)
 and download the archive for your computer.
 
-| Platform | Recommended download | Start after extracting |
-| --- | --- | --- |
-| Windows x86_64 | `pdf-presenter-portable-x86_64-pc-windows-gnu-v….zip` | `pdf-presenter.exe` |
-| Linux x86_64 | `pdf-presenter-portable-x86_64-unknown-linux-gnu-v….tgz` | `./pdf-presenter` |
-| Linux ARM64 | `pdf-presenter-portable-aarch64-unknown-linux-musl-v….tgz` | `./pdf-presenter` |
-| Apple Silicon macOS 13+ | `pdf-presenter-portable-aarch64-apple-darwin-v….tgz` | Follow the release-page macOS instructions |
-| Intel macOS 13+ | `pdf-presenter-portable-x86_64-apple-darwin-v….tgz` | Follow the release-page macOS instructions |
+| Platform | Recommended download |
+| --- | --- |
+| Windows x86_64 | Portable Windows ZIP |
+| Linux x86_64 | Portable Linux x86_64 tarball |
+| Linux ARM64 | Portable Linux ARM64 tarball |
+| Apple Silicon macOS 13+ | Portable Apple Silicon tarball |
+| Intel macOS 13+ | Portable Intel tarball |
+
+Existing releases remain unchanged and therefore retain the filenames shown on
+their release pages. Future packages use the Deckstride executable and archive name.
 
 Windows and macOS builds are currently unsigned. Releases are ready for normal use;
 test the actual computer, adapters and display arrangement before a live event.
 macOS artifacts are cross-built on Linux and have not yet had native Mac runtime
 testing. [Installation and update details →](docs/user-guide.md#install-and-update)
 
-If you already have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall)
-installed, you can install a prebuilt release directly:
-
-```sh
-cargo binstall pdf-presenter --git https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter --version 0.1.91 --strategies crate-meta-data
-```
-
-Replace `0.1.91` with the published version you want from the release page. This
-uses the repository's release archives and requires an available build for your
-platform. Then run `pdf-presenter`.
+New Deckstride releases will also support installation with
+[cargo-binstall](https://github.com/cargo-bins/cargo-binstall). Until one is
+published, use the unchanged portable packages from the release page.
 
 ## Set up a show
 
@@ -92,7 +88,7 @@ platform. Then run `pdf-presenter`.
 4. **Present.** Use Left/Right, Page Up/Page Down or Space. Type a slide number and
    press Enter to jump directly to it. Press B to blank or restore Slides.
 
-PDF Presenter shows Slides by default after a document opens. Entering or leaving
+Deckstride shows Slides by default after a document opens. Entering or leaving
 fullscreen and changing screen assignments preserve that choice. Header and footer
 controls can auto-hide; move the pointer near their edge or right-click to recover
 them.
@@ -145,7 +141,7 @@ Useful controls:
 
 ## Open source
 
-PDF Presenter is independent open-source software under the [MIT license](LICENSE).
+Deckstride is independent open-source software under the [MIT license](LICENSE).
 Development includes LLM-generated or LLM-assisted work with human review. The
 project is used in professional settings, while physical acceptance work remains
 documented rather than hidden.

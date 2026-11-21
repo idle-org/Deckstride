@@ -1,7 +1,7 @@
 # HTML concept layout storage — version 1
 
 Applies only to `docs/design/presenter-menu.html`, not the native application.
-The page uses browser localStorage key `pdf-presenter.menu-layouts.v1`. Storage is
+The page uses browser localStorage key `deckstride.menu-layouts.v1`. Storage is
 scoped by the browser to the page origin; file-URL handling is browser-dependent.
 It is not the native global configuration or a file saved alongside a PDF.
 

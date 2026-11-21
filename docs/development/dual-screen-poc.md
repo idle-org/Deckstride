@@ -7,20 +7,20 @@ explicitly activates mock output; the production document model still starts bla
 
 ## Run and test
 
-Build with `cargo build --locked --release`, then run `target/release/pdf-presenter`
-(or `pdf-presenter.exe` on Windows). The executable contains the mock data and bitmap
+Build with `cargo build --locked --release`, then run `target/release/deckstride`
+(or `deckstride.exe` on Windows). The executable contains the mock data and bitmap
 font. It needs only normal OS desktop libraries; no PDF renderer, font download,
 configuration file or sibling repository is required. Each OS/architecture needs
 its own build; a Linux executable is not a Windows/macOS executable.
 
 ```sh
-cargo run --locked -p pdf-presenter
+cargo run --locked -p deckstride
 # Inspect display numbering without opening the two windows:
-cargo run --locked -p pdf-presenter -- --list-monitors
+cargo run --locked -p deckstride -- --list-monitors
 # Explicit selection (one-based display numbers from the listing):
-cargo run --locked -p pdf-presenter -- --presenter 1 --audience 2
+cargo run --locked -p deckstride -- --presenter 1 --audience 2
 # Keep both windows decorated for troubleshooting:
-cargo run --locked -p pdf-presenter -- --windowed
+cargo run --locked -p deckstride -- --windowed
 ```
 
 With one detected display, fullscreen views overlap. Use `--windowed` to open
@@ -79,7 +79,7 @@ The bitmap UI is test instrumentation, not the final presenter design. There is 
 
 Tests cover monitor assignment/invalid selection, navigation bounds, blanking,
 topology invalidation, negative-coordinate geometry, scaled pointer hit testing and
-software frames. `PDF_PRESENTER_GUI_TESTS=1 cargo test --locked --workspace` also opens
+software frames. `DECKSTRIDE_GUI_TESTS=1 cargo test --locked --workspace` also opens
 real native windows, exercises mock controls/fullscreen transitions and checks frames
 were presented to both surfaces. `--smoke-test` exposes that short automatic check.
 A virtual display proves native rendering/lifecycle only, not physical placement.

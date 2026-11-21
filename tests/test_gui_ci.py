@@ -25,7 +25,7 @@ class GuiCiTests(unittest.TestCase):
             server = Path(directory) / "Xvfb"
             server.write_text(f"#!{sys.executable}\nimport os,sys,signal\nos.write(int(sys.argv[2]),b'47\\n')\nsignal.pause()\n")
             server.chmod(0o700)
-            command = [sys.executable, "-c", "import os,sys; assert os.environ['DISPLAY']==':47'; assert os.environ['PDF_PRESENTER_GUI_TESTS']=='1'; assert 'WAYLAND_DISPLAY' not in os.environ; sys.exit(7)"]
+            command = [sys.executable, "-c", "import os,sys; assert os.environ['DISPLAY']==':47'; assert os.environ['DECKSTRIDE_GUI_TESTS']=='1'; assert 'WAYLAND_DISPLAY' not in os.environ; sys.exit(7)"]
             with patch.object(gui.shutil, "which", return_value=str(server)):
                 self.assertEqual(gui.run(command), 7)
             # Invalid readiness cannot run the requested command.

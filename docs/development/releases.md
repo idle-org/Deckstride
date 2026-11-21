@@ -10,7 +10,7 @@ Build local artifacts without a token or contacting Gitea:
 
 ```sh
 CROSS_CONTAINER_ENGINE=podman ../rust_realease/target/release/rust_realease . \
-  --package pdf-presenter --compile-only
+  --package deckstride --compile-only
 ```
 
 Use the installed `rust_realease` command instead if preferred. Cross must have
@@ -37,7 +37,7 @@ Publication is a separate explicit action: create the version tag at the reviewe
 commit, push that commit/tag, then run:
 
 ```sh
-rust_realease . --package pdf-presenter \
+rust_realease . --package deckstride \
   --message-file docs/development/release-notes/vVERSION.md \
   --token-file ../gitea-token.txt
 ```
@@ -49,7 +49,7 @@ preparation. Never put credentials in configuration, artifacts or Git.
 ## Local validation for 0.1.33
 
 Built Linux x86_64 GNU and Windows x86_64 GNU from commit `6bba0c4` with
-`CROSS_CONTAINER_ENGINE=podman rust_realease . --package pdf-presenter --compile-only`.
+`CROSS_CONTAINER_ENGINE=podman rust_realease . --package deckstride --compile-only`.
 Artifacts are in `dist/release-oTFW9Q/`. The installed tool is 0.1.6-rc.2: it builds
 raw binaries and binstall archives but does not implement the configured portable
 bundles. Those two bundles were assembled from the same binaries using exactly the

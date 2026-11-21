@@ -30,7 +30,7 @@ def run(command):
             if not number.isdecimal() or len(number) > 5:
                 log.seek(0)
                 raise RuntimeError("Xvfb startup failed: " + log.read(2048).decode(errors="replace"))
-            env = dict(os.environ, DISPLAY=f":{number}", PDF_PRESENTER_GUI_TESTS="1")
+            env = dict(os.environ, DISPLAY=f":{number}", DECKSTRIDE_GUI_TESTS="1")
             env.pop("WAYLAND_DISPLAY", None)
             env.pop("WAYLAND_SOCKET", None)
             return subprocess.run(command, env=env, timeout=1800).returncode

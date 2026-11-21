@@ -14,11 +14,11 @@ spec.loader.exec_module(launcher)
 
 class LauncherTests(unittest.TestCase):
     def test_exec_escapes_field_codes_and_shell_characters(self):
-        entry = launcher.desktop_entry('/tmp/a b%f/$x`y"/pdf-presenter', '/tmp/icon.png')
+        entry = launcher.desktop_entry('/tmp/a b%f/$x`y"/deckstride', '/tmp/icon.png')
         self.assertIn('%%f', entry)
         self.assertIn('\\\\$', entry)
         self.assertIn('\\\\`', entry)
-        self.assertIn('StartupWMClass=pdf-presenter', entry)
+        self.assertIn('StartupWMClass=deckstride', entry)
         self.assertIn('" %f\n', entry)
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "Linux launcher integration")
@@ -29,17 +29,17 @@ class LauncherTests(unittest.TestCase):
             bundle.mkdir()
             script = bundle / SCRIPT.name
             script.write_bytes(SCRIPT.read_bytes())
-            (bundle / 'pdf-presenter').touch()
-            (bundle / 'pdf-presenter.png').touch()
+            (bundle / 'deckstride').touch()
+            (bundle / 'deckstride.png').touch()
             env = dict(os.environ, XDG_DATA_HOME=str(root / 'data'))
             result = subprocess.run(
                 [sys.executable, str(script)], env=env, capture_output=True, text=True
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            installed = root / 'data/applications/pdf-presenter.desktop'
+            installed = root / 'data/applications/deckstride.desktop'
             self.assertEqual(installed.read_text(), launcher.desktop_entry(
-                bundle / 'pdf-presenter', bundle / 'pdf-presenter.png'))
-            (bundle / 'pdf-presenter').unlink()
+                bundle / 'deckstride', bundle / 'deckstride.png'))
+            (bundle / 'deckstride').unlink()
             result = subprocess.run(
                 [sys.executable, str(script)], env=env, capture_output=True, text=True
             )

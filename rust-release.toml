@@ -34,15 +34,15 @@ archive-name = "{name}-{bundle}-{target}-v{version}"
 root = "{name}-{bundle}-{target}-v{version}"
 cargo-binaries = "all"
 files = [
-  { source = "assets/window-icon.png", destination = "pdf-presenter.png" },
+  { source = "assets/window-icon.png", destination = "deckstride.png" },
   { source = "scripts/install-linux-launcher.py", destination = "install-linux-launcher.py", workspace-relative = true },
   { source = "LICENSE", destination = "LICENSE.txt", workspace-relative = true },
   { source = "docs/portable-quickstart.txt", destination = "README.txt", workspace-relative = true },
 ]
 
 [[repository.fallbacks]]
-origin = "https://git.dandaedre.com/idle-org/pdf-presenter"
-fallback-url = "https://proxy.dandaedre.com/gitea/idle-org/pdf-presenter"
+origin = "https://git.dandaedre.com/idle-org/deckstride"
+fallback-url = "https://proxy.dandaedre.com/gitea/idle-org/deckstride"
 
 [gitea]
 token-env = "GITEA_TOKEN"

@@ -11,7 +11,7 @@ dual-screen, startup and responsiveness requirements.
 - [Persistent interfaces](../interfaces/README.md)
 - [Changelog](../changelog.md)
 
-Run `cargo run --locked -p pdf-presenter` for the native mock-window test.
+Run `cargo run --locked -p deckstride` for the native mock-window test.
 See the [dual-screen proof guide](dual-screen-poc.md) for controls, limits and the
 physical acceptance still required. PDF loading and release bundles remain pending.
 

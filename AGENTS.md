@@ -1,4 +1,4 @@
-# PDF Presenter
+# Deckstride
 
 Standalone Rust application foundation for multiscreen PDF presentation. Read
 `AGENT_DOCUMENTATION.md` and `docs/development/plan.md` before implementing behavior.
@@ -8,12 +8,12 @@ Physical display, performance, sleep and clean-machine acceptance remain open.
 
 ## Structure and intended architecture
 
-- `crates/pdf-presenter/src/lib.rs`: tested, UI-independent presentation state.
+- `crates/deckstride/src/lib.rs`: tested, UI-independent presentation state.
 - `src/main.rs` in that crate: CLI/native entry point. `native.rs` owns windows, `presenter_ui.rs` controls, `studio.rs` shared state,
   `document.rs` rendering, `worker.rs` supervised jobs, `output.rs` independent host/leases,
   `settings.rs` persistence. `desktop.rs`/`poc.rs`/`paint.rs` retain the display diagnostic.
-- `crates/pdf-presenter/tests/`: meaningful behavior tests, including boundary cases.
-- `crates/pdf-presenter/assets/`: generated app artwork and provenance.
+- `crates/deckstride/tests/`: meaningful behavior tests, including boundary cases.
+- `crates/deckstride/assets/`: generated app artwork and provenance.
 - `scripts/`, `tests/`, `Jenkinsfile`: standalone validation and badge publication.
 - `docs/development/`: architecture decisions, implementation plan and CI setup.
 - `docs/interfaces/`: persistent-format contracts when formats are introduced.
@@ -85,7 +85,7 @@ for Windows/macOS artifacts do not authorize rebuilding them on every later task
 Report platform validation that was not run accurately; do not imply it passed.
 
 CI uses `rust_no_docker`; it archives exactly three badge SVGs and only main/non-PR
-builds publish to `/mnt/assets/coverage/idle-org/pdf-presenter/main/`. No automatic
+builds publish to `/mnt/assets/coverage/idle-org/deckstride/main/`. No automatic
 releases, binaries or manual publication. Jenkins job creation is external setup.
 Never modify another tool's badges or the shared manuals root.
 
