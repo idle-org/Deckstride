@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### 0.1.94
+
+- Show the full, selectable path of the running portable executable under
+  **Preferences → Storage and preparation**, with guidance for finding its folder
+  when updating or removing the application.
+- Linux formatting, warnings-denied Clippy/rustdoc, workspace tests, build and
+  13 Python helper tests pass. Full GUI coverage is 83.83% against the 75% floor.
+
 ### 0.1.93
 
 - Move the open source name out of the Presenter header and into a dedicated bottom

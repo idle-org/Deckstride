@@ -1795,6 +1795,42 @@ fn preferences_window_stays_on_the_presenter_that_opened_it() {
 }
 
 #[test]
+fn preferences_show_the_running_executable_path() {
+    fn contains(shape: &egui::Shape, text: &str) -> bool {
+        match shape {
+            egui::Shape::Text(label) => label.galley.text() == text,
+            egui::Shape::Vec(shapes) => shapes.iter().any(|shape| contains(shape, text)),
+            _ => false,
+        }
+    }
+    let ctx = Context::default();
+    let mut s = studio();
+    s.preferences_open = true;
+    let expected = s.executable_path().display().to_string();
+    let mut ui = UiState::default();
+    let mut output = ctx.run_ui(input(Vec2::new(1280., 900.)), |root| {
+        presenter_ui::presenter(root, &mut s, &mut ui)
+    });
+    for _ in 0..2 {
+        output = ctx.run_ui(input(Vec2::new(1280., 900.)), |root| {
+            presenter_ui::presenter(root, &mut s, &mut ui)
+        });
+    }
+    assert!(
+        output
+            .shapes
+            .iter()
+            .any(|shape| contains(&shape.shape, "Application executable"))
+    );
+    assert!(
+        output
+            .shapes
+            .iter()
+            .any(|shape| contains(&shape.shape, &expected))
+    );
+}
+
+#[test]
 fn any_presenter_can_edit_and_save_another_presenter_layout() {
     fn find(shape: &egui::Shape, label: &str) -> Option<Pos2> {
         match shape {

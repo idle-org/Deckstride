@@ -27,6 +27,9 @@ To update, close PDF Presenter, download and extract the new portable release,
 and run its executable. Settings and saved layouts live in your user configuration
 directory, outside the extracted folder. If you installed the Linux launcher, rerun
 its installer from the new location so it points to the updated binary.
+**Menu → Preferences… → Storage and preparation** shows the full path of the
+currently running executable, so you can find its portable folder when updating or
+removing the application.
 
 Physical display routing, sleep prevention and clean-machine compatibility still
 need broader acceptance testing. Rehearse on the displays you plan to use before a

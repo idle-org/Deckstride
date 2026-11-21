@@ -2556,6 +2556,21 @@ fn preferences_window(ctx: &egui::Context, s: &mut Studio, open: &mut bool) {
                     layout_section(ui, tr(&locale, "Storage and preparation"), |ui| {
                         ui.label(s.preparation_status());
                         ui.separator();
+                        ui.label(
+                            egui::RichText::new(tr(&locale, "Application executable")).strong(),
+                        );
+                        let executable = s.executable_path().display().to_string();
+                        ui.add(
+                            egui::Label::new(egui::RichText::new(&executable).monospace())
+                                .selectable(true)
+                                .wrap(),
+                        )
+                        .on_hover_text(&executable);
+                        ui.small(tr(
+                            &locale,
+                            "This is the running portable executable. Use its containing folder to find or remove the application.",
+                        ));
+                        ui.separator();
                         ui.label(format!(
                             "{}: {}",
                             tr(&locale, "Processed slides"),

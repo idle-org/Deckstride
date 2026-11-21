@@ -324,6 +324,9 @@ impl Studio {
             .as_ref()
             .map_or_else(|| "empty".into(), |d| d.key.clone())
     }
+    pub fn executable_path(&self) -> &std::path::Path {
+        &self.worker_program
+    }
     pub fn frame(&self, page: usize) -> Option<Arc<Frame>> {
         [self.target_edge, 512, 1280, 320]
             .iter()
